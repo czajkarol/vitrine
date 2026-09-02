@@ -35,6 +35,11 @@ packages = ["app"]
 line-length = 100
 target-version = "py312"
 
+[tool.ruff.format]
+# ruff 0.16 began formatting Python blocks embedded in Markdown. The snippets in
+# docs/ are illustrative and hand-aligned for reading, not code that has to compile.
+exclude = ["*.md"]
+
 [tool.ruff.lint]
 select = [
     "E", "F", "W",     # pycodestyle, pyflakes

@@ -5,6 +5,14 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
+# A second push to a branch makes the first run irrelevant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -16,7 +24,9 @@ jobs:
           enable-cache: true
 
       - name: Install
-        run: uv sync --extra dev
+        # --frozen: install exactly what uv.lock pins, and fail if it is stale,
+        # rather than silently resolving something newer than what was tested.
+        run: uv sync --extra dev --frozen
 
       - name: Lint
         run: |
