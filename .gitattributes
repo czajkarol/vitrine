@@ -1,0 +1,18 @@
+# Line endings are normalised to LF in the repository and in the working tree,
+# on every platform. Without this, `core.autocrlf` on a Windows checkout hands a
+# collaborator on Linux a whole-file diff for every file anyone touches.
+* text=auto eol=lf
+
+# The exceptions: Windows refuses to run these unless they are CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Never touched, never diffed as text.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.webp binary
+*.ico  binary
+*.woff binary
+*.woff2 binary
+*.pdf  binary
