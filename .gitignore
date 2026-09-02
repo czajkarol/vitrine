@@ -1,26 +1,44 @@
+# --- Secrets ------------------------------------------------------------------
+# Broad by design: any .env variant is assumed to hold real keys.
 .env
-.env.local
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Runtime data -------------------------------------------------------------
 data/
 *.db
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite3
+*.log
 
+# --- Python -------------------------------------------------------------------
 __pycache__/
 *.py[cod]
 .venv/
 venv/
 .mypy_cache/
+.dmypy.json
 .ruff_cache/
 .pytest_cache/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 dist/
 build/
 *.egg-info/
 
+# --- Editors and OS -----------------------------------------------------------
 .idea/
 .vscode/
+.claude/settings.local.json
 .DS_Store
+Desktop.ini
 
+# --- E2E ----------------------------------------------------------------------
 test-results/
 playwright-report/
