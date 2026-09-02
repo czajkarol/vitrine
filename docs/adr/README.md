@@ -20,3 +20,4 @@ Never edit an accepted ADR to change its decision. Write a new one and mark the 
 | [0005](0005-vanilla-frontend.md) | Vanilla frontend, no build step | Accepted |
 | [0006](0006-transparent-scoring.md) | Transparent scoring, not machine learning | Accepted |
 | [0007](0007-public-domain-only.md) | Public-domain artworks only | Accepted |
+| [0008](0008-image-delivery-fallback.md) | Serve images direct, fall back to a backend proxy | Accepted |

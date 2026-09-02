@@ -3,6 +3,12 @@
 Status: Accepted
 Date: 2026-09-02
 
+> **Postscript, 2026-09-03.** Two premises below were measured against the live API and were
+> wrong; the decision is unaffected and stands. The search cap is **1,000** records, not 10,000
+> — which strengthens the argument. And the plain `/artworks` listing endpoint is **not capped**
+> at all, so the index is built by walking it at 1 req/s rather than by downloading the nightly
+> data dump. Details in `docs/aic-api.md`.
+
 ## Context
 
 The application needs to pick a random artwork matching a set of filters, repeatedly, for hours.

@@ -1,0 +1,41 @@
+{
+  "data": {
+    "id": 117474,
+    "is_boosted": false,
+    "title": "Collared Disc",
+    "thumbnail": null,
+    "main_reference_number": "1950.238",
+    "date_display": "Shang dynasty (c. 1600–1046 B.C.)",
+    "artist_display": "China",
+    "place_of_origin": "China",
+    "description": null,
+    "medium_display": "Jade",
+    "credit_line": "Edward and Louise B. Sonnenschein Collection",
+    "is_public_domain": true,
+    "color": null,
+    "artwork_type_title": "Religious/Ritual Object",
+    "department_title": "Arts of Asia",
+    "artist_title": null,
+    "style_titles": [
+      "Chinese (culture or style)"
+    ],
+    "classification_titles": [
+      "jade",
+      "asian art",
+      "ritual objects"
+    ],
+    "image_id": null
+  },
+  "info": {
+    "license_text": "The `description` field in this response is licensed under a Creative Commons Attribution 4.0 Generic License (CC-By) and the Terms and Conditions of artic.edu. All other data in this response is licensed under a Creative Commons Zero (CC0) 1.0 designation and the Terms and Conditions of artic.edu.",
+    "license_links": [
+      "https://creativecommons.org/publicdomain/zero/1.0/",
+      "https://www.artic.edu/terms"
+    ],
+    "version": "1.15"
+  },
+  "config": {
+    "iiif_url": "https://www.artic.edu/iiif/2",
+    "website_url": "http://www.artic.edu"
+  }
+}

@@ -22,8 +22,11 @@ This is the single most visible piece of engineering in the app. Get it right.
 2. Construct the IIIF URL at the width chosen for this screen.
 3. `const img = new Image(); img.src = url; await img.decode();`
 4. Only after `decode()` resolves, start the crossfade. Two stacked layers, opacity transition.
-5. On `decode()` rejection or image 404: log it, drop that artwork from the rotation, advance
-   to the next candidate. Never show a broken image.
+5. On `decode()` rejection or image 404: retry once through `GET /api/image/{image_id}?w=…`,
+   the proxy fallback from ADR-0008. Remember the outcome for the session, so that once a direct
+   load has failed every later artwork goes straight to the proxy.
+6. If the retry also fails: log it, drop that artwork from the rotation, advance to the next
+   candidate. Never show a broken image.
 
 Using `decode()` rather than the `load` event is what makes the fade flicker-free — the browser
 has finished decoding to a paintable bitmap before you touch opacity.
@@ -35,8 +38,9 @@ this app is idle 99% of the time and the GPU should know it.
 
 Tint the page background with the artwork's dominant colour, heavily desaturated and darkened,
 and transition it alongside the crossfade. It makes the letterboxing feel intentional rather
-than empty. Source the colour from the API `color` field if it exists, otherwise from `lqip`.
-See `docs/aic-api.md` on which of those is confirmed.
+than empty. Source it from the API `color` field, which is confirmed present and carries HSL
+plus a population count (`docs/aic-api.md`). It is `null` on works without an image, so keep the
+`lqip` derivation as the fallback for that case only.
 
 ---
 

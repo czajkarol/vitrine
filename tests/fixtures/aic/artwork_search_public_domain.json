@@ -1,0 +1,461 @@
+{
+  "preference": null,
+  "pagination": {
+    "total": 62046,
+    "limit": 10,
+    "offset": 0,
+    "total_pages": 6205,
+    "current_page": 1
+  },
+  "data": [
+    {
+      "_score": 3465260.5,
+      "id": 28560,
+      "is_boosted": true,
+      "title": "The Bedroom",
+      "thumbnail": {
+        "lqip": "data:image/gif;base64,R0lGODlhBgAFAPQAAHp3ZJttAJdwL5Z6MYt4Sod7V3uDdXmIc3qCe4uATIeCUoWDY4eGZZmOapiObICGdoeEdYqGe42EeIqNeZGOeXyFkHmIoIOIiJSMgZWMgouQhIeNmoCQpZSeqAAAAAAAACH5BAAAAAAAIf8LSW1hZ2VNYWdpY2sOZ2FtbWE9MC40NTQ1NDUALAAAAAAGAAUAAAUYoHUYW8dVyOM01wIwQkAolJYMBYRhUySFADs=",
+        "width": 12614,
+        "height": 9875,
+        "alt_text": "Painting of bedroom, blue walls, green window, tan bed, red bedding."
+      },
+      "main_reference_number": "1926.417",
+      "date_display": "1889",
+      "artist_display": "Vincent van Gogh (Dutch, 1853–1890)",
+      "place_of_origin": "Saint-Rémy-de-Provence",
+      "description": "<p>Perhaps the most famous depiction of a bedroom in Western art history, this vibrant painting documents Vincent van Gogh’s sleeping quarters in his beloved “Yellow House” in Arles, France. The composition exists in three versions, the first of which Van Gogh conceived in October 1888, a month after he moved into the home. In a letter to his brother Theo, he described having painted “the walls pale lilac, the floor in a broken and faded red, the chairs and the bed chrome yellow, the pillows and the sheet very pale lemon green, the bedspread blood-red, the dressing table orange, the washbasin blue, the window green.” With its bold colors, thick and broken brushwork, and sharply receding lines, the picture might suggest a nervous energy. But the artist understood it as a calming and restful image.</p>\n<p>The painting in the Art Institute’s collection is Van Gogh’s second version of the scene, made nearly a year after the first, in September 1889. He produced a third, smaller version at the same time as a gift for his mother and sister.</p>\n",
+      "medium_display": "Oil on canvas",
+      "credit_line": "Helen Birch Bartlett Memorial Collection",
+      "is_public_domain": true,
+      "color": {
+        "h": 40,
+        "l": 34,
+        "s": 65,
+        "percentage": 0.0012772627560697076,
+        "population": 1591
+      },
+      "artwork_type_title": "Painting",
+      "department_title": "Painting and Sculpture of Europe",
+      "artist_title": "Vincent van Gogh",
+      "style_titles": [
+        "Post-Impressionism",
+        "19th century",
+        "nineteenth century"
+      ],
+      "classification_titles": [
+        "oil on canvas",
+        "dutch",
+        "oil paintings (visual works)",
+        "paint",
+        "painting",
+        "european painting"
+      ],
+      "image_id": "6644829f-f292-c5c4-a73c-0356a6fdbf0d"
+    },
+    {
+      "_score": 2310173.8,
+      "id": 21023,
+      "is_boosted": true,
+      "title": "Buddha Shakyamuni Seated in Meditation (Dhyanamudra)",
+      "thumbnail": {
+        "lqip": "data:image/gif;base64,R0lGODlhBAAFAPQAAFdNQ1xSR1BQUVhXVVpYVllaWllaW25jWWljXXFnXWNiYWVjYWxmYGhoaIN6coR8dIiEgYmFggAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAEAAUAAAURoEAMQoEwRnMkjQIEC/Q4UQgAOw==",
+        "width": 5085,
+        "height": 6356,
+        "alt_text": "Dark stone sculpture of Buddha sitting cross-legged, hands in lap, eyes closed."
+      },
+      "main_reference_number": "1964.556",
+      "date_display": "Chola period, about 12th century",
+      "artist_display": "India\nNagapattinam, Tamil Nadu",
+      "place_of_origin": "Nagapattinam",
+      "description": "<p>This meditating Buddha comes from the coastal town of Nagapattinam in southern India, which was, as a result of settlers from Srivijaya (Indonesia), one of the few places where Buddhism was still flourishing in the twelfth century. The Buddha—with his elongated earlobes, the wheel marks on his palms, the <em>urna</em> between his brows, and the cranial protuberance covered with snail-shell curls—is seated in the posture of meditation, with his hands resting on his lap <em>(dhyanamudra)</em>, wearing a seemingly diaphanous monastic garment. As in other images from Nagapattinam, a flame emerges out of the Buddha’s cranial protuberance, probably signifying wisdom. This monumental granite sculpture originally would have graced a monastic site at Nagapattinam, which is also well known for its Buddhist bronzes. The Tamil inscription covering its back is no longer legible.</p>\n",
+      "medium_display": "Granite",
+      "credit_line": "Purchased with funds provided by Mr. and Mrs. Robert Andrew Brown",
+      "is_public_domain": true,
+      "color": {
+        "h": 164,
+        "l": 82,
+        "s": 0,
+        "percentage": 0.06640240759373431,
+        "population": 590
+      },
+      "artwork_type_title": "Sculpture",
+      "department_title": "Arts of Asia",
+      "style_titles": [
+        "South Asian",
+        "chola"
+      ],
+      "classification_titles": [
+        "stone (unidentified)",
+        "stone",
+        "sculpture",
+        "asian art"
+      ],
+      "image_id": "0675f9a9-1a7b-c90a-3bb6-7f7be2afb678",
+      "artist_title": null
+    },
+    {
+      "_score": 577543.44,
+      "id": 20684,
+      "is_boosted": true,
+      "title": "Paris Street; Rainy Day",
+      "thumbnail": {
+        "lqip": "data:image/gif;base64,R0lGODlhBwAFAPUAACYtLiQwNDs9Pjw/QEFFSUVJTlFGRlhPT11iYmdgZ2xjaGpra2xqcWlvdmtzeHp6dH5+e4GDfXh+hJKLhZWTi4aMlZKVk5OWk5eXkpSanJ6emqSglbOrn6Glpq+spbe0q8G7sMTAtMjFuQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAHAAUAAAYhQA7oIwpNFBrLpVNhJBoZiaNwMEA8GARhEHhQNpGFABAEADs=",
+        "width": 9987,
+        "height": 7755,
+        "alt_text": "Life-size painting of an urban scene in Paris. A man in a top hat holding an umbrella and a woman in a long fashionable dark dress walk arm in arm toward the viewer as other city dwellers with umbrellas walk in various directions across cobblestone roads and sidewalks."
+      },
+      "main_reference_number": "1964.336",
+      "date_display": "1877",
+      "artist_display": "Gustave Caillebotte (French, 1848–1894)",
+      "place_of_origin": "Paris",
+      "description": "<p>This monumental painting is Gustave Caillebotte’s largest, most ambitious work and has been a visitor favorite since the Art Institute acquired it in 1964, well before the artist’s contributions to the Impressionist movement were widely recognized. Caillebotte captured a busy intersection of Paris that was only a short walk from his home. In fact, his paintings of Paris rarely depict areas beyond his familiar neighborhoods.</p>\n<p>Caillebotte demonstrated his affinity with the Impressionists through his subject of modern urban life but approached these settings with a more Realist technique. The dramatic cropping of the scene may have been inspired by the newly popularized medium of photography; the two central figures seem to be walking straight into the viewer as something captures their attention outside of the frame. At the time, artists rarely attempted to depict people in motion; Caillebotte carefully placed each of the background figures to evoke the feeling of bustling city streets. When he started exhibiting with the Impressionists, Caillebotte also focused on portraying the atmosphere of his scenes; here, instead of explicitly painting raindrops to indicate the weather, he suggests it through the incorporation of newly available retractable umbrellas and the subtle reflections on the wet cobblestones.</p>\n",
+      "medium_display": "Oil on canvas",
+      "credit_line": "Charles H. and Mary F. S. Worcester Collection",
+      "is_public_domain": true,
+      "color": {
+        "h": 205,
+        "l": 51,
+        "s": 14,
+        "percentage": 0.04690626895945958,
+        "population": 259
+      },
+      "artwork_type_title": "Painting",
+      "department_title": "Painting and Sculpture of Europe",
+      "artist_title": "Gustave Caillebotte",
+      "style_titles": [
+        "Impressionism",
+        "19th century"
+      ],
+      "classification_titles": [
+        "oil on canvas",
+        "french",
+        "oil paintings (visual works)",
+        "paint",
+        "painting",
+        "european painting"
+      ],
+      "image_id": "f8fd76e9-c396-5678-36ed-6a348c904d27"
+    },
+    {
+      "_score": 495037.22,
+      "id": 27992,
+      "is_boosted": true,
+      "title": "A Sunday on La Grande Jatte — 1884",
+      "thumbnail": {
+        "lqip": "data:image/gif;base64,R0lGODlhCAAFAPUAAE1WUFVTU1NWUFZYVllbVlpaW1tcWF1cXVxiWl1jWl9mX2NmVWVnXF9eZlxdaGZkYmpmZWRtYGZuY2htZGpsanBsZXVwZXB5Znp+ZXJwaYSAaYiBaYqIbIeAdI2DcYqFcI+FcoiCd5iRcouJgIyKhoyNi4mMjo2RkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAIAAUAAAYlwBLmMmEkCAHTaRTqfB4QEmgj8mgaGY6lsohIHAXKwQBQIAaCIAA7",
+        "width": 9310,
+        "height": 6237,
+        "alt_text": "Large painting of people in a crowded park, brushstrokes are dots."
+      },
+      "main_reference_number": "1926.224",
+      "date_display": "1884–86, border added 1888–89",
+      "artist_display": "Georges Seurat (French, 1859–1891)",
+      "place_of_origin": "France",
+      "description": "<p>In <em>Ferris Bueller’s Day Off</em>, Ferris’s best friend Cameron Frye intensely studies this nearly ten-foot-wide painting during a scene set at the Art Institute. Featuring people of every age and social class on the banks of the River Seine, <em>A Sunday on La Grande Jatte—1884</em> has captivated visitors ever since its arrival at the museum in 1924.</p>\n<p>If we, like Cameron, come closer to the painting, figures and forms dissolve into dots and dashes of complementary colors laid side by side, characteristic of Seurat’s pointillist technique. Many smaller painted and drawn sketches and several larger canvases, in which Seurat laid out the parameters for the landscape and figures, led up to this majestically composed scene. Seurat returned to the work two years after its start date, amplifying the silhouettes of some figures and adding others. Some of these, like the monkey on the leash, seem so integral to the final composition that it is hard to imagine them as add-ons, but others, like the man carrying a rolled newspaper in the furthest distance, are barely noticeable. To the artist, however, every decision was essential to his aim of making a painting of modern life equivalent to a classical Greek frieze.</p>\n",
+      "medium_display": "Oil on canvas",
+      "credit_line": "Helen Birch Bartlett Memorial Collection",
+      "is_public_domain": true,
+      "color": {
+        "h": 59,
+        "l": 52,
+        "s": 12,
+        "percentage": 0.002095873918287094,
+        "population": 1217
+      },
+      "artwork_type_title": "Painting",
+      "department_title": "Painting and Sculpture of Europe",
+      "artist_title": "Georges Seurat",
+      "style_titles": [
+        "Pointillism",
+        "nineteenth century",
+        "19th century",
+        "Post-Impressionism",
+        "Impressionism"
+      ],
+      "classification_titles": [
+        "oil on canvas",
+        "paint",
+        "oil paintings (visual works)",
+        "french",
+        "painting",
+        "european painting"
+      ],
+      "image_id": "2d484387-2509-5e8e-2c43-22f9981972eb"
+    },
+    {
+      "_score": 231017.36,
+      "id": 75644,
+      "is_boosted": true,
+      "title": "Coronation Stone of Moctezuma Xocoyotzin",
+      "thumbnail": {
+        "lqip": "data:image/gif;base64,R0lGODlhBAAFAPQAACgiHzIrJDMvLDw1L01IQFZUTmZjWm5nXWVpaHFvaH54boF8bYeBcouEdoKEgYGFhIOMj52UhaOdjrSunwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAEAAUAAAUR4BAAwhE1hDJJRsIsBfQ4SAgAOw==",
+        "width": 1743,
+        "height": 2250,
+        "alt_text": "Large plaque of stone carved with animal and geometric hieroglyphs."
+      },
+      "main_reference_number": "1990.21",
+      "date_display": "c. 1503",
+      "artist_display": "Maker unknown (Mexica, Aztec)\nProbably Tenochtitlan (now Mexico City), Mexico",
+      "place_of_origin": "Tenochtitlan",
+      "description": "<p>The Mexicas, or Aztec Empire, ruled central Mexico from 1428 until 1521. This monument uses glyphs to record the history of the Mexica universe up to 1503. On the back, <em>1 Rabbit</em> represents the beginning of time. On the front, the four previous cosmic eras are inscribed in the corners, while the current cosmic era <em>4 Movement</em> appears in the center. <em>1 Crocodile</em> (above) and <em>11 Reed</em> (in the square frame) indicate the date July 15, 1503, when the ninth emperor Moctezuma Xocoyotzin was coronated. Just as these glyphs recurred throughout the Mexica capital, Tenochtitlan, they can also be found in Chicago: <em>4 Movement</em> appears in a mural at the 18th Street “L” stop and on manhole covers in Pilsen—a neighborhood that has long been home to Chicago’s vibrant Mexican community.</p>\n",
+      "medium_display": "Basalt",
+      "credit_line": "Major Acquisitions Fund",
+      "is_public_domain": true,
+      "color": {
+        "h": 43,
+        "l": 52,
+        "s": 4,
+        "percentage": 0.06236480357267462,
+        "population": 572
+      },
+      "artwork_type_title": "Sculpture",
+      "department_title": "Arts of the Americas",
+      "artist_title": "Mexica (Aztec)",
+      "style_titles": [
+        "mexica (aztec)",
+        "aztec",
+        "mesoamerican",
+        "Pre-Columbian",
+        "americas",
+        "Arts of the Americas"
+      ],
+      "classification_titles": [
+        "ceremonial object",
+        "stone",
+        "art of the americas",
+        "sculpture"
+      ],
+      "image_id": "ea8c5d62-6ce8-88e8-feb1-e0053cf534c5"
+    },
+    {
+      "_score": 123759.305,
+      "id": 102611,
+      "is_boosted": true,
+      "title": "Veranda Post (Òpó Ògògá)",
+      "thumbnail": {
+        "lqip": "data:image/gif;base64,R0lGODlhAwAFAPMAAGhdU25lW2xoZXl1b3JycnV1dXh3d3l5eX18e359fH5+foCAf4GAgIKCgoODgwAAACH5BAAAAAAAIf8LSW1hZ2VNYWdpY2sOZ2FtbWE9MC40NTQ1NDUALAAAAAADAAUAAAQKsKW2hgzoAENEiQA7",
+        "width": 5792,
+        "height": 8688,
+        "alt_text": "Wooden sculpture of seated king surrounded by family."
+      },
+      "main_reference_number": "1984.550",
+      "date_display": "1910-14",
+      "artist_display": "Olowe of Ise (died 1938)\nYòrùbá: Èkìtì; Ikere, Nigeria\nCoastal West Africa",
+      "place_of_origin": "Ikere",
+      "description": "<p>One of four posts sculpted for the palace of the king (<em>ogoga</em>) of Ikere, this evocative image of the Yoruba concept of a divine ruler is a masterwork of Olowe of Ise. The renowned artist’s dynamic style can be distinguished by the interrelationships between figures, their exaggerated proportions, and the use of open space. The sculptor’s diminutive portrayal of the king suggests his dependence on others, and his crown has been emphasized to evoke the spiritual power residing within it.  The towering image of the king’s senior wife standing behind him underscores her superior status as a guardian of her husband’s interests, endowed with keen political understanding and supernatural knowledge. She would have placed the crown on the king’s head during his enthronement ceremony. The smaller figures at the king’s feet represent one of his junior wives and the flute-playing trickster god Eshu.</p>\n",
+      "medium_display": "Wood and pigment",
+      "credit_line": "The Art Institute of Chicago, Major Acquisitions Centennial Fund",
+      "is_public_domain": true,
+      "color": {
+        "h": 74,
+        "l": 58,
+        "s": 4,
+        "percentage": 2.1859706154675785e-05,
+        "population": 11
+      },
+      "artwork_type_title": "Sculpture",
+      "department_title": "Arts of Africa",
+      "artist_title": "Olowe of Ise",
+      "style_titles": [
+        "yoruba",
+        "Arts of Africa",
+        "Coastal West Africa",
+        "african Art"
+      ],
+      "classification_titles": [
+        "sculpture",
+        "wood",
+        "arts of Africa",
+        "architectural fragment",
+        "african art",
+        "carving",
+        "architectural sculpture"
+      ],
+      "image_id": "fec5d023-0b46-45df-eb57-cbf64e24121d"
+    },
+    {
+      "_score": 72952.85,
+      "id": 89503,
+      "is_boosted": true,
+      "title": "Under the Wave off Kanagawa (Kanagawa oki nami ura), also known as The Great Wave, from the series \"Thirty-Six Views of Mount Fuji (Fugaku sanjurokkei)\"",
+      "thumbnail": {
+        "lqip": "data:image/gif;base64,R0lGODlhBwAFAPUAAD5QY2Rramhtbn97bGBvdmNveHZ/foJ5Zn+Ac4yHda+efHOAhXmCgnuEg4SMhYyNgYuNhoOMipqWg7enh7mkgLyngbyng7ysjbCpkbKrlriskb6wlcGriMKuicuzjM61jcq1k862kNK7lQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAHAAUAAAYhQJBI0/l4QpsMQDKxcBgEgaJCuUAemMEhESk0HAGEYREEADs=",
+        "width": 6645,
+        "height": 4597,
+        "alt_text": "A color woodblock print of a large crashing wave, looms over two narrow boats full of people. Mt Fuji in the background.  There is a faint peach colored sky."
+      },
+      "main_reference_number": "1928.1086",
+      "date_display": "1830/33",
+      "artist_display": "Katsushika Hokusai 葛飾 北斎\nJapanese, 1760-1849",
+      "place_of_origin": "Japan",
+      "description": "<p>Katsushika Hokusai’s much celebrated series, Thirty-Six Views of Mount Fuji (Fugaku sanjûrokkei), was begun in 1830, when the artist was 70 years old. This tour-de-force series established the popularity of landscape prints, which continues to this day. Perhaps most striking about the series is Hokusai’s copious use of the newly affordable Berlin blue pigment, featured in many of the compositions in the color for the sky and water. Mount Fuji is the protagonist in each scene, viewed from afar or up close, during various weather conditions and seasons, and from all directions.</p>\n<p>The most famous image from the set is the &quot;Great Wave&quot; (Kanagawa oki nami ura), in which a diminutive Mount Fuji can be seen in the distance under the crest of a giant wave. The three impressions of Hokusai’s Great Wave in the Art Institute are all later impressions than the first state of the design.</p>\n",
+      "medium_display": "Color woodblock print; oban",
+      "credit_line": "Clarence Buckingham Collection",
+      "is_public_domain": true,
+      "color": {
+        "h": 46,
+        "l": 44,
+        "s": 35,
+        "percentage": 0.004968542912684069,
+        "population": 24
+      },
+      "artwork_type_title": "Print",
+      "department_title": "Arts of Asia",
+      "artist_title": "Katsushika Hokusai",
+      "style_titles": [
+        "Japanese (culture or style)"
+      ],
+      "classification_titles": [
+        "woodblock print",
+        "print",
+        "asian art"
+      ],
+      "image_id": "2fa24f36-cc26-41b6-4b49-12bba2a6c1c8"
+    },
+    {
+      "_score": 69305.21,
+      "id": 87479,
+      "is_boosted": true,
+      "title": "The Assumption of the Virgin",
+      "thumbnail": {
+        "lqip": "data:image/gif;base64,R0lGODlhAgAFAPMAAEQ8Mk5DOGBLRmRQR2FYT29jUGxpX3dqWGReZmBmZwAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAACAAUAAAQIsJyEDBlAhAgAOw==",
+        "width": 3990,
+        "height": 7631,
+        "alt_text": "Painting of the Virgin Mary ascending to heaven amongst multitude of angels."
+      },
+      "main_reference_number": "1906.99",
+      "date_display": "1577–79",
+      "artist_display": "El Greco (Doménikos Theotokópoulos; Greek, active in Spain, 1541–1614)",
+      "place_of_origin": "Greece",
+      "description": "<p><em>The Assumption of the Virgin</em> was the central image of El Greco’s first major commission, an altarpiece for the Church of Santo Domingo el Antiguo, a convent in Toledo, Spain. The painting’s subject, the raising of the Virgin Mary’s body into heaven, relates to the function of the church as the funerary monument of a wealthy noblewoman, Doña Maria de Silva; the iconography of the entire commission focuses on death and salvation.</p>\n<p>El Greco used broad, free brushwork, flickering hues, rich color harmonies, and bold figural arrangements to arouse devotional fervor in the viewer and impart a deep sense of faith. The composition is divided into two zones: the earthly sphere of the apostles and the celestial realm of the angels. El Greco masterfully compressed many figures into a tall and narrow format: In the earthly zone, the apostles’ faces and gestures express a range of emotions through their dynamic, agitated gestures and poses. They are so individually considered that it seems El Greco studied actual studio models. In contrast, the angels in the heavenly scene above are calm, graceful, and direct in their focus toward the looming figure of the Virgin Mary as she rises into their realm.</p>\n",
+      "medium_display": "Oil on canvas",
+      "credit_line": "Gift of Nancy Atwood Sprague in memory of Albert Arnold Sprague",
+      "is_public_domain": true,
+      "color": {
+        "h": 207,
+        "l": 31,
+        "s": 46,
+        "percentage": 0.018429079816980172,
+        "population": 261
+      },
+      "artwork_type_title": "Painting",
+      "department_title": "Painting and Sculpture of Europe",
+      "artist_title": "Domenico Theotokópoulos, called El Greco",
+      "style_titles": [
+        "Mannerism",
+        "sixteenth century",
+        "16th Century",
+        "Renaissance"
+      ],
+      "classification_titles": [
+        "oil on canvas",
+        "paint",
+        "oil paintings (visual works)",
+        "altarpiece",
+        "painting",
+        "european painting"
+      ],
+      "image_id": "47fd1564-93f5-f30b-7786-013421133b4a"
+    },
+    {
+      "_score": 55004.137,
+      "id": 64818,
+      "is_boosted": true,
+      "title": "Stacks of Wheat (End of Summer)",
+      "thumbnail": {
+        "lqip": "data:image/gif;base64,R0lGODlhCAAFAPUAAF5eVW1bVm9eVmpjW3RoXXxyV39yXmdsZmhmaXZtbG11eH57eYl5bYR7dHuAf4mDfo6HfpePdpCFeZSOfJ+VdnZ+g4ODgoCHg4iHgo+GgY2MgpmThJeTipaSjaCcmbWnh6qrpKmopqqtrKusrbGxobq4pLu5qq2zsQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAIAAUAAAYlwJNoFAKRSiZPh7OZRCgfBWJwAAQEBU2D8VgkCAYI5uKoWDKSIAA7",
+        "width": 6884,
+        "height": 4068,
+        "alt_text": "Painting composed of short, dense brushstrokes depicts two domed stacks of wheat that cast long shadows on a field. The angled light indicates either a rising or setting sun."
+      },
+      "main_reference_number": "1985.1103",
+      "date_display": "1890–91",
+      "artist_display": "Claude Monet (French, 1840–1926)",
+      "place_of_origin": "France",
+      "description": "<p>The monumental stacks that Claude Monet depicted in his series <a href=\"https://www.youtube.com/watch?v=NFPs_cRRGdM&feature=youtu.be\"><em>Stacks of Wheat</em></a> rose fifteen to twenty feet and stood just outside the artist’s farmhouse at Giverny. Through 1890 and 1891, he worked on this series both in the field, painting simultaneously at several easels, and in the studio, refining pictorial harmonies. In May 1891, Monet hung fifteen of these canvases next to each other in one small room in the Galerie Durand-Ruel in Paris. An unprecedented critical and financial success, the exhibition marked a breakthrough in Monet’s career, as well as in the history of French art. In this view, and in nearly all of the autumn views in the series, the conical tops of the stacks break the horizon and push into the sky. But in most of the winter views, which constitute the core of the series, the stacks seem wrapped by bands of hill and field, as if bedded down for the season. For Monet, the stack was a resonant symbol of sustenance and survival. He followed this group with further series depicting poplars, the facade of Rouen Cathedral, and, later, his own garden at Giverny. The Art Institute has the largest group of Monet’s <em>Stacks of Wheat</em> in the world.</p>\n",
+      "medium_display": "Oil on canvas",
+      "credit_line": "Gift of Arthur M. Wood, Sr. in memory of Pauline Palmer Wood",
+      "is_public_domain": true,
+      "color": {
+        "h": 52,
+        "l": 38,
+        "s": 47,
+        "percentage": 0.004525813812783756,
+        "population": 19
+      },
+      "artwork_type_title": "Painting",
+      "department_title": "Painting and Sculpture of Europe",
+      "artist_title": "Claude Monet",
+      "style_titles": [
+        "Impressionism",
+        "nineteenth century",
+        "19th century"
+      ],
+      "classification_titles": [
+        "oil on canvas",
+        "paint",
+        "oil paintings (visual works)",
+        "french",
+        "painting",
+        "european painting"
+      ],
+      "image_id": "a38e2828-ec6f-ece1-a30f-70243449197b"
+    },
+    {
+      "_score": 18317.693,
+      "id": 16568,
+      "is_boosted": true,
+      "title": "Water Lilies",
+      "thumbnail": {
+        "lqip": "data:image/gif;base64,R0lGODlhBQAFAPQAAEZcaFFfdVtqbk9ldFBlcVFocllrcFlrd11rdl9sdFZtf15wcWV0d2R2eGByfmd6eGl6e2t9elZxiGF4kWB4kmJ9kGJ8lWeCkWSAnQAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAFAAUAAAUVoJBADXI4TLRMWHU9hmRRCjAURBACADs=",
+        "width": 8808,
+        "height": 8460,
+        "alt_text": "Painting of a pond seen up close spotted with thickly painted pink and white water lilies and a shadow across the top third of the picture."
+      },
+      "main_reference_number": "1933.1157",
+      "date_display": "1906",
+      "artist_display": "Claude Monet (French, 1840–1926)",
+      "place_of_origin": "France",
+      "description": "<p>Little did Claude Monet know that the water garden he created three years after buying his Giverny, France, property in 1890 would become his primary inspiration over the next two and a half decades. These paintings, numbering around 250, mark Monet’s artistic journey from more straightforward depictions of the pond spanned by the wooden Japanese bridge to the monumental and near-abstract series on the water lily theme he made in preparation for his murals at the Musée de l’Orangerie in Paris between 1914 and 1926.</p>\n<p><em> Water Lilies</em>, one of a group of paintings on the subject made between 1903 and 1908, comes at the midpoint of Monet’s developing style and spatial experimentations. The nearly square format underscores his move away from painting the conventional zones of land, sky, and water to focus solely on the water’s surface. Clusters of water lilies at bottom left and top right frame a watery path, while the water’s surface reflects trees and clouds. Although the dreamlike quality of floating forms might seem to be a natural development for the artist, he considered these works “an obsession,” a sentiment borne out by technical examinations on the Art Institute’s canvas, revealing many significant changes made to the painting in progress.</p>\n",
+      "medium_display": "Oil on canvas",
+      "credit_line": "Mr. and Mrs. Martin A. Ryerson Collection",
+      "is_public_domain": true,
+      "color": {
+        "h": 197,
+        "l": 37,
+        "s": 41,
+        "percentage": 0.08651191298367858,
+        "population": 590
+      },
+      "artwork_type_title": "Painting",
+      "department_title": "Painting and Sculpture of Europe",
+      "artist_title": "Claude Monet",
+      "style_titles": [
+        "Impressionism",
+        "20th Century"
+      ],
+      "classification_titles": [
+        "oil on canvas",
+        "paint",
+        "oil paintings (visual works)",
+        "french",
+        "european painting",
+        "painting",
+        "modern and contemporary art"
+      ],
+      "image_id": "3c27b499-af56-f0d5-93b5-a7f2f1ad5813"
+    }
+  ],
+  "info": {
+    "license_text": "The `description` field in this response is licensed under a Creative Commons Attribution 4.0 Generic License (CC-By) and the Terms and Conditions of artic.edu. All other data in this response is licensed under a Creative Commons Zero (CC0) 1.0 designation and the Terms and Conditions of artic.edu.",
+    "license_links": [
+      "https://creativecommons.org/publicdomain/zero/1.0/",
+      "https://www.artic.edu/terms"
+    ],
+    "version": "1.15"
+  },
+  "config": {
+    "iiif_url": "https://www.artic.edu/iiif/2",
+    "website_url": "http://www.artic.edu"
+  }
+}

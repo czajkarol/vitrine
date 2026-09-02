@@ -1,0 +1,59 @@
+{
+  "data": {
+    "id": 27992,
+    "is_boosted": true,
+    "title": "A Sunday on La Grande Jatte — 1884",
+    "thumbnail": {
+      "lqip": "data:image/gif;base64,R0lGODlhCAAFAPUAAE1WUFVTU1NWUFZYVllbVlpaW1tcWF1cXVxiWl1jWl9mX2NmVWVnXF9eZlxdaGZkYmpmZWRtYGZuY2htZGpsanBsZXVwZXB5Znp+ZXJwaYSAaYiBaYqIbIeAdI2DcYqFcI+FcoiCd5iRcouJgIyKhoyNi4mMjo2RkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAIAAUAAAYlwBLmMmEkCAHTaRTqfB4QEmgj8mgaGY6lsohIHAXKwQBQIAaCIAA7",
+      "width": 9310,
+      "height": 6237,
+      "alt_text": "Large painting of people in a crowded park, brushstrokes are dots."
+    },
+    "main_reference_number": "1926.224",
+    "date_display": "1884–86, border added 1888–89",
+    "artist_display": "Georges Seurat (French, 1859–1891)",
+    "place_of_origin": "France",
+    "description": "<p>In <em>Ferris Bueller’s Day Off</em>, Ferris’s best friend Cameron Frye intensely studies this nearly ten-foot-wide painting during a scene set at the Art Institute. Featuring people of every age and social class on the banks of the River Seine, <em>A Sunday on La Grande Jatte—1884</em> has captivated visitors ever since its arrival at the museum in 1924.</p>\n<p>If we, like Cameron, come closer to the painting, figures and forms dissolve into dots and dashes of complementary colors laid side by side, characteristic of Seurat’s pointillist technique. Many smaller painted and drawn sketches and several larger canvases, in which Seurat laid out the parameters for the landscape and figures, led up to this majestically composed scene. Seurat returned to the work two years after its start date, amplifying the silhouettes of some figures and adding others. Some of these, like the monkey on the leash, seem so integral to the final composition that it is hard to imagine them as add-ons, but others, like the man carrying a rolled newspaper in the furthest distance, are barely noticeable. To the artist, however, every decision was essential to his aim of making a painting of modern life equivalent to a classical Greek frieze.</p>\n",
+    "medium_display": "Oil on canvas",
+    "credit_line": "Helen Birch Bartlett Memorial Collection",
+    "is_public_domain": true,
+    "color": {
+      "h": 59,
+      "l": 52,
+      "s": 12,
+      "percentage": 0.002095873918287094,
+      "population": 1217
+    },
+    "artwork_type_title": "Painting",
+    "department_title": "Painting and Sculpture of Europe",
+    "artist_title": "Georges Seurat",
+    "style_titles": [
+      "Pointillism",
+      "nineteenth century",
+      "19th century",
+      "Post-Impressionism",
+      "Impressionism"
+    ],
+    "classification_titles": [
+      "oil on canvas",
+      "paint",
+      "oil paintings (visual works)",
+      "french",
+      "painting",
+      "european painting"
+    ],
+    "image_id": "2d484387-2509-5e8e-2c43-22f9981972eb"
+  },
+  "info": {
+    "license_text": "The `description` field in this response is licensed under a Creative Commons Attribution 4.0 Generic License (CC-By) and the Terms and Conditions of artic.edu. All other data in this response is licensed under a Creative Commons Zero (CC0) 1.0 designation and the Terms and Conditions of artic.edu.",
+    "license_links": [
+      "https://creativecommons.org/publicdomain/zero/1.0/",
+      "https://www.artic.edu/terms"
+    ],
+    "version": "1.15"
+  },
+  "config": {
+    "iiif_url": "https://www.artic.edu/iiif/2",
+    "website_url": "http://www.artic.edu"
+  }
+}

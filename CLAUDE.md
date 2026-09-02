@@ -25,15 +25,20 @@ The project name is provisional. If it is going to change, change it in M0 befor
 These are the pitfalls that will silently break things. Full detail in `docs/aic-api.md`.
 
 - **60 requests/minute per IP, anonymous.** The client needs its own throttle. There is no API key.
-- **Search endpoints cap at 10,000 records** across any `limit`/`page` combination. You cannot
-  paginate through the collection. This is why the artwork corpus is indexed locally — see ADR-0003.
+- **`/artworks/search` caps at 1,000 records** (`page × limit ≤ 1000`), not 10,000 — measured,
+  not read off the docs. You cannot paginate the collection through search. This is why the
+  corpus is indexed locally — see ADR-0003.
+- **`/artworks` (the plain listing endpoint) is not capped.** It walks all 132,740 records at
+  `limit=100`. That, not the nightly data dump, is how `scripts/build_index.py` gets its corpus.
 - **`limit` cannot exceed 100.** Default is 12.
 - **Send an `AIC-User-Agent` header** with the project name and a contact email on every request.
 - **Never hardcode the IIIF base URL.** It is in `config.iiif_url` on every API response.
 - **Request image width `843`.** It is AIC's most-cached size. `1686` only for public-domain works
   that genuinely need it.
-- **Do not proxy or scrape images.** AIC serves them with `Access-Control-Allow-Origin: *` and
-  explicitly permits hotlinking. A proxy adds a failure mode and bandwidth cost for nothing.
+- **Hotlinking is blocked by Cloudflare; try direct, then fall back to the proxy.** Getting a
+  `200` from the IIIF service needs an `AIC-User-Agent` header, and an `<img>` tag cannot send
+  one. The frontend attempts the direct URL and retries once via `GET /api/image/{image_id}`.
+  Do not proxy unconditionally, and do not scrape. See ADR-0008.
 - **Any image can be unpublished or replaced at any time.** Handle 404s on images at display time,
   and treat the local index as a cache that goes stale, not as truth.
 - **Licensing:** the `description` field is CC BY 4.0 and requires attribution. Everything else is
