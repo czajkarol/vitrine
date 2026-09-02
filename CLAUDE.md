@@ -10,7 +10,6 @@ The project name is provisional. If it is going to change, change it in M0 befor
 
 ## Non-negotiables
 
-- Never `git push`, force-push, or rewrite history. Local commits only, unless told otherwise.
 - Never commit secrets. API keys live in `.env`, which is gitignored.
 - Never send provider API keys to the frontend. All AI calls go through the backend.
 - Only display artworks where `is_public_domain == true`. This is a hard filter, not a preference.
