@@ -49,7 +49,10 @@ class Artwork(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     id: int
-    title: str
+
+    title: str | None = None
+    """AIC genuinely returns `null` here — found on the full collection walk, roughly
+    112,000 records in. Untitled works exist; the display captions them accordingly."""
 
     artist_title: str | None = None
     artist_display: str | None = None

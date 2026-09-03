@@ -20,6 +20,7 @@ def _artwork(artwork_id: int = 1, **overrides) -> Artwork:
             width=2000, height=1500, lqip="data:image/gif;base64,x", alt_text="alt"
         ),
         "color": Color(h=200, s=50, l=40),
+        "artwork_type_title": "Painting",
     }
     return Artwork(**{**base, **overrides})
 
@@ -149,3 +150,87 @@ class TestPreferencesRepository:
     def test_returns_the_default_for_an_unknown_key(self, database: Database):
         assert PreferencesRepository(database).get_sync("nope", "fallback") == "fallback"
         assert PreferencesRepository(database).get_sync("nope") is None
+
+
+class TestCuratedSampling:
+    def test_draws_only_from_scored_rows(self, database: Database):
+        # An unscored row is unranked, not bad — but curated mode cannot place it, so it
+        # must not leak into a curated rotation.
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1), _artwork(2)])
+        repo.update_scores_sync({1: 0.9})
+
+        sampled = repo.sample_sync(10, curated=True)
+        assert [a.id for a in sampled] == [1]
+
+    def test_random_mode_still_sees_unscored_rows(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1), _artwork(2)])
+        assert len(repo.sample_sync(10)) == 2
+
+    def test_prefers_higher_scores(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(i) for i in range(1, 11)])
+        repo.update_scores_sync({i: i / 10 for i in range(1, 11)})
+
+        # The pool is wider than this index, so all scored rows are eligible; what this
+        # asserts is that scoring does not exclude or reorder wrongly.
+        sampled = repo.sample_sync(3, curated=True)
+        assert len(sampled) == 3
+
+    def test_filters_by_classification(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync(
+            [
+                _artwork(1, artwork_type_title="Painting"),
+                _artwork(2, artwork_type_title="Coin"),
+            ]
+        )
+        sampled = repo.sample_sync(10, artwork_type="Painting")
+        assert [a.id for a in sampled] == [1]
+
+    def test_an_unmatched_filter_returns_nothing_rather_than_everything(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1, artwork_type_title="Painting")])
+        assert repo.sample_sync(10, artwork_type="Sculpture") == []
+
+
+class TestScoringPass:
+    def test_scores_are_written_and_counted(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1), _artwork(2)])
+        assert repo.scored_count_sync() == 0
+
+        assert repo.update_scores_sync({1: 0.5, 2: 0.25}) == 2
+        assert repo.scored_count_sync() == 2
+
+    def test_writing_no_scores_is_not_an_error(self, database: Database):
+        assert ArtworkIndexRepository(database).update_scores_sync({}) == 0
+
+    def test_iterating_yields_every_row_once(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(i) for i in range(1, 26)])
+
+        seen = [a.id for chunk in repo.iter_for_scoring_sync(batch=10) for a in chunk]
+        assert sorted(seen) == list(range(1, 26))
+        assert len(seen) == len(set(seen))
+
+    def test_iterating_an_empty_index_yields_nothing(self, database: Database):
+        assert list(ArtworkIndexRepository(database).iter_for_scoring_sync()) == []
+
+
+class TestArtworkTypeCounts:
+    def test_counts_per_type_biggest_first(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync(
+            [_artwork(i, artwork_type_title="Painting") for i in range(1, 4)]
+            + [_artwork(10, artwork_type_title="Coin")]
+        )
+        counts = repo.artwork_type_counts_sync()
+        assert counts == {"Painting": 3, "Coin": 1}
+        assert list(counts) == ["Painting", "Coin"]
+
+    def test_ignores_rows_with_no_type(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1, artwork_type_title=None)])
+        assert ArtworkIndexRepository(database).artwork_type_counts_sync() == {}

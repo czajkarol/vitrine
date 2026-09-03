@@ -7,10 +7,12 @@ sees a raw response dict. When AIC renames a field, this file changes and nothin
 import asyncio
 import logging
 import random
+from collections.abc import Iterator
 from types import TracebackType
 from typing import Any, Final
 
 import httpx
+from pydantic import ValidationError
 
 from app.core.config import Settings
 from app.domain.artwork import (
@@ -242,6 +244,24 @@ class AicClient:
     def _parse_artwork(record: dict[str, Any]) -> Artwork:
         return Artwork.model_validate(record)
 
+    @staticmethod
+    def _parse_records(records: list[Any]) -> Iterator[Artwork]:
+        """Parse what we can and skip what we cannot, loudly.
+
+        A single unparseable record used to abort the whole crawl — one artwork with a
+        null title killed a 1,328-page walk at page 1,121. Over a collection this size
+        some rows will always be odd, and losing one is much cheaper than losing the run.
+        The warning is what keeps this from hiding a real API change: a handful of these
+        is data, a page of them is a contract break.
+        """
+        for record in records:
+            if not isinstance(record, dict) or "id" not in record:
+                continue
+            try:
+                yield Artwork.model_validate(record)
+            except ValidationError as exc:
+                logger.warning("Skipping unparseable artwork %s: %s", record.get("id"), exc)
+
     def _parse_page(self, payload: dict[str, Any]) -> ArtworkPage:
         config = payload.get("config") or {}
         iiif_base = config.get("iiif_url")
@@ -250,9 +270,7 @@ class AicClient:
             # and guessing would paper over an AIC change we want to hear about.
             raise AicError("AIC response carried no config.iiif_url")
         records = payload.get("data") or []
-        artworks = tuple(
-            self._parse_artwork(r) for r in records if isinstance(r, dict) and "id" in r
-        )
+        artworks = tuple(self._parse_records(records))
         pagination = payload.get("pagination") or {}
         return ArtworkPage(
             artworks=artworks,

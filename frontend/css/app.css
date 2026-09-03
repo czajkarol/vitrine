@@ -150,5 +150,81 @@ body {
 /* Nothing should animate at rest, and reduced motion means cut, not fade. */
 @media (prefers-reduced-motion: reduce) {
   :root { --fade: 1ms; --fade-ui: 1ms; }
-  .overlay, .artwork, .layer, body { transition-duration: 1ms; }
+  .overlay, .artwork, .layer, .panel, body { transition-duration: 1ms; }
+}
+
+/* --- Settings panel ---------------------------------------------------------
+   Deliberately plain. This is the one place the app is allowed to look like a
+   form, and it is only ever on screen while the user is holding it open. */
+
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(26rem, 90vw);
+  padding: 1.75rem;
+  overflow-y: auto;
+  background: rgba(14, 14, 16, 0.96);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  opacity: 0;
+  transform: translateX(100%);
+  transition: opacity var(--fade-ui) ease-in-out, transform var(--fade-ui) ease-in-out;
+  pointer-events: none;
+}
+
+.panel.visible {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.panel-heading {
+  margin: 0 0 1.25rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.panel-group {
+  margin: 0 0 1.5rem;
+  padding: 0;
+  border: 0;
+}
+
+.panel-group legend {
+  padding: 0;
+  margin-bottom: 0.5rem;
+  color: var(--fg-dim);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.panel-option {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.32rem 0;
+  cursor: pointer;
+}
+
+.panel-option input { margin: 0; }
+
+/* Long vocabularies scroll inside the group rather than pushing the panel taller. */
+.panel-options {
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+.panel-summary {
+  margin: 0 0 0.5rem;
+  color: var(--fg-dim);
+  font-size: 0.8rem;
+}
+
+.panel-hint {
+  margin: 2rem 0 0;
+  color: var(--fg-dim);
+  font-size: 0.75rem;
+  opacity: 0.8;
 }

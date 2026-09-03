@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.domain.artwork import Artwork
 
@@ -88,3 +88,25 @@ class PreferencesResponse(BaseModel):
     """
 
     interval_minutes: Literal[1, 5, 15, 30] = 5
+    mode: Literal["random", "curated"] = "random"
+    artwork_type: str | None = Field(default=None, max_length=100)
+
+
+class FilterOption(BaseModel):
+    """One Explore filter, with the number of artworks actually behind it."""
+
+    value: str
+    count: int
+
+
+class FiltersResponse(BaseModel):
+    """The filters worth offering, biggest first.
+
+    Only options the local index can sustain appear here: a filter yielding four
+    artworks is worse than no filter (docs/product-spec.md). The counts are real, from
+    the index, not from a hardcoded list that would drift from what the API supports.
+    """
+
+    artwork_types: list[FilterOption] = []
+    minimum_count: int
+    indexed_total: int

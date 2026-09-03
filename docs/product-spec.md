@@ -105,12 +105,23 @@ for a museum caption.
 
 ### Explore
 
-The user picks filters and gets random artworks matching them. Build filter options from
-`/artwork-types` and `/category-terms` at index build time, not from a hardcoded list — a
-hardcoded list will drift from what the API actually supports and produce empty result sets.
+The user picks filters and gets random artworks matching them. Build filter options from what
+the index actually contains, not from a hardcoded list — a hardcoded list will drift from what
+the API supports and produce empty result sets.
 
 Only expose a filter if the local index has enough artworks behind it to sustain rotation.
 A filter that yields four artworks is worse than no filter. Show the count.
+
+Filter on `artwork_type_title`, the vocabulary behind `/artwork-types`. Do **not** filter on
+AIC's `classification_title`, which sounds like the same thing and is not — it is closer to a
+medium (`oil on canvas`). See the table in `docs/aic-api.md`.
+
+Style and subject filters (`style_titles`, `subject_titles`) are confirmed to exist but are not
+indexed yet; adding them means extending the crawl's `fields=` and re-walking.
+
+A filtered request is answerable only from the local index. AIC and the bundled set cannot
+honour the filter, so a filter matching nothing returns nothing rather than quietly falling
+through and showing a work the user filtered out.
 
 ### Curated
 

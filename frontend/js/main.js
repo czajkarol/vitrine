@@ -1,6 +1,7 @@
 // Entry point: wiring. The pieces it joins each own one concern.
 
 import { fetchPreferences, fetchRandomArtwork, savePreferences } from './api.js';
+import { createPanel } from './panel.js';
 import { chooseWidth, loadImage, present } from './display.js';
 import * as fullscreen from './fullscreen.js';
 import { createOverlay } from './overlay.js';
@@ -16,6 +17,14 @@ const MESSAGES = {
   aic_unavailable: 'The Art Institute is not responding. Retrying shortly.',
   artwork_unavailable: 'No artwork available right now.',
   image_unavailable: 'That image could not be loaded. Trying another.',
+  no_matching_artwork: 'Nothing in the index matches those filters.',
+  filter_any: 'Any type',
+  filters_no_index: 'No local index yet — run scripts/build_index.py to enable filters.',
+  filters_summary: (total) => `${total.toLocaleString()} artworks indexed.`,
+  filters_too_thin: (minimum) =>
+    `No type has ${minimum} or more artworks behind it yet. Index more to enable filters.`,
+  mode_set: (mode) => (mode === 'curated' ? 'Curated' : 'Random'),
+  untitled: 'Untitled',
   attribution: 'Digital image courtesy of the Art Institute of Chicago.',
   attribution_with_description:
     'Digital image courtesy of the Art Institute of Chicago. Description: Art Institute of Chicago, CC BY 4.0.',
@@ -51,6 +60,13 @@ const overlay = createOverlay(
   MESSAGES,
 );
 
+// What the display is currently asking for. Persisted, so it survives a reload.
+const query = { mode: 'random', artworkType: null };
+
+// Set when the criteria change while the panel is open, so closing it shows the result
+// straight away instead of leaving the user to wait out the rest of the interval.
+let queryChanged = false;
+
 let flashTimer = null;
 
 function showStatus(key) {
@@ -81,7 +97,7 @@ function flashStatus(text) {
  * rotation and advance" rule.
  */
 async function prepareArtwork(attemptsLeft = MAX_IMAGE_ATTEMPTS) {
-  const artwork = await fetchRandomArtwork();
+  const artwork = await fetchRandomArtwork(query);
   const width = chooseWidth(window.innerWidth, window.devicePixelRatio);
   try {
     const image = await loadImage(artwork, width);
@@ -122,6 +138,55 @@ const rotation = createRotation({
   onError: onPrepareError,
 });
 
+const panel = createPanel(
+  {
+    panel: document.getElementById('panel'),
+    modeInputs: [...document.querySelectorAll('input[name="mode"]')],
+    typeList: document.getElementById('panel-types'),
+    summary: document.getElementById('panel-summary'),
+  },
+  MESSAGES,
+  {
+    // A panel you are reading should not have the picture change underneath it.
+    onOpen: () => rotation.pause(),
+    onClose: () => {
+      if (!queryChanged) {
+        rotation.resume();
+        return;
+      }
+      queryChanged = false;
+      // next() re-arms the timer itself, so there is no resume() to pair with this.
+      showStatus('loading');
+      void rotation.next();
+    },
+    onModeChange: (mode) => {
+      query.mode = mode;
+      onQueryChanged();
+      flashStatus(MESSAGES.mode_set(mode));
+    },
+    onFilterChange: (artworkType) => {
+      query.artworkType = artworkType;
+      onQueryChanged();
+    },
+  },
+);
+
+function persist() {
+  void savePreferences({
+    interval_minutes: rotation.getIntervalMinutes(),
+    mode: query.mode,
+    artwork_type: query.artworkType,
+  });
+}
+
+function onQueryChanged() {
+  queryChanged = true;
+  // The preloaded artwork was chosen under the old criteria. Keeping it would show one
+  // last excluded work after the user changed their mind.
+  rotation.invalidate();
+  persist();
+}
+
 bindShortcuts({
   onNext: () => {
     showStatus('loading');
@@ -136,17 +201,17 @@ bindShortcuts({
   onInterval: (minutes) => {
     rotation.setIntervalMinutes(minutes);
     setIntervalMinutes(minutes);
-    void savePreferences({ interval_minutes: minutes });
+    persist();
     flashStatus(MESSAGES.interval_set(minutes));
   },
+  onSettings: () => void panel.show(),
   onDismissOverlay: () => {
     overlay.dismiss();
     setOverlayPinned(false);
   },
   onExitFullscreen: () => void fullscreen.exit(),
-  // Settings is M4. These two keep the Esc priority chain honest until it exists.
-  isSettingsOpen: () => false,
-  onCloseSettings: () => {},
+  isSettingsOpen: () => panel.isOpen(),
+  onCloseSettings: () => panel.hide(),
   isOverlayVisible: () => overlay.isVisible(),
 });
 
@@ -160,6 +225,9 @@ async function boot() {
     rotation.setIntervalMinutes(saved.interval_minutes);
     setIntervalMinutes(saved.interval_minutes);
   }
+  if (saved?.mode) query.mode = saved.mode;
+  if (saved?.artwork_type) query.artworkType = saved.artwork_type;
+  panel.sync({ mode: query.mode, artworkType: query.artworkType });
 
   await rotation.start();
 }

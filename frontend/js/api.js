@@ -5,19 +5,44 @@
  * @returns {Promise<object>} the artwork payload
  * @throws {Error} with a `code` property keyed to a message the UI can translate
  */
-export async function fetchRandomArtwork() {
+export async function fetchRandomArtwork({ mode, artworkType } = {}) {
+  const params = new URLSearchParams();
+  if (mode && mode !== 'random') params.set('mode', mode);
+  if (artworkType) params.set('artwork_type', artworkType);
+  const query = params.toString();
+
   let response;
   try {
-    response = await fetch('/api/artwork/random', { headers: { Accept: 'application/json' } });
+    response = await fetch(`/api/artwork/random${query ? `?${query}` : ''}`, {
+      headers: { Accept: 'application/json' },
+    });
   } catch (cause) {
     throw withCode(new Error('network request failed'), 'network_unreachable', cause);
   }
 
   if (!response.ok) {
-    const code = response.status === 503 ? 'aic_unavailable' : 'artwork_unavailable';
+    // 404 here means the filters matched nothing, which is the user's doing and needs a
+    // different message from the museum being unreachable.
+    const code =
+      response.status === 404
+        ? 'no_matching_artwork'
+        : response.status === 503
+          ? 'aic_unavailable'
+          : 'artwork_unavailable';
     throw withCode(new Error(`HTTP ${response.status}`), code);
   }
   return response.json();
+}
+
+/** The Explore vocabulary: artwork types the index can actually sustain, with counts. */
+export async function fetchFilters() {
+  try {
+    const response = await fetch('/api/filters', { headers: { Accept: 'application/json' } });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
 }
 
 /** Build the direct AIC IIIF URL. */

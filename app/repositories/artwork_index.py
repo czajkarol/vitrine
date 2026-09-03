@@ -2,15 +2,20 @@
 
 import asyncio
 import sqlite3
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from datetime import UTC, datetime
+from typing import Final
 
 from app.domain.artwork import Artwork, Color, Thumbnail
 from app.repositories.database import Database
 
+# How many of the best-scoring rows curated mode draws from. Wide enough that the
+# rotation does not repeat the same twenty masterpieces all evening.
+CURATED_POOL: Final[int] = 500
+
 _COLUMNS = """
     id, image_id, title, artist, date_display, medium_display, credit_line,
-    place_of_origin, department_title, classification, main_reference_number,
+    place_of_origin, department_title, artwork_type, main_reference_number,
     description, width, height, is_boosted, has_alt_text, alt_text, lqip,
     color_h, color_s, color_l, score, indexed_at
 """
@@ -18,7 +23,7 @@ _COLUMNS = """
 _UPSERT = f"""
 INSERT INTO artwork_index ({_COLUMNS})
 VALUES (:id, :image_id, :title, :artist, :date_display, :medium_display, :credit_line,
-        :place_of_origin, :department_title, :classification, :main_reference_number,
+        :place_of_origin, :department_title, :artwork_type, :main_reference_number,
         :description, :width, :height, :is_boosted, :has_alt_text, :alt_text, :lqip,
         :color_h, :color_s, :color_l, :score, :indexed_at)
 ON CONFLICT(id) DO UPDATE SET
@@ -30,7 +35,7 @@ ON CONFLICT(id) DO UPDATE SET
     credit_line = excluded.credit_line,
     place_of_origin = excluded.place_of_origin,
     department_title = excluded.department_title,
-    classification = excluded.classification,
+    artwork_type = excluded.artwork_type,
     main_reference_number = excluded.main_reference_number,
     description = excluded.description,
     width = excluded.width,
@@ -54,14 +59,16 @@ def _to_row(artwork: Artwork) -> dict[str, object]:
     return {
         "id": artwork.id,
         "image_id": artwork.image_id,
-        "title": artwork.title,
+        # The column is NOT NULL and an absent title means the same thing as an empty
+        # one to this app, so it is stored as "". AIC does return null here.
+        "title": artwork.title or "",
         "artist": artwork.artist_title,
         "date_display": artwork.date_display,
         "medium_display": artwork.medium_display,
         "credit_line": artwork.credit_line,
         "place_of_origin": artwork.place_of_origin,
         "department_title": artwork.department_title,
-        "classification": artwork.artwork_type_title,
+        "artwork_type": artwork.artwork_type_title,
         "main_reference_number": artwork.main_reference_number,
         "description": artwork.description,
         "width": thumbnail.width if thumbnail else None,
@@ -100,7 +107,7 @@ def _to_artwork(row: sqlite3.Row) -> Artwork:
         credit_line=row["credit_line"],
         place_of_origin=row["place_of_origin"],
         department_title=row["department_title"],
-        artwork_type_title=row["classification"],
+        artwork_type_title=row["artwork_type"],
         main_reference_number=row["main_reference_number"],
         description=row["description"],
         image_id=row["image_id"],
@@ -140,21 +147,103 @@ class ArtworkIndexRepository:
     async def count(self) -> int:
         return await asyncio.to_thread(self.count_sync)
 
-    def sample_sync(self, limit: int) -> list[Artwork]:
-        """A random pool of candidates.
+    def sample_sync(
+        self, limit: int, curated: bool = False, artwork_type: str | None = None
+    ) -> list[Artwork]:
+        """A pool of candidates.
 
         Sampling here and applying the history penalty in `domain/selection.py` keeps the
         rule pure and testable; doing it in SQL would bury it in a query.
+
+        Curated mode draws from the highest-scoring rows instead of the whole index. Rows
+        scored NULL are excluded there rather than sorted to one end, because an unscored
+        row is unranked, not bad — it just has not been through a scoring pass yet.
+        """
+        where: list[str] = []
+        params: list[object] = []
+        if artwork_type:
+            where.append("artwork_type = ?")
+            params.append(artwork_type)
+        if curated:
+            where.append("score IS NOT NULL")
+        clause = f"WHERE {' AND '.join(where)}" if where else ""
+
+        if curated:
+            # Take the best CURATED_POOL rows, then pick randomly inside them, so a
+            # curated rotation is varied without ever dropping to the bottom of the index.
+            sql = (
+                f"SELECT {_COLUMNS} FROM ("
+                f"  SELECT {_COLUMNS} FROM artwork_index {clause}"
+                f"  ORDER BY score DESC LIMIT ?"
+                f") ORDER BY RANDOM() LIMIT ?"
+            )
+            params.extend([CURATED_POOL, limit])
+        else:
+            sql = f"SELECT {_COLUMNS} FROM artwork_index {clause} ORDER BY RANDOM() LIMIT ?"
+            params.append(limit)
+
+        with self._db.connect() as connection:
+            rows = connection.execute(sql, params).fetchall()
+        return [_to_artwork(row) for row in rows]
+
+    async def sample(
+        self, limit: int, curated: bool = False, artwork_type: str | None = None
+    ) -> list[Artwork]:
+        return await asyncio.to_thread(self.sample_sync, limit, curated, artwork_type)
+
+    def artwork_type_counts_sync(self) -> dict[str, int]:
+        """How many indexed artworks sit behind each artwork type.
+
+        Explore uses this to decide what is worth offering: a filter with four artworks
+        behind it is worse than no filter (docs/product-spec.md).
         """
         with self._db.connect() as connection:
             rows = connection.execute(
-                f"SELECT {_COLUMNS} FROM artwork_index ORDER BY RANDOM() LIMIT ?",
-                (limit,),
+                "SELECT artwork_type, COUNT(*) AS n FROM artwork_index "
+                "WHERE artwork_type IS NOT NULL GROUP BY artwork_type ORDER BY n DESC"
             ).fetchall()
-        return [_to_artwork(row) for row in rows]
+        return {row["artwork_type"]: int(row["n"]) for row in rows}
 
-    async def sample(self, limit: int) -> list[Artwork]:
-        return await asyncio.to_thread(self.sample_sync, limit)
+    async def artwork_type_counts(self) -> dict[str, int]:
+        return await asyncio.to_thread(self.artwork_type_counts_sync)
+
+    # --- scoring ------------------------------------------------------------------
+
+    def iter_for_scoring_sync(self, batch: int = 1000) -> Iterator[list[Artwork]]:
+        """Every row, in batches, so a scoring pass does not hold the whole index in RAM."""
+        offset = 0
+        while True:
+            with self._db.connect() as connection:
+                rows = connection.execute(
+                    f"SELECT {_COLUMNS} FROM artwork_index ORDER BY id LIMIT ? OFFSET ?",
+                    (batch, offset),
+                ).fetchall()
+            if not rows:
+                return
+            yield [_to_artwork(row) for row in rows]
+            offset += len(rows)
+
+    def update_scores_sync(self, scores: dict[int, float]) -> int:
+        """Write computed scores. Separate from the crawl so weights can be retuned
+        without walking AIC again."""
+        if not scores:
+            return 0
+        with self._db.connect() as connection:
+            connection.executemany(
+                "UPDATE artwork_index SET score = ? WHERE id = ?",
+                [(value, artwork_id) for artwork_id, value in scores.items()],
+            )
+        return len(scores)
+
+    async def update_scores(self, scores: dict[int, float]) -> int:
+        return await asyncio.to_thread(self.update_scores_sync, scores)
+
+    def scored_count_sync(self) -> int:
+        with self._db.connect() as connection:
+            row = connection.execute(
+                "SELECT COUNT(*) AS n FROM artwork_index WHERE score IS NOT NULL"
+            ).fetchone()
+        return int(row["n"])
 
     def get_sync(self, artwork_id: int) -> Artwork | None:
         with self._db.connect() as connection:

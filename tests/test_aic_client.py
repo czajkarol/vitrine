@@ -176,3 +176,70 @@ class TestRandomSelection:
         }
         respx.get(f"{BASE}/artworks/search").mock(return_value=httpx.Response(200, json=stripped))
         assert await client.random_displayable() is None
+
+
+class TestListingEndpoint:
+    """`/artworks` is the endpoint the whole index is built from (ADR-0003).
+
+    Unlike `/artworks/search` it is uncapped, and it is the only way to enumerate the
+    collection. If AIC changes its shape, the crawler stops working — so it gets the same
+    contract coverage as search.
+    """
+
+    @respx.mock
+    async def test_parses_a_recorded_listing_page(self, settings, listing_response):
+        respx.get(f"{BASE}/artworks").mock(return_value=httpx.Response(200, json=listing_response))
+        async with AicClient(settings) as client:
+            page = await client.list_artworks(page=2, limit=5)
+
+        assert len(page.artworks) == 5
+        assert page.iiif_base == "https://www.artic.edu/iiif/2"
+        assert all(artwork.title for artwork in page.artworks)
+
+    @respx.mock
+    async def test_carries_pagination_so_the_crawler_knows_when_to_stop(
+        self, settings, listing_response
+    ):
+        respx.get(f"{BASE}/artworks").mock(return_value=httpx.Response(200, json=listing_response))
+        async with AicClient(settings) as client:
+            page = await client.list_artworks(page=2, limit=5)
+
+        # Without total_pages the walk cannot tell "empty page" from "end of collection".
+        assert page.current_page == 2
+        assert page.total_pages and page.total_pages > 1
+        assert page.total and page.total > 100_000
+
+    @respx.mock
+    async def test_asks_for_the_fields_the_public_domain_filter_needs(
+        self, settings, listing_response
+    ):
+        route = respx.get(f"{BASE}/artworks").mock(
+            return_value=httpx.Response(200, json=listing_response)
+        )
+        async with AicClient(settings) as client:
+            await client.list_artworks()
+
+        # A listing response without these carries neither image_id nor is_public_domain,
+        # which makes the hard filter impossible. See docs/aic-api.md.
+        requested = route.calls.last.request.url.params["fields"]
+        assert "image_id" in requested
+        assert "is_public_domain" in requested
+        assert "artwork_type_title" in requested
+
+    @respx.mock
+    async def test_never_exceeds_the_hundred_record_page_limit(self, settings, listing_response):
+        route = respx.get(f"{BASE}/artworks").mock(
+            return_value=httpx.Response(200, json=listing_response)
+        )
+        async with AicClient(settings) as client:
+            await client.list_artworks(page=1, limit=500)
+
+        assert route.calls.last.request.url.params["limit"] == "100"
+
+    @respx.mock
+    async def test_is_not_subject_to_the_search_record_cap(self, settings, listing_response):
+        # page 500 x limit 100 is far past search's 1,000-record ceiling, and the listing
+        # endpoint must accept it — that difference is the reason ADR-0003 works.
+        respx.get(f"{BASE}/artworks").mock(return_value=httpx.Response(200, json=listing_response))
+        async with AicClient(settings) as client:
+            assert await client.list_artworks(page=500, limit=100) is not None

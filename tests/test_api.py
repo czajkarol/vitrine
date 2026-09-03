@@ -13,6 +13,20 @@ IIIF = "https://www.artic.edu/iiif/2"
 IMAGE_ID = "2d484387-2509-5e8e-2c43-22f9981972eb"
 
 
+def _indexed(artwork_id: int, artwork_type: str):
+    """A minimal indexable artwork for exercising filters and modes."""
+    from app.domain.artwork import Artwork, Thumbnail
+
+    return Artwork(
+        id=artwork_id,
+        title=f"Work {artwork_id}",
+        image_id=f"image-{artwork_id}",
+        is_public_domain=True,
+        artwork_type_title=artwork_type,
+        thumbnail=Thumbnail(width=2000, height=1200),
+    )
+
+
 def _page_from(search_response) -> list:
     """The indexable artworks in a recorded search response."""
     from app.domain.artwork import Artwork
@@ -172,14 +186,92 @@ class TestImageProxy:
         assert response.status_code == 502
 
 
+class TestModesAndFilters:
+    def test_filters_are_empty_without_an_index(self, client):
+        body = client.get("/api/filters").json()
+        assert body["artwork_types"] == []
+        assert body["indexed_total"] == 0
+
+    def test_only_offers_filters_the_index_can_sustain(self, client, database, settings):
+        from app.api.routes import MIN_FILTER_COUNT
+        from app.repositories.artwork_index import ArtworkIndexRepository
+
+        repo = ArtworkIndexRepository(database)
+        many = [_indexed(i, "Painting") for i in range(MIN_FILTER_COUNT)]
+        few = [_indexed(1000 + i, "Coin") for i in range(3)]
+        repo.upsert_many_sync(many + few)
+
+        body = client.get("/api/filters").json()
+        offered = {option["value"]: option["count"] for option in body["artwork_types"]}
+        # A filter with three artworks behind it is worse than no filter.
+        assert offered == {"Painting": MIN_FILTER_COUNT}
+
+    @respx.mock
+    def test_a_filter_that_matches_nothing_does_not_fall_through_to_aic(
+        self, client, database, search_response
+    ):
+        from app.repositories.artwork_index import ArtworkIndexRepository
+        from app.repositories.preferences import PreferencesRepository
+        from app.services.selection import IIIF_BASE_KEY
+
+        ArtworkIndexRepository(database).upsert_many_sync([_indexed(1, "Painting")])
+        PreferencesRepository(database).set_sync(IIIF_BASE_KEY, IIIF)
+        route = respx.get(f"{BASE}/artworks/search").mock(
+            return_value=httpx.Response(200, json=search_response)
+        )
+
+        response = client.get("/api/artwork/random?artwork_type=Sculpture")
+
+        # Showing an unfiltered artwork would be worse than showing none. 404, not 503:
+        # the filter matching nothing is the user's doing, not the museum being down.
+        assert response.status_code == 404
+        assert response.json()["detail"] == "no_matching_artwork"
+        assert not route.called
+
+    def test_curated_mode_serves_a_scored_row(self, client, database):
+        from app.repositories.artwork_index import ArtworkIndexRepository
+        from app.repositories.preferences import PreferencesRepository
+        from app.services.selection import IIIF_BASE_KEY
+
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_indexed(1, "Painting")])
+        repo.update_scores_sync({1: 0.9})
+        PreferencesRepository(database).set_sync(IIIF_BASE_KEY, IIIF)
+
+        body = client.get("/api/artwork/random?mode=curated").json()
+        assert body["id"] == 1
+        assert body["source"] == "index"
+
+    def test_rejects_an_unknown_mode(self, client):
+        assert client.get("/api/artwork/random?mode=nonsense").status_code == 422
+
+
 class TestPreferences:
     def test_defaults_before_anything_is_saved(self, client):
         body = client.get("/api/preferences").json()
         assert body["interval_minutes"] == 5
 
     def test_saves_and_reads_back(self, client):
-        assert client.put("/api/preferences", json={"interval_minutes": 15}).status_code == 200
-        assert client.get("/api/preferences").json()["interval_minutes"] == 15
+        saved = {"interval_minutes": 15, "mode": "curated", "artwork_type": "Painting"}
+        assert client.put("/api/preferences", json=saved).status_code == 200
+
+        body = client.get("/api/preferences").json()
+        assert body["interval_minutes"] == 15
+        assert body["mode"] == "curated"
+        assert body["artwork_type"] == "Painting"
+
+    def test_clearing_the_filter_reads_back_as_none(self, client):
+        client.put("/api/preferences", json={"interval_minutes": 5, "artwork_type": "Painting"})
+        client.put("/api/preferences", json={"interval_minutes": 5, "artwork_type": None})
+        # Stored as an empty string, because the table cannot hold NULL — but the API
+        # must not leak that.
+        assert client.get("/api/preferences").json()["artwork_type"] is None
+
+    def test_rejects_an_unknown_mode(self, client):
+        assert (
+            client.put("/api/preferences", json={"interval_minutes": 5, "mode": "wat"}).status_code
+            == 422
+        )
 
     def test_rejects_an_interval_off_the_menu(self, client):
         # 1/5/15/30 only, per docs/product-spec.md.
@@ -198,8 +290,13 @@ class TestPreferences:
         from app.repositories.preferences import PreferencesRepository
 
         PreferencesRepository(Database(settings.database_path)).set_sync("iiif_base", "http://x")
-        # The preferences table also holds internal state; the browser sees only its own.
-        assert set(client.get("/api/preferences").json()) == {"interval_minutes"}
+        # The preferences table also holds internal state — the IIIF base, the crawler's
+        # progress. The browser sees only the settings that are its own to change.
+        assert set(client.get("/api/preferences").json()) == {
+            "interval_minutes",
+            "mode",
+            "artwork_type",
+        }
 
 
 class TestHealth:

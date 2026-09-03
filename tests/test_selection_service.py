@@ -162,3 +162,43 @@ class TestFallbackSet:
         assert len(bundled.artworks) >= 20
         assert bundled.iiif_base
         assert all(a.is_displayable for a in bundled.artworks)
+
+
+class TestCuratedIsNotAFilter:
+    @pytest.mark.asyncio
+    async def test_curated_falls_back_to_unranked_when_nothing_is_scored(self, database: Database):
+        # Curated is a preference about ordering, not an exclusion. A blank screen with a
+        # puzzling message is worse than an unranked artwork.
+        from app.services.selection import SelectionQuery
+
+        ArtworkIndexRepository(database).upsert_many_sync([_artwork(1)])
+        PreferencesRepository(database).set_sync(IIIF_BASE_KEY, IIIF)
+
+        selection = await _service(database).next_artwork(SelectionQuery(curated=True))
+
+        assert selection is not None
+        assert selection.artwork.id == 1
+
+    @pytest.mark.asyncio
+    async def test_curated_with_an_empty_index_still_reaches_aic(self, database: Database):
+        from app.services.selection import SelectionQuery
+
+        client = _StubClient(result=(_artwork(42), IIIF))
+        selection = await _service(database, client=client).next_artwork(
+            SelectionQuery(curated=True)
+        )
+
+        assert selection is not None
+        assert selection.source == "aic"
+
+    @pytest.mark.asyncio
+    async def test_a_type_filter_never_falls_through_to_aic(self, database: Database):
+        from app.services.selection import SelectionQuery
+
+        client = _StubClient(result=(_artwork(42), IIIF))
+        selection = await _service(database, client=client).next_artwork(
+            SelectionQuery(artwork_type="Painting")
+        )
+
+        assert selection is None
+        assert client.calls == 0

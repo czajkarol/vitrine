@@ -31,6 +31,14 @@ IIIF_BASE_KEY: Final[str] = "iiif_base"
 
 
 @dataclass(frozen=True)
+class SelectionQuery:
+    """What the display asked for. Defaults are the plain random rotation."""
+
+    curated: bool = False
+    artwork_type: str | None = None
+
+
+@dataclass(frozen=True)
 class Selection:
     """One artwork, plus which tier produced it."""
 
@@ -56,12 +64,17 @@ class SelectionService:
         self._client = client
         self._rng = rng or random.Random()
 
-    async def next_artwork(self) -> Selection | None:
+    async def next_artwork(self, query: SelectionQuery | None = None) -> Selection | None:
         """The next artwork to show, from the first tier that can produce one."""
-        selection = await self._from_index()
-        if selection is None:
+        query = query or SelectionQuery()
+        selection = await self._from_index(query)
+        # A *filtered* request is answerable only from the index — AIC and the bundled set
+        # cannot honour the filter, so silently ignoring it would be worse than failing.
+        # Curated is not a filter and does not constrain: see `_from_index`.
+        constrained = query.artwork_type is not None
+        if selection is None and not constrained:
             selection = await self._from_aic()
-        if selection is None:
+        if selection is None and not constrained:
             selection = await self._from_fallback()
         if selection is not None:
             await self._history.push(selection.artwork.id)
@@ -72,8 +85,24 @@ class SelectionService:
         stored = await self._preferences.get(IIIF_BASE_KEY)
         return stored or self._fallback.iiif_base
 
-    async def _from_index(self) -> Selection | None:
-        candidates = await self._index.sample(CANDIDATE_POOL)
+    async def _from_index(self, query: SelectionQuery) -> Selection | None:
+        candidates = await self._index.sample(
+            CANDIDATE_POOL, curated=query.curated, artwork_type=query.artwork_type
+        )
+        if not candidates and query.curated:
+            # Curated is a preference about *ordering*, not an exclusion. If nothing has
+            # been scored yet, an unranked artwork is still one the user wants to see —
+            # unlike a type filter, where showing the wrong thing is worse than showing
+            # nothing. Better a rotation than a blank screen with a puzzling message.
+            logger.info("Nothing scored yet; serving %s unranked", query)
+            candidates = await self._index.sample(
+                CANDIDATE_POOL, curated=False, artwork_type=query.artwork_type
+            )
+        if not candidates and query.artwork_type:
+            # A filter that matches nothing must not silently become "anything". Falling
+            # through to AIC here would show a work the user explicitly filtered out.
+            logger.info("No indexed artwork matches %s", query)
+            return None
         if not candidates:
             return None
         iiif_base = await self._known_iiif_base()

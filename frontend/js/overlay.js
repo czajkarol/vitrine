@@ -63,7 +63,9 @@ export function createOverlay(elements, messages) {
   return {
     /** Fill in one artwork's facts. Does not change visibility. */
     render(artwork) {
-      title.textContent = artwork.title ?? '';
+      // AIC genuinely returns null titles. A caption with an empty heading reads as a
+      // rendering fault, so say what it is instead.
+      title.textContent = artwork.title || messages.untitled;
       artist.textContent = artwork.artist ?? artwork.artist_display ?? '';
 
       // Date and medium on one line; an em dash between them only if both exist.

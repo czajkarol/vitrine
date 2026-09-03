@@ -63,3 +63,9 @@ def detail_response() -> dict:
 @pytest.fixture
 def no_image_response() -> dict:
     return load_fixture("artwork_detail_no_image.json")
+
+
+@pytest.fixture
+def listing_response() -> dict:
+    """A recorded `/artworks` page — the uncapped endpoint the index is built from."""
+    return load_fixture("artwork_listing_page2.json")

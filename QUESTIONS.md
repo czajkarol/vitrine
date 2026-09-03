@@ -88,18 +88,83 @@ separate opt-in asset step.
 
 ---
 
-## 8. The index is only partially built — *needs a decision from you*
+## 8. I went ahead and ran the full index walk — *decided*
 
-I built 1,353 rows (about 2,300 records walked) to prove the crawler works. The full walk is
-132,740 records at AIC's requested 1 req/s, so roughly **22 minutes**, and I did not want to
-run a 22-minute crawl against their API unattended without you saying so.
+I had flagged this as needing your say-so, then talked myself out of asking. It is a read-only
+walk at exactly the 1 req/s AIC asks for in their own documentation, the script exists for this
+purpose, and it is reversible (delete `data/vitrine.db` and re-run). `CLAUDE.md` reserves
+questions for credentials, irreversible actions, and product decisions, and this is none of
+those. Curated mode has nothing to rank without it.
 
-    uv run python scripts/build_index.py
+**Say so if** you would rather I checked before any sustained automated traffic to an external
+service, even within its published limits, and I will.
 
-It is resumable, so it can be stopped and restarted freely.
+---
 
-**Ask:** happy for me to run the full walk next session? Curated mode (M3) wants the whole
-corpus to rank.
+## 9. `.gitignore` had `data/`, which also hid `app/data/` — *fixed, flagging*
+
+The bundled fallback set lives in `app/data/`, and a bare `data/` pattern matches a directory
+of that name at any depth. The set would have been silently left out of every commit, so a
+fresh clone would have had no offline story and nothing to indicate why. Changed to `/data/`,
+anchored to the repository root. The runtime database is still ignored.
+
+---
+
+## 10. Explore filters cover artwork type only — *scoped down, your call whether to extend*
+
+The roadmap asked for filters from `/artwork-types` **and** `/category-terms`. I shipped
+artwork type (Painting, Photograph, Print, …) with real counts from the index. It works.
+
+Style and subject are not there. I verified against a live response that AIC does expose
+`style_titles` and `subject_titles` per artwork (recorded in `docs/aic-api.md`), but indexing
+them means adding those fields to the crawl and re-walking the collection — another ~22 minutes.
+I did not want to restart a walk that was already half done.
+
+**Ask:** worth a re-crawl to get style and subject filters? It is one command and it is
+resumable. I would say yes eventually, but it is not urgent.
+
+**Related trap, already handled:** AIC has a `classification_title` field that sounds like the
+artwork type and is not — on a Seurat it reads `oil on canvas`. Filtering on it would have been
+subtly wrong. The index column is named `artwork_type` so nobody reaches for the wrong one.
+
+---
+
+## 11. Curated scoring weights are my judgement, not yours — *worth a look*
+
+`app/domain/scoring.py` has one weights dict with a comment per weight. The ordering I chose:
+
+    is_boosted            3.0   AIC's own essentials — the only human judgement available
+    resolution            1.5   big originals survive being thrown full-bleed
+    artwork_type          1.25  paintings read at a glance; coins and furniture do not
+    aspect_ratio          1.0   less letterboxing on a 16:9 screen
+    metadata_completeness 1.0   a work we can caption properly
+    has_alt_text          0.75  correlates with curatorial attention
+
+`TYPE_AFFINITY` is the more opinionated part: I scored Painting 1.0 down to Coin and Book 0.1.
+Anything AIC names that I did not list scores 0.5, so an unknown type is never punished.
+
+    uv run python scripts/build_index.py --explain <artwork_id>
+
+prints the full breakdown for any indexed work. Retune freely — the tests assert ordering, never
+values, so changing a weight will not break the suite.
+
+---
+
+## 12. The full crawl found a bug the partial one could not — *fixed, worth knowing*
+
+At page 1,121 of 1,328 the walk died. AIC returns artworks with `title: null`, and the domain
+model had `title: str`. About 112,000 records in, one bad row aborted the whole run.
+
+Two fixes, because there were two problems:
+
+- `Artwork.title` is now `str | None`. Untitled works genuinely exist; the overlay captions
+  them "Untitled" rather than showing an empty heading that reads as a rendering fault.
+- The parser now skips a record it cannot validate and logs a warning, instead of taking the
+  run down with it. Over 132,000 records some rows will always be odd. The warning is what
+  keeps this from hiding a real API change: a few are data, a page of them is a contract break.
+
+This is the argument for running the whole thing rather than a sample — 2,000 records looked
+perfectly healthy.
 
 ---
 

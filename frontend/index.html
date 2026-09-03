@@ -34,6 +34,31 @@
     </div>
   </footer>
 
+  <!-- Settings. Hidden and inert at rest; `S` opens it, Esc closes it. -->
+  <aside id="panel" class="panel" role="dialog" aria-modal="false" aria-label="Settings" inert>
+    <h2 class="panel-heading">Settings</h2>
+
+    <fieldset class="panel-group">
+      <legend>Mode</legend>
+      <label class="panel-option">
+        <input type="radio" name="mode" value="random" checked>
+        <span>Random — anything in the collection</span>
+      </label>
+      <label class="panel-option">
+        <input type="radio" name="mode" value="curated">
+        <span>Curated — ranked by transparent scoring</span>
+      </label>
+    </fieldset>
+
+    <fieldset class="panel-group">
+      <legend>Artwork type</legend>
+      <p id="panel-summary" class="panel-summary"></p>
+      <div id="panel-types" class="panel-options"></div>
+    </fieldset>
+
+    <p class="panel-hint">Esc to close. Rotation is paused while this is open.</p>
+  </aside>
+
   <script type="module" src="/js/main.js"></script>
 </body>
 </html>

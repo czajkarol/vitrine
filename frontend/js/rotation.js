@@ -130,9 +130,20 @@ export function createRotation({ prepare, present, onError }) {
       arm();
     },
 
-    /** Hold the clock — settings panel open, in M4. The prepared artwork is kept. */
+    /** Hold the clock while the settings panel is open. The prepared artwork is kept. */
     pause() {
       clearTimers();
+    },
+
+    /**
+     * Throw away the preloaded artwork.
+     *
+     * Call this when the *criteria* change. The pending artwork was fetched under the old
+     * mode and filter, so presenting it would show something the user has just excluded —
+     * a coin arriving one time after they asked for paintings.
+     */
+    invalidate() {
+      pending = null;
     },
 
     resume() {

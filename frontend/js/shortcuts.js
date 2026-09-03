@@ -41,10 +41,14 @@ export function bindShortcuts(handlers) {
         event.preventDefault();
         handlers.onToggleOverlay();
         break;
+      case 's':
+      case 'S':
+        event.preventDefault();
+        handlers.onSettings();
+        break;
       case 'Escape':
         // Priority is most-transient-first, per the spec: settings, then overlay, then
-        // fullscreen. Settings arrives in M4; the seam is here so the order cannot be
-        // quietly got wrong later.
+        // fullscreen.
         if (handlers.isSettingsOpen()) handlers.onCloseSettings();
         else if (handlers.isOverlayVisible()) handlers.onDismissOverlay();
         else handlers.onExitFullscreen();

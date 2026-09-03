@@ -56,13 +56,16 @@ This is the milestone that makes the rest possible. See ADR-0003.
 
 ## M3 — Modes
 
-- [ ] Scoring module in `domain/`, pure, one weights dict with a comment per weight
-- [ ] Unit tests for scoring, including a ranking-order test
-- [ ] `--explain` flag printing a score breakdown
-- [ ] Curated mode wired to the index
-- [ ] Filter vocabulary built from `/artwork-types` and `/category-terms` at index time
-- [ ] Explore mode UI, showing match counts, hiding filters with too few results
-- [ ] Commit
+- [x] Scoring module in `domain/`, pure, one weights dict with a comment per weight
+- [x] Unit tests for scoring, including a ranking-order test
+- [x] `--explain` flag printing a score breakdown
+- [x] Curated mode wired to the index — curated ranks, it does not exclude: with nothing
+      scored yet it serves unranked rather than showing a blank screen
+- [ ] Filter vocabulary built from `/artwork-types` and `/category-terms` at index time —
+      artwork types done, with real counts. `style_titles` and `subject_titles` are verified
+      to exist (`docs/aic-api.md`) but need adding to the crawl and a re-walk
+- [x] Explore mode UI, showing match counts, hiding filters with too few results
+- [x] Commit
 
 ## M4 — Settings and i18n
 

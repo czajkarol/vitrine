@@ -2,16 +2,22 @@
 
 import logging
 import re
-from typing import Annotated, Final
+from typing import Annotated, Final, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
 from pydantic import ValidationError
 
-from app.api.schemas import ArtworkResponse, PreferencesResponse
+from app.api.schemas import (
+    ArtworkResponse,
+    FilterOption,
+    FiltersResponse,
+    PreferencesResponse,
+)
 from app.domain.artwork import CACHED_IIIF_WIDTHS, PREFERRED_IIIF_WIDTH
 from app.providers.aic.client import AicClient, AicError, AicUnavailableError
+from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.preferences import PreferencesRepository
-from app.services.selection import SelectionService
+from app.services.selection import SelectionQuery, SelectionService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
@@ -37,22 +43,38 @@ def get_preferences(request: Request) -> PreferencesRepository:
     return PreferencesRepository(request.app.state.database)
 
 
+def get_index(request: Request) -> ArtworkIndexRepository:
+    return ArtworkIndexRepository(request.app.state.database)
+
+
 ClientDep = Annotated[AicClient, Depends(get_client)]
 SelectionDep = Annotated[SelectionService, Depends(get_selection)]
 PreferencesDep = Annotated[PreferencesRepository, Depends(get_preferences)]
+IndexDep = Annotated[ArtworkIndexRepository, Depends(get_index)]
+
+# Below this, a filter cannot sustain a rotation and is not offered at all.
+MIN_FILTER_COUNT: Final[int] = 40
 
 INTERVAL_KEY: Final[str] = "interval_minutes"
+MODE_KEY: Final[str] = "mode"
+ARTWORK_TYPE_KEY: Final[str] = "artwork_type"
 
 
 @router.get("/artwork/random", response_model=ArtworkResponse)
-async def random_artwork(request: Request, selection: SelectionDep) -> ArtworkResponse:
+async def random_artwork(
+    request: Request,
+    selection: SelectionDep,
+    mode: Annotated[Literal["random", "curated"], Query()] = "random",
+    artwork_type: Annotated[str | None, Query(max_length=100)] = None,
+) -> ArtworkResponse:
     """One random public-domain artwork with a usable image.
 
     The service decides where it comes from — local index first, then AIC, then the
     bundled set (ADR-0003). This route only shapes the answer.
     """
+    query = SelectionQuery(curated=mode == "curated", artwork_type=artwork_type)
     try:
-        result = await selection.next_artwork()
+        result = await selection.next_artwork(query)
     except AicUnavailableError as exc:  # pragma: no cover — the service absorbs these
         logger.warning("AIC unavailable serving /artwork/random: %s", exc)
         raise HTTPException(status_code=503, detail="aic_unavailable") from exc
@@ -61,6 +83,10 @@ async def random_artwork(request: Request, selection: SelectionDep) -> ArtworkRe
         raise HTTPException(status_code=502, detail="aic_error") from exc
 
     if result is None:
+        if query.artwork_type:
+            # A filter that matches nothing is a different situation from the API being
+            # down, and the display says something different about it.
+            raise HTTPException(status_code=404, detail="no_matching_artwork")
         # Every tier came up empty: no index, no network, no bundled set.
         raise HTTPException(status_code=503, detail="aic_unavailable")
 
@@ -110,18 +136,41 @@ async def image_proxy(
     )
 
 
+@router.get("/filters", response_model=FiltersResponse)
+async def read_filters(index: IndexDep) -> FiltersResponse:
+    """The Explore vocabulary, built from the index rather than a hardcoded list."""
+    counts = await index.artwork_type_counts()
+    options = [
+        FilterOption(value=value, count=count)
+        for value, count in counts.items()
+        if count >= MIN_FILTER_COUNT
+    ]
+    return FiltersResponse(
+        artwork_types=options,
+        minimum_count=MIN_FILTER_COUNT,
+        indexed_total=await index.count(),
+    )
+
+
 @router.get("/preferences", response_model=PreferencesResponse)
 async def read_preferences(preferences: PreferencesDep) -> PreferencesResponse:
     """Whatever has been saved, with the defaults filling the gaps."""
-    stored = await preferences.get(INTERVAL_KEY)
-    if stored is None or not stored.isdigit():
-        return PreferencesResponse()
+    stored_interval = await preferences.get(INTERVAL_KEY)
+    stored_type = await preferences.get(ARTWORK_TYPE_KEY)
+    fields: dict[str, object] = {}
+    if stored_interval is not None and stored_interval.isdigit():
+        fields["interval_minutes"] = int(stored_interval)
+    if (stored_mode := await preferences.get(MODE_KEY)) is not None:
+        fields["mode"] = stored_mode
+    # An empty string means "no filter"; storing None is not possible in this table.
+    fields["artwork_type"] = stored_type or None
+
     try:
-        return PreferencesResponse(interval_minutes=int(stored))
+        return PreferencesResponse(**fields)
     except ValidationError:
         # A value we no longer support — an interval removed from the menu, say. The
-        # default is a better answer than a 500.
-        logger.warning("Discarding unusable stored interval %r", stored)
+        # default is a better answer than a 500 on every page load.
+        logger.warning("Discarding unusable stored preferences %r", fields)
         return PreferencesResponse()
 
 
@@ -131,6 +180,8 @@ async def write_preferences(
 ) -> PreferencesResponse:
     """Persist the user's settings. Pydantic rejects an interval off the menu."""
     await preferences.set(INTERVAL_KEY, str(body.interval_minutes))
+    await preferences.set(MODE_KEY, body.mode)
+    await preferences.set(ARTWORK_TYPE_KEY, body.artwork_type or "")
     return body
 
 

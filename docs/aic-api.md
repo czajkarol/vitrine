@@ -38,6 +38,11 @@ The cap applies to `/artworks/search` only. The plain listing endpoint paginates
 collection: 132,740 records, 1,328 pages at `limit=100`, and page 1,328 returns the final 40
 rows. Walked to the end successfully on 2026-09-03.
 
+The total moves. A few hours later the same endpoint reported **132,741**. Treat the figure as a
+snapshot and read `pagination.total_pages` from the response rather than assuming a page count —
+which is what `scripts/build_index.py` does. A recorded page is committed at
+`tests/fixtures/aic/artwork_listing_page2.json` so the contract test notices if the shape moves.
+
 So bulk indexing does **not** require the nightly data dumps. `scripts/build_index.py` can walk
 `/artworks` at AIC's requested 1 req/s in roughly 22 minutes. ADR-0003 reaches the right
 conclusion from two wrong premises; its consequences section stands.
@@ -75,6 +80,30 @@ ordering as a proxy for eligibility. Filter explicitly.
 ---
 
 ## Fields
+
+### Term vocabularies, verified on `/artworks/27992` (2026-09-03)
+
+Explore filters come from these. All confirmed present on a full artwork response; none are
+returned unless named in `fields=`.
+
+| Field | Example | Note |
+|---|---|---|
+| `artwork_type_title` | `Painting` | The 45-value vocabulary behind `/artwork-types`. This is what the app filters on. |
+| `classification_title` | `oil on canvas` | **Not** the artwork type. A material/technique term. |
+| `classification_titles` | `[oil on canvas, paint, oil paintings (visual works)]` | |
+| `style_title` / `style_titles` | `Pointillism`, `[Pointillism, nineteenth century, …]` | |
+| `subject_titles` | `[leisure, animals, landscape]` | 23 on this record |
+| `term_titles` | 42 entries, all of the above pooled | |
+| `category_titles` | `[Painting and Sculpture of Europe, Art Institute Icons, Essentials]` | Departments and curated sets |
+
+**The name collision is the trap here.** `classification_title` sounds like the artwork type and
+is not; it is closer to a medium. Filter on `artwork_type_title`. The local index column that
+holds it is named `artwork_type` for exactly this reason — an earlier name of `classification`
+invited the mistake.
+
+Style and subject filters need `style_titles` and `subject_titles` indexed per artwork, which
+means adding them to the crawl's `fields=` list and re-walking. Not done yet; the index currently
+carries artwork type only.
 
 ### Confirmed present in search responses (2026-09-03)
 

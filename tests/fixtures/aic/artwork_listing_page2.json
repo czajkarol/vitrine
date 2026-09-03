@@ -1,0 +1,175 @@
+{
+  "pagination": {
+    "total": 132741,
+    "limit": 5,
+    "offset": 5,
+    "total_pages": 26549,
+    "current_page": 2,
+    "prev_url": "https://api.artic.edu/api/v1/artworks?page=1&limit=5&fields=id%2Ctitle%2Cartist_title%2Cartist_display%2Cdate_display%2Cmedium_display%2Cimage_id%2Cis_public_domain%2Cis_boosted%2Cthumbnail%2Ccolor%2Cdescription%2Ccredit_line%2Cdepartment_title%2Cplace_of_origin%2Cartwork_type_title%2Cmain_reference_number",
+    "next_url": "https://api.artic.edu/api/v1/artworks?page=3&limit=5&fields=id%2Ctitle%2Cartist_title%2Cartist_display%2Cdate_display%2Cmedium_display%2Cimage_id%2Cis_public_domain%2Cis_boosted%2Cthumbnail%2Ccolor%2Cdescription%2Ccredit_line%2Cdepartment_title%2Cplace_of_origin%2Cartwork_type_title%2Cmain_reference_number"
+  },
+  "data": [
+    {
+      "id": 41375,
+      "is_boosted": false,
+      "title": "Flowers",
+      "thumbnail": {
+        "lqip": "data:image/gif;base64,R0lGODlhDQAFAPYAALyTebugfrikgr+oirezi7S3i9qejsC0jsusksS2lsm1lMG6ldq8o9y+o+G6o8HBmcjAn8TEoMjGo8nGo8fMqNbFptPOrtPPr9XWtdnQstrStNrStd/QtN7SttnVttrWuNvWud7UuN/Wud/Vut/Wut7Xu93Yu9/YvOXFrODXu+LXu+HZvuHdwOTcweXew+bexebgxebhxefgxufiyOjhyOnjye3hyerkyuvlzOnnze3mzO3nzu3o0O3p0O7r0fHo0fDq0gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAANAAUAAAdDgCQtMjoxHxIRFAgGIhkpLjAsGAsHBQQDABAbJSA3MzkcKBUBAgkeHSsmNTtAPzYqDQoTFiEjLzQ4PD0+Dw4MFycagQA7",
+        "width": 3845,
+        "height": 1464,
+        "alt_text": "A work made of color woodblock print, surimono."
+      },
+      "main_reference_number": "1972.1184",
+      "date_display": "n.d.",
+      "artist_display": "Sato Suiseki\nJapanese, 19th century",
+      "place_of_origin": "Japan",
+      "description": null,
+      "medium_display": "Color woodblock print, surimono",
+      "credit_line": "Purchased with funds provided by Mrs. Daniel Green",
+      "is_public_domain": true,
+      "color": {
+        "h": 6,
+        "l": 69,
+        "s": 76,
+        "percentage": 0.04927456884752259,
+        "population": 135
+      },
+      "artwork_type_title": "Print",
+      "department_title": "Arts of Asia",
+      "artist_title": "Suiseki Sato",
+      "image_id": "ef8c97a5-b0ca-9d2b-fd09-7463d1201567"
+    },
+    {
+      "id": 37900,
+      "is_boosted": false,
+      "title": "Study for Mary Louise Reynolds Collection Label",
+      "thumbnail": {
+        "lqip": "data:image/gif;base64,R0lGODlhBAAFAPQAAOnd1O/h1O7h1ezg1u3h1u/i1u/j2fDi1fHk1/Hk2PDk2fLk2PPm2fLl2vLl2/Lm2/Pm2wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAEAAUAAAUNYCEWTWE0aFoADVIWIQA7",
+        "width": 7638,
+        "height": 9819,
+        "alt_text": "A work made of pen and black ink, heightened with white gouache, over graphite, on off-white wove paper."
+      },
+      "main_reference_number": "1971.923",
+      "date_display": "c. 1951",
+      "artist_display": "Marcel Duchamp\nAmerican, born France, 1887-1968",
+      "place_of_origin": "United States",
+      "description": "<p>For 30 years, Marcel Duchamp and <a href=\"https://www.artic.edu/artists/21655\">Mary Reynolds</a> enjoyed a close relationship as artistic collaborators, lovers, and friends. After Reynolds died in 1950, Duchamp planned the relocation of her Paris-based library and bookbindings with her brother Frank B. Hubachek, an Art Institute of Chicago trustee. The two memorialized the gift with great care. Duchamp designed a bookplate (a decorative label designating ownership) featuring an elegant line drawing of Reynolds’s face in profile to label the books that came from her library. Letters between Duchamp and Hubachek held in the museum’s archives reveal a touching level of attention given to every decision. Duchamp even insisted on revising a proof of the bookplate, dissatisfied with the way the engraving distorted the profile of her nose.</p>\n<p>The drawing features Reynolds’s initials MR stylized as a dangling earring and designed by artist Alexander Calder, also a close friend of Reynolds. The earring expresses Calder’s playful and spare drawing style, which he employed in a sketch, <a href=\"https://www.artic.edu/artworks/5388\"><em>Mary Reynolds with Her Cats,</em></a> of Reynolds also held in the museum’s collection.</p>\n",
+      "medium_display": "Pen and black ink, heightened with white gouache, over graphite, on off-white wove paper",
+      "credit_line": "Gift of Frank B. Hubachek",
+      "is_public_domain": false,
+      "color": {
+        "h": 215,
+        "l": 89,
+        "s": 11,
+        "percentage": 2.666754776244474e-06,
+        "population": 2
+      },
+      "artwork_type_title": "Drawing and Watercolor",
+      "department_title": "Prints and Drawings",
+      "artist_title": "Marcel Duchamp",
+      "image_id": "d84b46e6-aaac-eca3-2be0-5511e1cbed8c"
+    },
+    {
+      "id": 44892,
+      "is_boosted": true,
+      "title": "Fish (Still Life)",
+      "thumbnail": {
+        "lqip": "data:image/gif;base64,R0lGODlhBgAFAPQAAB4ZGC8oHi0pJC0qJDMqIzUsIzQtJDsrITcxKUlCNkhBO1RCMlhPP1ZQQmphUHltWHt3aYFoV4Z0YY2IZpeOfpqNfJuWfKGdiKqghq2ljKmllbankrCqlQAAAAAAAAAAACH5BAAAAAAALAAAAAAGAAUAAAUYYFAgwmAkTQMchBNt1cI8EqVZE5ZxF6SEADs=",
+        "width": 16704,
+        "height": 13234,
+        "alt_text": "Still-life painting, fish, open oysters, eel, lemon on tablecloth."
+      },
+      "main_reference_number": "1942.311",
+      "date_display": "1864",
+      "artist_display": "Édouard Manet (French, 1832–1883)",
+      "place_of_origin": "France",
+      "description": "<p>Although still-life ensembles were an important element in many of the major paintings of the avant-garde artist Édouard Manet, his most sustained interest in the genre itself was from 1864 to 1865, when <em>Fish</em> was painted. Manet’s focus on still lifes coincided with the gradual reacceptance of the genre during the nineteenth century, due in part to the growth of the middle class, whose tastes ran to intimate, moderately priced works. This painting, like many of Manet’s still-life compositions, recalls seventeenth-century Dutch models. The directness of execution, bold brushwork, and immediacy of vision displayed in the canvas, however, suggest why the public found Manet’s work so unorthodox and confrontational. While <em>Fish</em> is indeed an image of “dead nature” (<em>nature morte</em> is the French term for still life), there is nothing still about the work: the produce seems fresh and the handling of paint vigorous. Further enlivening the composition is the placement of the carp, which offsets the strong diagonal of the other elements. Manet never submitted his still lifes to the official French Salon but rather sold them through the burgeoning network of art galleries in Paris and gave them to friends.</p>\n",
+      "medium_display": "Oil on canvas",
+      "credit_line": "Mr. and Mrs. Lewis Larned Coburn Memorial Collection",
+      "is_public_domain": true,
+      "color": {
+        "h": 52,
+        "l": 47,
+        "s": 62,
+        "percentage": 0.006925650478402625,
+        "population": 39
+      },
+      "artwork_type_title": "Painting",
+      "department_title": "Painting and Sculpture of Europe",
+      "artist_title": "Édouard Manet",
+      "image_id": "0cbe27e8-2fec-3445-bc48-ce40a8f2dc25"
+    },
+    {
+      "id": 56905,
+      "is_boosted": true,
+      "title": "Nocturne: Blue and Gold—Southampton Water",
+      "thumbnail": {
+        "lqip": "data:image/gif;base64,R0lGODlhCAAFAPUAAEpORE9SRVFTR1FSSVJTSlJVS1VWSVJUTFJWTFVXTVRXT1VXT1VYTFdZT1dbUVdaUlhaUVhbUVlcU11fUltdVFteVV1gV19iWV5iWmJlXGhsXmRnYGdqYGdqYWhrY2hsYGxuYnBzZnN1a3V4bQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAIAAUAAAYlwNBI5OFwPhrMBtTJUBoTh+VSgSwGBoSk8lgsEgxAIaI4EASBIAA7",
+        "width": 6442,
+        "height": 4256,
+        "alt_text": "A sparsely painted waterside scene in dark tones with minimal ghostly shapes suggesting ships, yellow glitches of paint for light reflections, and the orb of an orange moon overhead."
+      },
+      "main_reference_number": "1900.52",
+      "date_display": "1872",
+      "artist_display": "James McNeill Whistler (American, 1834–1903)",
+      "place_of_origin": "London",
+      "description": "<p>In the early 1870s James McNeill Whistler took a radical step toward abstraction with his Nocturnes series. In keeping with his art-for-art’s-sake creed, these works capture the stillness of evening while evoking a connection to music. Unlike his earlier marine paintings, the subject of this work—an inlet along the English Channel near Southampton—is obscured by the approaching night. Large shipping vessels appear as ghostly shapes, reduced to shadowy forms by the deepening twilight, while the only points of brightness come from the subtle reflections of lights and the fragmented orb of the moon. The setting thus serves primarily as a vehicle for Whistler’s interest in the harmonies of muted color amid darkness.</p>\n",
+      "medium_display": "Oil on canvas",
+      "credit_line": "Stickney Fund",
+      "is_public_domain": true,
+      "color": {
+        "h": 37,
+        "l": 44,
+        "s": 21,
+        "percentage": 0.001277816467220813,
+        "population": 6
+      },
+      "artwork_type_title": "Painting",
+      "department_title": "Arts of the Americas",
+      "artist_title": "James McNeill Whistler",
+      "image_id": "50034c7f-ce51-00f1-430e-a6f7efc233fc"
+    },
+    {
+      "id": 47141,
+      "is_boosted": false,
+      "title": "Nude Seated in a Bathtub",
+      "thumbnail": {
+        "lqip": "data:image/gif;base64,R0lGODlhBAAFAPQAADs9O0xHNnVKNFBOR1FSR2daT3tdTGJbWWFgWW1mZXp2cIRXP5NkRYVkXZ19d4+JfqmMfZeOg6GMgLumngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH5BAAAAAAALAAAAAAEAAUAAAURIGMsAiQ5TTQlxXAAAYEoTwgAOw==",
+        "width": 6415,
+        "height": 8253,
+        "alt_text": "A work made of oil on canvas."
+      },
+      "main_reference_number": "1974.227",
+      "date_display": "1910",
+      "artist_display": "Marcel Duchamp\nAmerican, born France, 1887–1968",
+      "place_of_origin": "France",
+      "description": null,
+      "medium_display": "Oil on canvas",
+      "credit_line": "Gift of Mrs. Marcel Duchamp",
+      "is_public_domain": false,
+      "color": {
+        "h": 84,
+        "l": 43,
+        "s": 6,
+        "percentage": 0.03813310119946947,
+        "population": 343
+      },
+      "artwork_type_title": "Painting",
+      "department_title": "Modern Art",
+      "artist_title": "Marcel Duchamp",
+      "image_id": "e438d818-9c7b-824a-74f9-5b1e663ad7a4"
+    }
+  ],
+  "info": {
+    "license_text": "The `description` field in this response is licensed under a Creative Commons Attribution 4.0 Generic License (CC-By) and the Terms and Conditions of artic.edu. All other data in this response is licensed under a Creative Commons Zero (CC0) 1.0 designation and the Terms and Conditions of artic.edu.",
+    "license_links": [
+      "https://creativecommons.org/publicdomain/zero/1.0/",
+      "https://www.artic.edu/terms"
+    ],
+    "version": "1.15"
+  },
+  "config": {
+    "iiif_url": "https://www.artic.edu/iiif/2",
+    "website_url": "http://www.artic.edu"
+  }
+}

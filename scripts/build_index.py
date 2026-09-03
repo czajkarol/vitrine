@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.core.config import Settings, get_settings
 from app.domain.indexing import is_indexable
+from app.domain.scoring import explain, score
 from app.providers.aic.client import MAX_LIMIT, AicClient, AicError
 from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.database import Database
@@ -116,6 +117,40 @@ async def build(settings: Settings, limit: int | None, restart: bool) -> int:
     return total
 
 
+async def rescore(settings: Settings) -> int:
+    """Recompute every row's curated score.
+
+    A separate pass from the crawl on purpose: retuning a weight in `domain/scoring.py`
+    should not mean walking AIC again.
+    """
+    database = Database(settings.database_path)
+    database.migrate()
+    index = ArtworkIndexRepository(database)
+
+    written = 0
+    for batch in index.iter_for_scoring_sync():
+        await index.update_scores({artwork.id: score(artwork) for artwork in batch})
+        written += len(batch)
+        logger.info("scored %d rows", written)
+    logger.info("Scoring complete: %d rows", written)
+    return written
+
+
+async def explain_one(settings: Settings, artwork_id: int) -> None:
+    """Print one artwork's score breakdown.
+
+    The check on whether the scoring is too clever: if this does not make it obvious why
+    A outranked B, the weights need simplifying, not tuning.
+    """
+    database = Database(settings.database_path)
+    artwork = await ArtworkIndexRepository(database).get(artwork_id)
+    if artwork is None:
+        raise SystemExit(f"artwork {artwork_id} is not in the index")
+    print(f"{artwork.title} — {artwork.artist_title or 'unattributed'}")
+    print(f"  type={artwork.artwork_type_title!r} boosted={artwork.is_boosted}")
+    print(explain(artwork).format())
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -124,6 +159,12 @@ def main() -> None:
     parser.add_argument(
         "--restart", action="store_true", help="ignore saved progress and walk from page 1"
     )
+    parser.add_argument(
+        "--score-only", action="store_true", help="skip the crawl and just recompute scores"
+    )
+    parser.add_argument(
+        "--explain", type=int, metavar="ARTWORK_ID", help="print one artwork's score breakdown"
+    )
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
@@ -131,7 +172,18 @@ def main() -> None:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)-8s %(message)s",
     )
-    asyncio.run(build(get_settings(), args.limit, args.restart))
+
+    settings = get_settings()
+    if args.explain is not None:
+        asyncio.run(explain_one(settings, args.explain))
+        return
+    if args.score_only:
+        asyncio.run(rescore(settings))
+        return
+
+    asyncio.run(build(settings, args.limit, args.restart))
+    # Fresh rows arrive unscored, so curated mode would not see them until the next pass.
+    asyncio.run(rescore(settings))
 
 
 if __name__ == "__main__":
