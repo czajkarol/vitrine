@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vitrine</title>
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <main id="stage" class="stage" aria-live="polite">
+    <!-- Two stacked layers; the crossfade swaps which one is on top. -->
+    <div class="layer" id="layer-a" aria-hidden="true"></div>
+    <div class="layer" id="layer-b" aria-hidden="true"></div>
+    <img id="artwork" class="artwork" alt="">
+  </main>
+
+  <div id="status" class="status" role="status"></div>
+
+  <footer id="caption" class="caption">
+    <h1 id="caption-title" class="caption-title"></h1>
+    <p id="caption-artist" class="caption-artist"></p>
+    <p id="caption-credit" class="caption-credit">
+      Digital image courtesy of the Art Institute of Chicago.
+    </p>
+  </footer>
+
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

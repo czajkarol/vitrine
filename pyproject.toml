@@ -57,7 +57,11 @@ select = [
 ignore = ["B008"]      # FastAPI Depends() in defaults is idiomatic
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101"]
+"tests/**" = ["S101", "TID251"]
+# The banned-api rule below is global, so the layers that are *allowed* to speak
+# HTTP have to be exempted explicitly or the rule bans httpx from its own client.
+"app/providers/**" = ["TID251"]
+"scripts/**" = ["TID251"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 # Enforces the layer boundary from docs/architecture.md.

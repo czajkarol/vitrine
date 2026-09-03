@@ -12,29 +12,29 @@ abstraction before there is a picture on the screen.
 
 The goal is one real artwork on screen, fetched over the network, in a browser. Nothing else.
 
-- [ ] `pyproject.toml`, dependencies installed, `ruff` + `mypy` + `pytest` running clean
-- [ ] `.gitignore`, `.env.example`, `data/` ignored, first commit
-- [ ] Settings object loaded from environment via `pydantic-settings`
-- [ ] `AicClient` with the `AIC-User-Agent` header, timeout, and a 60 req/min throttle
-- [ ] `Artwork` domain model + parsing from one real AIC response
-- [ ] Contract test against a recorded response fixture (`respx`)
-- [ ] One `-m live` test that hits the real API, excluded from the default run
-- [ ] `GET /api/artwork/random` returning one public-domain artwork
-- [ ] `index.html` that displays it full-bleed on a dark background
-- [ ] Commit
+- [x] `pyproject.toml`, dependencies installed, `ruff` + `mypy` + `pytest` running clean
+- [x] `.gitignore`, `.env.example`, `data/` ignored, first commit
+- [x] Settings object loaded from environment via `pydantic-settings`
+- [x] `AicClient` with the `AIC-User-Agent` header, timeout, and a 60 req/min throttle
+- [x] `Artwork` domain model + parsing from one real AIC response
+- [x] Contract test against a recorded response fixture (`respx`)
+- [x] One `-m live` test that hits the real API, excluded from the default run
+- [x] `GET /api/artwork/random` returning one public-domain artwork
+- [x] `index.html` that displays it full-bleed on a dark background
+- [x] Commit
 
 ## M1 — The display
 
-- [ ] Transition pipeline: `lqip` → `new Image()` → `decode()` → crossfade
-- [ ] Image 404 and decode failure skip to the next artwork
-- [ ] IIIF width selection from viewport and `devicePixelRatio`, clamped to the cached ladder
+- [x] Transition pipeline: `lqip` → `new Image()` → `decode()` → crossfade
+- [x] Image 404 and decode failure skip to the next artwork
+- [x] IIIF width selection from viewport and `devicePixelRatio`, clamped to the cached ladder
 - [ ] Rotation timer with 1/5/15/30 intervals, default 5
 - [ ] Next-artwork preload scheduled ahead of expiry
 - [ ] `visibilitychange` catch-up so a backgrounded tab does not drift
 - [ ] Keyboard shortcuts per `docs/product-spec.md`, disabled inside inputs
 - [ ] Fullscreen via the Fullscreen API
-- [ ] Metadata overlay with mouse-idle fade, AIC attribution included
-- [ ] `prefers-reduced-motion` cuts instead of fading
+- [ ] Metadata overlay with mouse-idle fade — a static caption with AIC attribution is in place; the idle fade is not
+- [x] `prefers-reduced-motion` cuts instead of fading
 - [ ] Commit
 
 ## M2 — Local index and persistence
@@ -86,10 +86,10 @@ This is the milestone that makes the rest possible. See ADR-0003.
 
 ## M6 — Finish
 
-- [ ] `GET /api/health` and `/api/stats` (cache hit ratio, provider latency, AIC error rate)
+- [ ] `/api/stats` (cache hit ratio, provider latency, AIC error rate) — `GET /api/health` is done
 - [ ] Structured logging, no secrets, request IDs
 - [ ] Playwright smoke tests: loads, advances, overlay opens, language switches, AI-disabled state
-- [ ] GitHub Actions: ruff, mypy, pytest excluding live and e2e
+- [x] GitHub Actions: ruff, mypy, pytest excluding live and e2e
 - [ ] README written properly — architecture, setup, AI, caching, testing, security, limitations
 - [ ] Screenshots
 - [ ] ADRs reviewed against what was actually built
@@ -103,7 +103,8 @@ Recorded here so it does not get relitigated. Each has an ADR or a line in `CLAU
 
 - Shared/public interpretation cache — interface only (ADR-0004)
 - Machine learning for curation — transparent weights instead
-- Image proxying — AIC permits hotlinking and serves permissive CORS
+- ~~Image proxying~~ — reversed by ADR-0008. Cloudflare blocks hotlinking of AIC's IIIF
+  images, so `GET /api/image/{image_id}` exists as a fallback after a direct load fails.
 - OS-level power management — Screen Wake Lock covers it
 - Frontend framework or build step
 - Docker, Alembic, Redis, a DI framework
