@@ -1,4 +1,4 @@
-# Open questions for Filip
+# Open questions for Karol
 
 Decisions I made on my own while you were away, and the few I would rather you settled.
 Nothing here is blocking — the work is committed and the app runs. Overrule anything freely.
@@ -21,12 +21,14 @@ and we satisfy attribution some other way (a permanent hairline credit in a corn
 
 ---
 
-## 2. `S` for settings is not bound yet — *decided*
+## 2. `S` for settings — *resolved in M3, nothing to decide*
 
-The spec lists `S` → settings, but the settings panel is M4. I left `S` unbound rather than
-shipping a key that flashes "not available yet". The `Esc` priority chain (settings → overlay →
-fullscreen) is already wired with a settings hook that currently reports "closed", so M4 only
-has to fill it in.
+Written during M1, when the settings panel did not exist yet and I left `S` unbound rather than
+ship a key that flashes "not available yet".
+
+M3 needed somewhere to put the Explore filters, so the panel was built early and `S` now opens
+it. The `Esc` priority chain (settings → overlay → fullscreen) is fully wired. Left here only so
+the numbering does not shift under you.
 
 ---
 

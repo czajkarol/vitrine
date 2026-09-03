@@ -72,10 +72,10 @@ the file named, but they are the ones that cost real time.
 8. **Tests must set `database_path`.** The `settings` fixture in `tests/conftest.py` points at
    a tmp file. Without it the suite reads and writes the developer's real index.
 
-## Open questions for Filip
+## Open questions for Karol
 
 `QUESTIONS.md` holds twelve items — decisions taken with reasoning, and a few genuinely needing
-his call. The ones that affect what to build next:
+Karol's call. The ones that affect what to build next:
 
 - **#5** Fullscreen (`F`) is written but never verified: `requestFullscreen()` needs a real user
   gesture, which browser automation cannot supply. Someone should press the key once.
