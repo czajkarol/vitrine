@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     # --- Application -----------------------------------------------------------------
     app_env: str = "development"
     log_level: str = "INFO"
+    log_format: Literal["text", "json"] = "text"
+    """`text` for a human at a terminal, which is how this app is actually run. `json`
+    for when the logs are being shipped somewhere that parses them."""
     database_path: str = "data/vitrine.db"
     # The languages the app actually ships strings for — frontend/locales/. Typed as a
     # Literal so a value we cannot translate fails at startup, here, rather than at every

@@ -5,7 +5,7 @@
 ```
 frontend/            static assets, no build step
     │  fetch()
-app/api/             FastAPI routers. HTTP shapes in, HTTP shapes out. No logic.
+app/api/             FastAPI routers, middleware, error shapes. HTTP in, HTTP out. No logic.
     │
 app/services/        Orchestration. Rotation, selection, interpretation, index building.
     │

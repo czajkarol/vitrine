@@ -126,7 +126,10 @@ Per `CLAUDE.md`, ask Karol before starting it.
       Counters live in `domain/metrics.py`, in memory and from process start; the only figure
       that survives a restart is today's AI spend, which is the only one anything enforces
       against. Nothing in the frontend reads it
-- [ ] Structured logging, no secrets, request IDs
+- [x] Structured logging, no secrets, request IDs — `LOG_FORMAT=text|json`, one id per
+      request from a `ContextVar` so existing log calls did not have to change, honoured
+      from an inbound header, and a redaction pass over every record that catches a
+      key-shaped token whatever wrote it
 - [ ] Playwright smoke tests: loads, advances, overlay opens, language switches, AI-disabled state
 - [x] GitHub Actions: ruff, mypy, pytest excluding live and e2e
 - [ ] README written properly — architecture, setup, AI, caching, testing, security, limitations

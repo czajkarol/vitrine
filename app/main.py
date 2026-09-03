@@ -15,8 +15,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 
 from app.api.errors import validation_error_handler
+from app.api.middleware import request_id_middleware
 from app.api.routes import router
 from app.core.config import Settings, get_settings
+from app.core.logging import configure as configure_logging
 from app.providers.ai.factory import create_provider
 from app.providers.aic.client import AicClient
 from app.repositories.ai_usage import AiUsageRepository
@@ -39,10 +41,7 @@ FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: Settings = app.state.settings
-    logging.basicConfig(
-        level=getattr(logging, settings.log_level.upper(), logging.INFO),
-        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-    )
+    configure_logging(settings.log_level, settings.log_format)
     # Monotonic, so /api/stats reports how long this process has been up rather than
     # something a clock change can make negative.
     app.state.started_at = time.monotonic()
@@ -123,6 +122,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Before the routes, because one of them takes an API key and the default 422 would
     # echo it back. See app/api/errors.py.
     app.add_exception_handler(RequestValidationError, validation_error_handler)
+    # Outermost, so the id exists for anything below it — including the exception handler.
+    app.middleware("http")(request_id_middleware)
     app.include_router(router)
     if FRONTEND_DIR.is_dir():
         # Mounted last so it cannot shadow /api.
