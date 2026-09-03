@@ -8,7 +8,7 @@ shapeless cached value cannot be versioned, and a prompt change then leaves entr
 can reason about. Everything cached in this application has a declared shape.
 """
 
-from typing import Final, Literal
+from typing import Final, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -100,3 +100,21 @@ class CacheKey(BaseModel):
                 str(self.prompt_version),
             ]
         )
+
+
+class InterpretationCache(Protocol):
+    """Somewhere an interpretation can be kept and found again.
+
+    Two implementations from day one — SQLite and a null shared cache — so the resolution
+    chain in `docs/ai-system.md` is real code rather than a promise. ADR-0004 explains why
+    the shared one is deliberately empty.
+
+    Neither method may raise on a cache problem. A cache is an optimisation, and a corrupt
+    one must degrade to a miss rather than take the display down.
+    """
+
+    name: str
+
+    async def get(self, key: CacheKey) -> Interpretation | None: ...
+
+    async def put(self, key: CacheKey, value: Interpretation) -> None: ...

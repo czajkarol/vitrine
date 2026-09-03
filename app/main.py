@@ -19,6 +19,7 @@ from app.providers.aic.client import AicClient
 from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.database import Database
 from app.repositories.history import HistoryRepository
+from app.repositories.interpretations import NullSharedCache, SqliteInterpretationCache
 from app.repositories.preferences import PreferencesRepository
 from app.services.fallback import FallbackSet
 from app.services.interpretation import InterpretationService
@@ -63,6 +64,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         fallback=fallback,
         client=app.state.aic_client,
         settings=settings,
+        local_cache=SqliteInterpretationCache(database),
+        # Always empty, by decision rather than by omission. See ADR-0004.
+        shared_cache=NullSharedCache(),
     )
 
     app.state.selection = SelectionService(

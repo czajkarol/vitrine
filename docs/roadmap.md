@@ -100,8 +100,10 @@ Per `CLAUDE.md`, ask Karol before starting it.
 - [x] `InterpretationProvider` protocol + `MockProvider`
 - [x] Full feature wired end to end against the mock — `GET /api/interpretation/{id}`,
       its own labelled section in the overlay, and `/api/health` says whether to offer it
-- [ ] SQLite interpretation cache with the composite key
-- [ ] `NullSharedCache` and the three-tier resolution chain
+- [x] SQLite interpretation cache with the composite key — validated on the way out, so a
+      row from an older shape is a miss rather than something the display trusts
+- [x] `NullSharedCache` and the three-tier resolution chain — a cache that raises is
+      skipped, never propagated
 - [ ] Budget guard: token cap, daily request cap, `ai_usage` tracking
 - [ ] Circuit breaker with cooling period
 - [x] Generation on demand only — never on rotation. Tied to pinning the overlay with `I`,

@@ -11,12 +11,14 @@ from fastapi.testclient import TestClient
 
 from app.core.config import Settings
 from app.domain.artwork import Artwork
+from app.domain.interpretation import CacheKey
 from app.main import create_app
 from app.providers.ai.base import ProviderUnavailableError
 from app.providers.ai.mock import MockProvider
 from app.providers.aic.client import AicClient
 from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.database import Database
+from app.repositories.interpretations import NullSharedCache, SqliteInterpretationCache
 from app.services.fallback import FallbackSet
 from app.services.interpretation import ArtworkNotFoundError, InterpretationService
 
@@ -70,6 +72,8 @@ def _service(
         fallback=FallbackSet(artworks=bundled),
         client=_aic(settings),
         settings=settings,
+        local_cache=SqliteInterpretationCache(database),
+        shared_cache=NullSharedCache(),
     )
 
 
@@ -138,6 +142,8 @@ class TestInterpreting:
             fallback=FallbackSet(artworks=(INDEXED,)),
             client=_aic(settings),
             settings=settings,
+            local_cache=SqliteInterpretationCache(database),
+            shared_cache=NullSharedCache(),
         )
         assert service.enabled is False
         # The route checks `enabled` and answers "ai_disabled". Getting here anyway is a
@@ -178,3 +184,101 @@ class TestInterpretationEndpoint:
             "provider": "mock",
             "model": "mock-1",
         }
+
+
+class TestTheCacheChain:
+    async def test_a_second_request_does_not_reach_the_provider(self, settings):
+        provider = MockProvider()
+        service = _service(settings, provider=provider, artworks=(INDEXED,))
+
+        first = await service.interpret(27992, "en")
+        second = await service.interpret(27992, "en")
+
+        assert first == second
+        # The whole point of the cache, and the only way to see it from outside.
+        assert provider.calls == 1
+
+    async def test_each_language_is_cached_separately(self, settings):
+        provider = MockProvider()
+        service = _service(settings, provider=provider, artworks=(INDEXED,))
+
+        await service.interpret(27992, "en")
+        await service.interpret(27992, "pl")
+        assert provider.calls == 2
+
+    async def test_a_different_model_does_not_reuse_the_entry(self, settings):
+        artworks = (INDEXED,)
+        first = _service(settings, provider=MockProvider(model="mock-1"), artworks=artworks)
+        await first.interpret(27992, "en")
+
+        second_provider = MockProvider(model="mock-2")
+        second = _service(settings, provider=second_provider, artworks=artworks)
+        await second.interpret(27992, "en")
+        # Two providers answering the same question do not produce interchangeable text,
+        # so an entry from one must not be served as though it came from the other.
+        assert second_provider.calls == 1
+
+    async def test_a_new_prompt_version_invalidates_the_entry(self, settings, monkeypatch):
+        from app.services import interpretation as service_module
+
+        provider = MockProvider()
+        service = _service(settings, provider=provider, artworks=(INDEXED,))
+        await service.interpret(27992, "en")
+
+        monkeypatch.setattr(service_module, "PROMPT_VERSION", 99)
+        await service.interpret(27992, "en")
+        assert provider.calls == 2
+
+    async def test_a_corrupt_row_is_a_miss_rather_than_a_failure(self, settings):
+        provider = MockProvider()
+        service = _service(settings, provider=provider, artworks=(INDEXED,))
+        await service.interpret(27992, "en")
+
+        database = Database(settings.database_path)
+        with database.connect() as connection:
+            connection.execute("UPDATE interpretations SET payload_json = '{\"nope\": 1}'")
+
+        # Validated on the way out: a row that no longer fits the shape must not reach the
+        # display, and must not take the request down either.
+        assert await service.interpret(27992, "en") is not None
+        assert provider.calls == 2
+
+    async def test_a_cache_that_raises_is_skipped(self, settings):
+        class ExplodingCache:
+            name = "exploding"
+
+            async def get(self, key):
+                raise RuntimeError("disk on fire")
+
+            async def put(self, key, value):
+                raise RuntimeError("disk still on fire")
+
+        database = Database(settings.database_path)
+        database.migrate()
+        index = ArtworkIndexRepository(database)
+        index.upsert_many_sync([INDEXED])
+        provider = MockProvider()
+        service = InterpretationService(
+            provider=provider,
+            index=index,
+            fallback=FallbackSet(),
+            client=_aic(settings),
+            settings=settings,
+            local_cache=ExplodingCache(),
+            shared_cache=NullSharedCache(),
+        )
+
+        # A cache is an optimisation. Losing it costs a provider call, not the feature.
+        assert (await service.interpret(27992, "en")) is not None
+        assert provider.calls == 1
+
+    async def test_the_shared_tier_is_consulted_and_always_misses(self, settings):
+        shared = NullSharedCache()
+        assert (
+            await shared.get(
+                CacheKey(
+                    artwork_id=1, language="en", provider="mock", model="mock-1", prompt_version=1
+                )
+            )
+            is None
+        )
