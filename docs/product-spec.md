@@ -181,6 +181,11 @@ keyed by ID — including error messages, which are the strings most often left 
 
 Language selection drives the AI interpretation language too, and is part of the cache key.
 
+There is no plural machinery and there should not need to be. Polish inflects a counted noun
+three ways — 1 dzieło, 2 dzieła, 5 dzieł — so a string whose grammar depends on a number cannot
+be translated by substitution alone. Write the string so the number does not govern it:
+`Dzieł w indeksie: {total}.` is right where `{total} dzieł` is right only sometimes.
+
 ---
 
 ## Error states

@@ -5,6 +5,7 @@ The only module in the app permitted to read the environment. Everything else ta
 """
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -44,7 +45,10 @@ class Settings(BaseSettings):
     app_env: str = "development"
     log_level: str = "INFO"
     database_path: str = "data/vitrine.db"
-    default_language: str = "en"
+    # The languages the app actually ships strings for — frontend/locales/. Typed as a
+    # Literal so a value we cannot translate fails at startup, here, rather than at every
+    # page load where the only sane recovery is to discard the user's other preferences.
+    default_language: Literal["en", "pl"] = "en"
     default_interval_minutes: int = 5
 
 

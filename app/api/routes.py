@@ -13,6 +13,7 @@ from app.api.schemas import (
     FiltersResponse,
     PreferencesResponse,
 )
+from app.core.config import Settings
 from app.domain.artwork import CACHED_IIIF_WIDTHS, PREFERRED_IIIF_WIDTH
 from app.providers.aic.client import AicClient, AicError, AicUnavailableError
 from app.repositories.artwork_index import ArtworkIndexRepository
@@ -43,6 +44,11 @@ def get_preferences(request: Request) -> PreferencesRepository:
     return PreferencesRepository(request.app.state.database)
 
 
+def get_app_settings(request: Request) -> Settings:
+    settings: Settings = request.app.state.settings
+    return settings
+
+
 def get_index(request: Request) -> ArtworkIndexRepository:
     return ArtworkIndexRepository(request.app.state.database)
 
@@ -51,6 +57,7 @@ ClientDep = Annotated[AicClient, Depends(get_client)]
 SelectionDep = Annotated[SelectionService, Depends(get_selection)]
 PreferencesDep = Annotated[PreferencesRepository, Depends(get_preferences)]
 IndexDep = Annotated[ArtworkIndexRepository, Depends(get_index)]
+SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 
 # Below this, a filter cannot sustain a rotation and is not offered at all.
 MIN_FILTER_COUNT: Final[int] = 40
@@ -58,6 +65,7 @@ MIN_FILTER_COUNT: Final[int] = 40
 INTERVAL_KEY: Final[str] = "interval_minutes"
 MODE_KEY: Final[str] = "mode"
 ARTWORK_TYPE_KEY: Final[str] = "artwork_type"
+LANGUAGE_KEY: Final[str] = "language"
 
 
 @router.get("/artwork/random", response_model=ArtworkResponse)
@@ -153,7 +161,9 @@ async def read_filters(index: IndexDep) -> FiltersResponse:
 
 
 @router.get("/preferences", response_model=PreferencesResponse)
-async def read_preferences(preferences: PreferencesDep) -> PreferencesResponse:
+async def read_preferences(
+    preferences: PreferencesDep, settings: SettingsDep
+) -> PreferencesResponse:
     """Whatever has been saved, with the defaults filling the gaps."""
     stored_interval = await preferences.get(INTERVAL_KEY)
     stored_type = await preferences.get(ARTWORK_TYPE_KEY)
@@ -164,6 +174,9 @@ async def read_preferences(preferences: PreferencesDep) -> PreferencesResponse:
         fields["mode"] = stored_mode
     # An empty string means "no filter"; storing None is not possible in this table.
     fields["artwork_type"] = stored_type or None
+    # Nothing saved yet means the deployment's own default, not the schema's — this is
+    # what makes DEFAULT_LANGUAGE in .env do anything.
+    fields["language"] = await preferences.get(LANGUAGE_KEY) or settings.default_language
 
     try:
         return PreferencesResponse(**fields)
@@ -171,7 +184,10 @@ async def read_preferences(preferences: PreferencesDep) -> PreferencesResponse:
         # A value we no longer support — an interval removed from the menu, say. The
         # default is a better answer than a 500 on every page load.
         logger.warning("Discarding unusable stored preferences %r", fields)
-        return PreferencesResponse()
+        # The configured language survives the reset: it is validated at startup, so it
+        # cannot be the unusable value, and falling back to English would be a second
+        # surprise on top of the first.
+        return PreferencesResponse(language=settings.default_language)
 
 
 @router.put("/preferences", response_model=PreferencesResponse)
@@ -182,6 +198,7 @@ async def write_preferences(
     await preferences.set(INTERVAL_KEY, str(body.interval_minutes))
     await preferences.set(MODE_KEY, body.mode)
     await preferences.set(ARTWORK_TYPE_KEY, body.artwork_type or "")
+    await preferences.set(LANGUAGE_KEY, body.language)
     return body
 
 

@@ -1,5 +1,7 @@
 // The metadata overlay: museum facts, revealed by mouse movement, faded by stillness.
 
+import { t } from './i18n.js';
+
 // "Fades after a few seconds of stillness" (docs/product-spec.md).
 const IDLE_MS = 3500;
 
@@ -14,7 +16,7 @@ function plainText(html) {
   return (parsed.body.textContent ?? '').replace(/\s+/g, ' ').trim();
 }
 
-export function createOverlay(elements, messages) {
+export function createOverlay(elements) {
   const { overlay, title, artist, meta, description, credit, attribution } = elements;
 
   let pinned = false;
@@ -65,7 +67,7 @@ export function createOverlay(elements, messages) {
     render(artwork) {
       // AIC genuinely returns null titles. A caption with an empty heading reads as a
       // rendering fault, so say what it is instead.
-      title.textContent = artwork.title || messages.untitled;
+      title.textContent = artwork.title || t('untitled');
       artist.textContent = artwork.artist ?? artwork.artist_display ?? '';
 
       // Date and medium on one line; an em dash between them only if both exist.
@@ -82,9 +84,7 @@ export function createOverlay(elements, messages) {
 
       // The digital image is CC0 but courtesy is still owed. The description is CC BY 4.0
       // and its attribution is a licence condition, so it only appears when it is shown.
-      attribution.textContent = prose
-        ? messages.attribution_with_description
-        : messages.attribution;
+      attribution.textContent = prose ? t('attribution_with_description') : t('attribution');
     },
 
     /** Reveal briefly, then let stillness fade it. Used when the artwork changes. */

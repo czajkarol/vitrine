@@ -1,0 +1,31 @@
+{
+  "loading": "Wczytywanie…",
+  "network_unreachable": "Brak połączenia z serwerem.",
+  "aic_unavailable": "Art Institute jest chwilowo niedostępny. Ponowna próba za chwilę.",
+  "artwork_unavailable": "Dzieło jest niedostępne.",
+  "image_unavailable": "Obraz jest niedostępny. Wczytywanie kolejnego…",
+  "no_matching_artwork": "Brak dzieł pasujących do wybranych filtrów.",
+
+  "untitled": "Bez tytułu",
+  "attribution": "Cyfrowa reprodukcja dzięki uprzejmości Art Institute of Chicago.",
+  "attribution_with_description": "Cyfrowa reprodukcja dzięki uprzejmości Art Institute of Chicago. Opis: Art Institute of Chicago, CC BY 4.0.",
+  "overlay_pinned": "Szczegóły przypięte",
+  "overlay_unpinned": "Szczegóły odpięte",
+  "interval_set": "Co {minutes} min",
+
+  "settings_title": "Ustawienia",
+  "panel_hint": "Esc — zamknij ustawienia. Rotacja jest wstrzymana.",
+
+  "mode_legend": "Tryb",
+  "mode_random": "Losowy",
+  "mode_curated": "Wyselekcjonowany",
+  "mode_random_option": "Losowy — dzieła z całej kolekcji",
+  "mode_curated_option": "Wyselekcjonowany — dzieła dobrane według punktacji",
+
+  "artwork_type_legend": "Typ dzieła",
+  "filter_any": "Dowolny typ",
+  "filter_option": "{value} ({count})",
+  "filters_summary": "Dzieł w indeksie: {total}.",
+  "filters_no_index": "Brak lokalnego indeksu. Filtry wymagają zbudowania indeksu.",
+  "filters_too_thin": "Brak wystarczającej liczby dzieł dla któregokolwiek typu ({minimum})."
+}

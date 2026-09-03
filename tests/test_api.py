@@ -252,13 +252,33 @@ class TestPreferences:
         assert body["interval_minutes"] == 5
 
     def test_saves_and_reads_back(self, client):
-        saved = {"interval_minutes": 15, "mode": "curated", "artwork_type": "Painting"}
+        saved = {
+            "interval_minutes": 15,
+            "mode": "curated",
+            "artwork_type": "Painting",
+            "language": "pl",
+        }
         assert client.put("/api/preferences", json=saved).status_code == 200
 
         body = client.get("/api/preferences").json()
         assert body["interval_minutes"] == 15
         assert body["mode"] == "curated"
         assert body["artwork_type"] == "Painting"
+        assert body["language"] == "pl"
+
+    def test_rejects_a_language_we_have_no_strings_for(self, client):
+        # frontend/locales/ has en and pl. Anything else would render as bare keys.
+        assert client.put("/api/preferences", json={"language": "de"}).status_code == 422
+
+    def test_language_defaults_to_the_configured_one(self, settings, monkeypatch):
+        # DEFAULT_LANGUAGE in .env is what a fresh install starts in, so it has to reach
+        # the browser rather than being shadowed by the schema default.
+        from fastapi.testclient import TestClient
+
+        from app.main import create_app
+
+        with TestClient(create_app(settings.model_copy(update={"default_language": "pl"}))) as c:
+            assert c.get("/api/preferences").json()["language"] == "pl"
 
     def test_clearing_the_filter_reads_back_as_none(self, client):
         client.put("/api/preferences", json={"interval_minutes": 5, "artwork_type": "Painting"})
@@ -296,6 +316,7 @@ class TestPreferences:
             "interval_minutes",
             "mode",
             "artwork_type",
+            "language",
         }
 
 

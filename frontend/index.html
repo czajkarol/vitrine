@@ -34,29 +34,32 @@
     </div>
   </footer>
 
-  <!-- Settings. Hidden and inert at rest; `S` opens it, Esc closes it. -->
-  <aside id="panel" class="panel" role="dialog" aria-modal="false" aria-label="Settings" inert>
-    <h2 class="panel-heading">Settings</h2>
+  <!-- Settings. Hidden and inert at rest; `S` opens it, Esc closes it.
+       The English text below is what the browser paints before locales/ loads; every
+       label carries a data-i18n key that replaces it. See js/i18n.js. -->
+  <aside id="panel" class="panel" role="dialog" aria-modal="false"
+         data-i18n-aria-label="settings_title" inert>
+    <h2 class="panel-heading" data-i18n="settings_title">Settings</h2>
 
     <fieldset class="panel-group">
-      <legend>Mode</legend>
+      <legend data-i18n="mode_legend">Mode</legend>
       <label class="panel-option">
         <input type="radio" name="mode" value="random" checked>
-        <span>Random — anything in the collection</span>
+        <span data-i18n="mode_random_option">Random — anything in the collection</span>
       </label>
       <label class="panel-option">
         <input type="radio" name="mode" value="curated">
-        <span>Curated — ranked by transparent scoring</span>
+        <span data-i18n="mode_curated_option">Curated — ranked by transparent scoring</span>
       </label>
     </fieldset>
 
     <fieldset class="panel-group">
-      <legend>Artwork type</legend>
+      <legend data-i18n="artwork_type_legend">Artwork type</legend>
       <p id="panel-summary" class="panel-summary"></p>
       <div id="panel-types" class="panel-options"></div>
     </fieldset>
 
-    <p class="panel-hint">Esc to close. Rotation is paused while this is open.</p>
+    <p class="panel-hint" data-i18n="panel_hint">Esc to close. Rotation is paused while this is open.</p>
   </aside>
 
   <script type="module" src="/js/main.js"></script>

@@ -1,0 +1,31 @@
+{
+  "loading": "Loading…",
+  "network_unreachable": "Cannot reach the server.",
+  "aic_unavailable": "The Art Institute is not responding. Retrying shortly.",
+  "artwork_unavailable": "No artwork available right now.",
+  "image_unavailable": "That image could not be loaded. Trying another.",
+  "no_matching_artwork": "Nothing in the index matches those filters.",
+
+  "untitled": "Untitled",
+  "attribution": "Digital image courtesy of the Art Institute of Chicago.",
+  "attribution_with_description": "Digital image courtesy of the Art Institute of Chicago. Description: Art Institute of Chicago, CC BY 4.0.",
+  "overlay_pinned": "Details pinned",
+  "overlay_unpinned": "Details unpinned",
+  "interval_set": "Every {minutes} min",
+
+  "settings_title": "Settings",
+  "panel_hint": "Esc to close. Rotation is paused while this is open.",
+
+  "mode_legend": "Mode",
+  "mode_random": "Random",
+  "mode_curated": "Curated",
+  "mode_random_option": "Random — anything in the collection",
+  "mode_curated_option": "Curated — ranked by transparent scoring",
+
+  "artwork_type_legend": "Artwork type",
+  "filter_any": "Any type",
+  "filter_option": "{value} ({count})",
+  "filters_summary": "{total} artworks indexed.",
+  "filters_no_index": "No local index yet — run scripts/build_index.py to enable filters.",
+  "filters_too_thin": "No type has {minimum} or more artworks behind it yet. Index more to enable filters."
+}

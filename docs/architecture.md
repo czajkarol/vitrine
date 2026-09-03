@@ -134,11 +134,15 @@ frontend/
     index.html
     css/
     js/
+        main.js         wiring, and the only place the pieces below know about each other
         display.js      the transition pipeline — the one genuinely tricky file
         rotation.js     timer, visibility handling, preload scheduling
         overlay.js      metadata + AI panel
-        settings.js
-        i18n.js
+        panel.js        settings — named for what it is, not for what it holds
+        i18n.js         locale loading, {placeholder} substitution, data-i18n in markup
+        state.js        the plain object described below
+        shortcuts.js    the keyboard map
+        fullscreen.js
         api.js          the only file that calls fetch()
     locales/  en.json  pl.json
 ```

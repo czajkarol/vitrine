@@ -4,12 +4,16 @@
 // are reading should not have the picture change underneath it.
 
 import { fetchFilters } from './api.js';
+import { t } from './i18n.js';
 
-export function createPanel(elements, messages, handlers) {
+export function createPanel(elements, handlers) {
   const { panel, modeInputs, typeList, summary } = elements;
 
   let open = false;
   let loaded = false;
+  // The filter vocabulary as fetched. Kept so a language change can relabel the list
+  // without asking the server for it again.
+  let filters = null;
   // The panel's idea of the current settings, kept because the filter list is built
   // lazily on first open — long after preferences were restored at boot. Without this the
   // radio would read "Any type" while the rotation was actually filtered.
@@ -26,22 +30,30 @@ export function createPanel(elements, messages, handlers) {
   async function loadFilters() {
     if (loaded) return;
     loaded = true;
-    const data = await fetchFilters();
+    filters = await fetchFilters();
+    renderFilters();
+  }
+
+  /** Build the type list from `filters`. Idempotent, so a relabel is just another call. */
+  function renderFilters() {
     typeList.textContent = '';
 
-    if (!data || data.artwork_types.length === 0) {
+    if (!filters || filters.artwork_types.length === 0) {
       // No index yet, or nothing with enough behind it. Say so rather than showing an
       // empty box the user cannot interpret.
-      summary.textContent = data?.indexed_total
-        ? messages.filters_too_thin(data.minimum_count)
-        : messages.filters_no_index;
+      summary.textContent = filters?.indexed_total
+        ? t('filters_too_thin', { minimum: filters.minimum_count })
+        : t('filters_no_index');
       return;
     }
 
-    summary.textContent = messages.filters_summary(data.indexed_total);
-    typeList.appendChild(buildOption(messages.filter_any, '', true));
-    for (const option of data.artwork_types) {
-      typeList.appendChild(buildOption(`${option.value} (${option.count})`, option.value, false));
+    summary.textContent = t('filters_summary', { total: filters.indexed_total });
+    typeList.appendChild(buildOption(t('filter_any'), '', true));
+    for (const option of filters.artwork_types) {
+      // The type names themselves are AIC's vocabulary and arrive in English. They are
+      // data, not interface text, so they are not translated.
+      const label = t('filter_option', { value: option.value, count: option.count });
+      typeList.appendChild(buildOption(label, option.value, false));
     }
   }
 
@@ -100,6 +112,16 @@ export function createPanel(elements, messages, handlers) {
     /** Reflect restored preferences without firing change handlers. */
     sync(next) {
       current = { ...current, ...next };
+      applySelection();
+    },
+
+    /**
+     * Relabel everything this module built itself. The markup's own labels are handled
+     * by i18n.applyTo(); this covers the list built from /api/filters.
+     */
+    retranslate() {
+      if (!loaded) return;
+      renderFilters();
       applySelection();
     },
   };

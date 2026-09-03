@@ -4,34 +4,18 @@ import { fetchPreferences, fetchRandomArtwork, savePreferences } from './api.js'
 import { createPanel } from './panel.js';
 import { chooseWidth, loadImage, present } from './display.js';
 import * as fullscreen from './fullscreen.js';
+import { getLanguage, onLanguageChange, setLanguage, t } from './i18n.js';
 import { createOverlay } from './overlay.js';
 import { DEFAULT_INTERVAL_MINUTES, createRotation } from './rotation.js';
 import { bindShortcuts } from './shortcuts.js';
-import { setArtwork, setError, setIntervalMinutes, setLoading, setOverlayPinned } from './state.js';
-
-// Every user-visible string is keyed, including errors — they are the ones most often
-// left hardcoded. M4 moves this table into locales/en.json and locales/pl.json.
-const MESSAGES = {
-  loading: 'Loading…',
-  network_unreachable: 'Cannot reach the server.',
-  aic_unavailable: 'The Art Institute is not responding. Retrying shortly.',
-  artwork_unavailable: 'No artwork available right now.',
-  image_unavailable: 'That image could not be loaded. Trying another.',
-  no_matching_artwork: 'Nothing in the index matches those filters.',
-  filter_any: 'Any type',
-  filters_no_index: 'No local index yet — run scripts/build_index.py to enable filters.',
-  filters_summary: (total) => `${total.toLocaleString()} artworks indexed.`,
-  filters_too_thin: (minimum) =>
-    `No type has ${minimum} or more artworks behind it yet. Index more to enable filters.`,
-  mode_set: (mode) => (mode === 'curated' ? 'Curated' : 'Random'),
-  untitled: 'Untitled',
-  attribution: 'Digital image courtesy of the Art Institute of Chicago.',
-  attribution_with_description:
-    'Digital image courtesy of the Art Institute of Chicago. Description: Art Institute of Chicago, CC BY 4.0.',
-  interval_set: (minutes) => `Every ${minutes} min`,
-  overlay_pinned: 'Details pinned',
-  overlay_unpinned: 'Details unpinned',
-};
+import {
+  getState,
+  setArtwork,
+  setError,
+  setIntervalMinutes,
+  setLoading,
+  setOverlayPinned,
+} from './state.js';
 
 // How many artworks to skip past before giving up, when images will not load. Each retry
 // costs an AIC request, so this is deliberately small.
@@ -47,18 +31,15 @@ const elements = {
   body: document.body,
 };
 
-const overlay = createOverlay(
-  {
-    overlay: document.getElementById('overlay'),
-    title: document.getElementById('ov-title'),
-    artist: document.getElementById('ov-artist'),
-    meta: document.getElementById('ov-meta'),
-    description: document.getElementById('ov-description'),
-    credit: document.getElementById('ov-credit'),
-    attribution: document.getElementById('ov-attribution'),
-  },
-  MESSAGES,
-);
+const overlay = createOverlay({
+  overlay: document.getElementById('overlay'),
+  title: document.getElementById('ov-title'),
+  artist: document.getElementById('ov-artist'),
+  meta: document.getElementById('ov-meta'),
+  description: document.getElementById('ov-description'),
+  credit: document.getElementById('ov-credit'),
+  attribution: document.getElementById('ov-attribution'),
+});
 
 // What the display is currently asking for. Persisted, so it survives a reload.
 const query = { mode: 'random', artworkType: null };
@@ -69,20 +50,27 @@ let queryChanged = false;
 
 let flashTimer = null;
 
+// What the status line is saying, so a language change can say it again in the new
+// language. An error can sit on screen for the whole retry delay.
+let statusKey = null;
+
 function showStatus(key) {
   clearTimeout(flashTimer);
   flashTimer = null;
+  statusKey = key ?? null;
   if (!key) {
     elements.status.classList.remove('visible');
     return;
   }
-  elements.status.textContent = MESSAGES[key] ?? key;
+  elements.status.textContent = t(key);
   elements.status.classList.add('visible');
 }
 
 /** A confirmation that takes itself away again — interval changes, pin toggles. */
 function flashStatus(text) {
   clearTimeout(flashTimer);
+  // Not retranslated on a language change: it is gone in under two seconds.
+  statusKey = null;
   elements.status.textContent = text;
   elements.status.classList.add('visible');
   flashTimer = setTimeout(() => {
@@ -145,7 +133,6 @@ const panel = createPanel(
     typeList: document.getElementById('panel-types'),
     summary: document.getElementById('panel-summary'),
   },
-  MESSAGES,
   {
     // A panel you are reading should not have the picture change underneath it.
     onOpen: () => rotation.pause(),
@@ -162,7 +149,7 @@ const panel = createPanel(
     onModeChange: (mode) => {
       query.mode = mode;
       onQueryChanged();
-      flashStatus(MESSAGES.mode_set(mode));
+      flashStatus(t(`mode_${mode}`));
     },
     onFilterChange: (artworkType) => {
       query.artworkType = artworkType;
@@ -176,6 +163,7 @@ function persist() {
     interval_minutes: rotation.getIntervalMinutes(),
     mode: query.mode,
     artwork_type: query.artworkType,
+    language: getLanguage(),
   });
 }
 
@@ -196,13 +184,13 @@ bindShortcuts({
   onToggleOverlay: () => {
     const pinned = overlay.toggle();
     setOverlayPinned(pinned);
-    flashStatus(pinned ? MESSAGES.overlay_pinned : MESSAGES.overlay_unpinned);
+    flashStatus(t(pinned ? 'overlay_pinned' : 'overlay_unpinned'));
   },
   onInterval: (minutes) => {
     rotation.setIntervalMinutes(minutes);
     setIntervalMinutes(minutes);
     persist();
-    flashStatus(MESSAGES.interval_set(minutes));
+    flashStatus(t('interval_set', { minutes }));
   },
   onSettings: () => void panel.show(),
   onDismissOverlay: () => {
@@ -215,12 +203,30 @@ bindShortcuts({
   isOverlayVisible: () => overlay.isVisible(),
 });
 
+/**
+ * Retranslate the text this module and the panel own. Markup with a `data-i18n` key is
+ * handled inside i18n.js; what is left is text built from data — the caption of the
+ * artwork already on screen, the filter list, a status message mid-retry.
+ */
+function retranslate() {
+  const { artwork } = getState();
+  if (artwork) overlay.render(artwork);
+  panel.retranslate();
+  if (statusKey) elements.status.textContent = t(statusKey);
+}
+
+onLanguageChange(retranslate);
+
 /** Restore saved settings, then put the first artwork up. */
 async function boot() {
   setIntervalMinutes(DEFAULT_INTERVAL_MINUTES);
-  showStatus('loading');
 
   const saved = await fetchPreferences();
+  // Before anything paints. Both calls are same-origin and quick, and starting in
+  // English only to redraw in Polish a moment later is a flash on a display whose whole
+  // point is that nothing moves unless it means to.
+  await setLanguage(saved?.language);
+  showStatus('loading');
   if (saved?.interval_minutes) {
     rotation.setIntervalMinutes(saved.interval_minutes);
     setIntervalMinutes(saved.interval_minutes);

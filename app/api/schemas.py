@@ -90,6 +90,9 @@ class PreferencesResponse(BaseModel):
     interval_minutes: Literal[1, 5, 15, 30] = 5
     mode: Literal["random", "curated"] = "random"
     artwork_type: str | None = Field(default=None, max_length=100)
+    # Only the languages frontend/locales/ actually has strings for. The default is
+    # overridden by `default_language` when nothing has been saved yet.
+    language: Literal["en", "pl"] = "en"
 
 
 class FilterOption(BaseModel):
