@@ -16,4 +16,7 @@ Loaded when working inside `frontend/`. Behaviour is specified in `docs/product-
   a leaked listener per rotation is thousands by morning.
 - Every user-visible string comes from `locales/`. That includes error messages.
 - Build IIIF URLs only at the cached widths: 200, 400, 600, 843, 1686. Never an arbitrary width.
-- Keyboard handlers are inert while focus is in a text input.
+- Keyboard handlers are inert while focus is in a *text* input — not in any `<input>`. Radios
+  and checkboxes are inputs too, and treating them as typing left the settings panel with no
+  keyboard way out once a radio had been clicked. Leave Space alone when the focused control
+  acts on it.
