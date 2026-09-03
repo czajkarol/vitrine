@@ -19,6 +19,12 @@ DEFAULT_BROWSER_USER_AGENT = (
     "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
 
+# Deliberately not a real address. AIC asks for a contact they can actually reach if our
+# traffic causes them a problem, and there is no address this repository can carry that
+# would be true of whoever cloned it. So the default is a placeholder that says what to do,
+# and `app.main` logs a warning while it is still in place. See docs/aic-api.md.
+DEFAULT_AIC_USER_AGENT = "vitrine (set AIC_USER_AGENT in .env)"
+
 
 class Settings(BaseSettings):
     """Configuration, loaded once at startup and injected from there."""
@@ -26,13 +32,15 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        # .env.example carries AI and shared-cache keys that nothing reads until M5.
-        # Ignoring extras keeps a complete .env from breaking startup.
+        # A real .env accumulates keys this app does not read — a vendor key kept for
+        # another tool, a leftover from a removed feature. Ignoring extras keeps those
+        # from breaking startup. The cost is that a typo'd field name is silently inert,
+        # which is why .env.example carries nothing without a field behind it.
         extra="ignore",
     )
 
     # --- Art Institute of Chicago ---------------------------------------------------
-    aic_user_agent: str = "vitrine (karolkczaj@gmail.com)"
+    aic_user_agent: str = DEFAULT_AIC_USER_AGENT
     aic_base_url: str = "https://api.artic.edu/api/v1"
     aic_timeout_seconds: float = 10.0
     # AIC allows 60/min per IP. The default leaves headroom for a retry burst.

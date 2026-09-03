@@ -1,11 +1,13 @@
 """Integration tests for the HTTP routes, with AIC intercepted by respx."""
 
+import logging
+
 import httpx
 import pytest
 import respx
 from fastapi.testclient import TestClient
 
-from app.core.config import Settings
+from app.core.config import DEFAULT_AIC_USER_AGENT, Settings
 from app.main import create_app
 
 BASE = "https://api.artic.edu/api/v1"
@@ -469,3 +471,39 @@ class TestFrontend:
         response = client.get("/")
         assert response.status_code == 200
         assert "vitrine" in response.text.lower()
+
+
+class TestStartupWarnings:
+    """AIC asks for a contact address, and the default cannot be a real one."""
+
+    @staticmethod
+    def _warnings_during_startup(settings: Settings) -> list[str]:
+        """Capture on the `app.main` logger, not with `caplog`.
+
+        `configure_logging` replaces the root handlers wholesale — it has to, or uvicorn's
+        own handler prints every line twice — and that takes pytest's capturing handler
+        with it. A handler on the module logger is below the root and survives.
+        """
+        records: list[logging.LogRecord] = []
+
+        class Collect(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                records.append(record)
+
+        logger = logging.getLogger("app.main")
+        handler = Collect(level=logging.WARNING)
+        logger.addHandler(handler)
+        try:
+            with TestClient(create_app(settings)):
+                pass
+        finally:
+            logger.removeHandler(handler)
+        return [r.getMessage() for r in records]
+
+    def test_warns_while_the_user_agent_is_still_the_placeholder(self, settings: Settings):
+        placeholder = settings.model_copy(update={"aic_user_agent": DEFAULT_AIC_USER_AGENT})
+        assert any("AIC_USER_AGENT" in m for m in self._warnings_during_startup(placeholder))
+
+    def test_stays_quiet_once_it_is_set(self, settings: Settings):
+        # The settings fixture already carries a real-looking one.
+        assert not any("AIC_USER_AGENT" in m for m in self._warnings_during_startup(settings))

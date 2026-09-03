@@ -22,7 +22,7 @@ def load_fixture(name: str) -> dict:
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:
     return Settings(
-        aic_user_agent="vitrine-tests (karolkczaj@gmail.com)",
+        aic_user_agent="vitrine-tests (tests@example.invalid)",
         aic_base_url="https://api.artic.edu/api/v1",
         aic_timeout_seconds=5.0,
         aic_max_requests_per_minute=60,

@@ -19,9 +19,15 @@ Live responses backing this document are committed in `tests/fixtures/aic/`.
 | `limit` per page | Max 100 (`limit=101` → `403 Invalid limit`), default 12 |
 | **Search depth** | **`page × limit ≤ 1000`.** Past that: `403 Invalid number of results` |
 | **Listing depth** | **Uncapped.** `/artworks` paginates the entire collection |
-| Courtesy header | `AIC-User-Agent: vitrine (karolkczaj@gmail.com)` on every request |
+| Courtesy header | `AIC-User-Agent: vitrine (your.email@example.com)` on every request, from `AIC_USER_AGENT` |
 | Scraping | Single thread, no more than 1 request/second, no parallel scrapers |
 | Bulk data | Nightly JSON dumps at <https://github.com/art-institute-of-chicago/api-data> |
+
+The courtesy header is the one setting a fresh clone must actually change. There is no address
+this repository can ship that would be true of whoever cloned it, so `aic_user_agent` defaults to
+the placeholder `vitrine (set AIC_USER_AGENT in .env)` and the app logs one WARNING at startup
+while that is still in place. AIC asks for a contact they can reach if our traffic causes them a
+problem; a placeholder does not give them one.
 
 ### The search cap is 1,000, not 10,000
 

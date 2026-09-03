@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.errors import validation_error_handler
 from app.api.middleware import request_id_middleware
 from app.api.routes import router
-from app.core.config import Settings, get_settings
+from app.core.config import DEFAULT_AIC_USER_AGENT, Settings, get_settings
 from app.core.logging import configure as configure_logging
 from app.providers.ai.factory import create_provider
 from app.providers.aic.client import AicClient
@@ -42,6 +42,16 @@ FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: Settings = app.state.settings
     configure_logging(settings.log_level, settings.log_format)
+    if settings.aic_user_agent == DEFAULT_AIC_USER_AGENT:
+        # A warning and not a failure: the app still works, and refusing to start over a
+        # courtesy header would be a worse first five minutes than a log line. But AIC asks
+        # for a contact address on every request and the placeholder is not one, so this
+        # says so once, at the only moment anyone is looking at the terminal.
+        logger.warning(
+            "AIC_USER_AGENT is still the placeholder %r. AIC asks every client to identify "
+            "itself with a project name and a contact address; set AIC_USER_AGENT in .env.",
+            DEFAULT_AIC_USER_AGENT,
+        )
     # Monotonic, so /api/stats reports how long this process has been up rather than
     # something a clock change can make negative.
     app.state.started_at = time.monotonic()

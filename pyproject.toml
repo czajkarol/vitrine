@@ -21,8 +21,13 @@ dev = [
     "mypy>=1.13",
 ]
 e2e = ["playwright>=1.49", "pytest-playwright>=0.6"]
-ai = ["openai>=1.57", "anthropic>=0.40", "google-genai>=0.3"]
 keyring = ["keyring>=25.5"]
+# There is deliberately no `ai` extra. It used to install openai, anthropic and
+# google-genai, and nothing has ever imported any of them: both providers are a couple of
+# hundred lines of httpx over a documented JSON endpoint, sharing app/providers/ai/http.py.
+# The SDKs bought three dependencies, their transitive trees, and a second place a vendor
+# name could appear — docs/architecture.md keeps vendor names inside app/providers/ai/,
+# and a name in the manifest is outside it.
 
 [build-system]
 requires = ["hatchling"]
