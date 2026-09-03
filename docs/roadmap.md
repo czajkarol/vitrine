@@ -134,12 +134,12 @@ Per `CLAUDE.md`, ask Karol before starting it.
       state — the fixture starts its own uvicorn against a temporary database seeded from the
       bundled set, so `uv run pytest -m e2e` needs nothing set up but Chromium
 - [x] GitHub Actions: ruff, mypy, pytest excluding live and e2e
-- [ ] README written properly — architecture, setup, AI, caching, testing, security, limitations
-- [ ] Screenshots
+- [x] README written properly — architecture, setup, AI, caching, testing, security, limitations
+- [x] Screenshots — `docs/screenshots/`, the display and the settings panel
 - [x] ADRs reviewed against what was actually built — four gained a postscript, none had to
       be superseded. The one that mattered: 0003 claimed AIC is called to refresh the artwork
       about to be shown, and no such call exists
-- [ ] Commit
+- [x] Commit
 
 ---
 

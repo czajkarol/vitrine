@@ -3,13 +3,11 @@
 An ambient digital-art display. One public-domain artwork from the Art Institute of Chicago at
 a time, full-bleed on a dark background, rotating on a timer. Built for a second monitor.
 
-> This README is a stub. It gets written properly in M6 — see `docs/roadmap.md`. It should end
-> up covering architecture, setup, the AI system, caching, testing, performance, security,
-> limitations, and how the project was built.
+![The display, with the metadata overlay pinned](docs/screenshots/display.jpg)
 
-## Status
-
-Early. See `docs/roadmap.md` for what is done and what is next.
+It runs on your own machine, serves an artwork from a local index in about 19ms without touching
+the network, and keeps working when the museum's API does not. AI interpretation is optional,
+off by default, and the app is complete without it.
 
 ## Quick start
 
@@ -20,15 +18,78 @@ uv run python scripts/build_index.py --limit 5000
 uv run uvicorn app.main:app --reload
 ```
 
-Then open <http://127.0.0.1:8000>.
+Then open <http://127.0.0.1:8000>. Press `F` for fullscreen and leave it.
 
-AI interpretation is optional and off by default. Everything else works without it.
+The index step is optional but wanted: without it the app asks AIC for each artwork and falls
+back to a bundled set of thirty when the API is unreachable. With it, selection is a local
+SQLite query. A full walk of the collection is ~1,328 requests over about 22 minutes at AIC's
+own etiquette of one request per second, and it is resumable:
 
-## Bringing your own API key
+```bash
+uv run python scripts/build_index.py             # everything, ~22 min
+uv run python scripts/build_index.py --score-only # rescore what is already indexed
+uv run python scripts/build_index.py --explain 27992
+```
 
-Press `S` for settings, pick Anthropic or OpenAI, paste your key. It takes effect immediately —
-no restart. `.env` still works (`AI_ENABLED`, `AI_PROVIDER`, and the matching key), and a key
-saved from the panel takes precedence over one in the file.
+## Keyboard
+
+```
+Space      next artwork
+F          fullscreen
+I          metadata overlay — and, if AI is configured, an interpretation
+1 2 3 4 5  rotation interval: 30 sec / 1 / 5 / 15 / 30 min
+S          settings
+Esc        close settings, else close the overlay, else leave fullscreen
+```
+
+## Settings
+
+![The settings panel](docs/screenshots/settings.jpg)
+
+Mode, rotation interval, artwork type, ambient mode, language, and the AI key. Opening the panel
+pauses the rotation; closing it starts the clock again. Everything is saved locally and survives
+a reload.
+
+**Explore and Curated.** Explore filters by artwork type, offering only the types the index can
+actually sustain — a filter with four artworks behind it is worse than no filter, so it is not
+shown. Curated ranks by a transparent weighted score over six signals: AIC's own `is_boosted`
+curatorial flag, weighted highest because it is the only one carrying a human judgement about
+the work; resolution; aspect ratio; how complete the caption will be; whether the museum wrote a
+visual description; and whether the object is the kind of thing that fills a frame — a painting
+rather than a chair. The weights are one dict with a comment each, and `--explain` prints the
+breakdown for any artwork. It ranks rather than excludes, so with nothing scored yet you get a
+rotation instead of a blank screen.
+
+**English and Polish**, switchable without a reload.
+
+**Ambient mode** holds a Screen Wake Lock, and re-acquires it when the tab becomes visible again,
+because the browser takes the lock away whenever you look elsewhere. Off by default: keeping
+someone's screen awake is a side effect on their machine.
+
+## AI interpretation
+
+Optional, off by default, and never on the critical path. Pinning the overlay with `I` asks for
+an interpretation of what is on screen: a visual description, a reading, a few themes, and one
+thing to look closer at. It is labelled as generated, in its own container, and never shares one
+with the museum's own text.
+
+Generation happens **on demand only, never on rotation**. That single decision is worth an order
+of magnitude in cost, because most artworks are shown and never asked about.
+
+Around the call: a local SQLite cache keyed on artwork, language, provider, model and prompt
+version; a hard cap on output tokens and a daily request cap enforced *before* the call; a
+circuit breaker that stops calling a provider that keeps failing and still serves from cache; and
+a short timeout, because an interpretation that arrives after the artwork has rotated away is not
+wanted.
+
+Two providers are implemented, Anthropic and OpenAI, behind one interface. Nothing outside
+`app/providers/ai/` names a vendor.
+
+### Bringing your own API key
+
+Press `S`, pick Anthropic or OpenAI, paste your key. It takes effect immediately — no restart.
+`.env` also works (`AI_ENABLED`, `AI_PROVIDER`, and the matching key); a key saved from the panel
+takes precedence over one in the file.
 
 **Where the key is kept, and how safe that is.** If the `keyring` package is installed and your
 machine has a working credential store, the key goes there:
@@ -39,12 +100,97 @@ uv sync --extra keyring        # or: pip install "vitrine[keyring]"
 
 Otherwise it goes in `data/vitrine.db`, **unencrypted**. Anyone who can read that file can read
 your key. The settings panel says which of the two is in use before you type anything. This is a
-local-first app (`docs/adr/0002-local-first-single-user.md`) and the database is a file you own, but it is worth
-knowing, and it is worth installing the extra.
+local-first app ([ADR-0002](docs/adr/0002-local-first-single-user.md)) and the database is a file
+you own, but it is worth knowing, and it is worth installing the extra.
 
 The key is never sent to the browser, never written to a log, and never returned by an endpoint.
-Everything that reports on it — the panel, log lines, error messages — shows at most its last
-four characters. Remove it with the button in the same panel.
+Everything that reports on it shows at most its last four characters. Remove it with the button
+in the same panel.
+
+## Architecture
+
+```
+frontend/            static assets, no build step
+    │  fetch()
+app/api/             FastAPI routers, middleware, error shapes. HTTP in, HTTP out
+    │
+app/services/        orchestration: selection, interpretation, credentials
+    │
+app/domain/          models and pure logic: scoring, cache keys, counters. No I/O
+    │
+app/providers/       outbound: the AIC client, the AI providers
+app/repositories/    SQLite, and the OS keyring when there is one
+```
+
+The dependency direction is one-way and enforced where it can be: `ruff` bans `httpx` outside
+`app/providers/`, `domain/` imports nothing outward, and only the AIC client knows AIC's JSON
+shape. `docs/architecture.md` has the rules; `docs/adr/` has the reasoning.
+
+**Three tiers for an artwork.** Local index, then AIC, then a bundled set of thirty. The first
+answers without a network, which is the whole point of [ADR-0003](docs/adr/0003-local-artwork-index.md);
+the last means a fresh clone with no index and no connection still shows something.
+
+**Two paths for an image.** Direct from AIC's IIIF service first, and if that fails, once,
+through `GET /api/image/{image_id}`. AIC's images sit behind Cloudflare, which needs a request
+header an `<img>` tag cannot send — measured, in a browser, and written up in
+[ADR-0008](docs/adr/0008-image-delivery-fallback.md). The outcome is remembered for the session
+so the failed round trip is paid once rather than every rotation.
+
+## Endpoints
+
+| | |
+|---|---|
+| `GET /api/artwork/random` | one artwork, from whichever tier answers |
+| `GET /api/image/{image_id}` | the IIIF fallback — allow-listed widths, id format checked |
+| `GET /api/filters` | Explore vocabulary with real counts |
+| `GET`/`PUT /api/preferences` | the settings panel's state |
+| `GET /api/interpretation/{id}` | one interpretation, on demand |
+| `GET`/`PUT`/`DELETE /api/ai/key` | the bring-your-own key, never returned |
+| `GET /api/health` | liveness, and whether AI is available |
+| `GET /api/stats` | cache hit ratio, provider latency, AIC error rate, today's spend |
+
+## Testing
+
+```bash
+uv run pytest                 # 334 tests: unit, contract, integration. No network
+uv run pytest -m live         # the real AIC API, and a real AI provider if a key is set
+uv run pytest -m e2e          # five Playwright flows; it starts its own server
+uv run ruff check . && uv run ruff format --check . && uv run mypy app
+```
+
+CI runs the default selection plus `ruff` and `mypy`, and never runs `live` or `e2e`.
+
+Fixtures are recorded AIC responses, not hand-written dicts: a hand-written fixture tests your
+idea of the API, which is the precise thing a contract test exists to check. `docs/testing.md`
+lists the failure paths that each have a named test — a 500 that succeeds on retry, an image that
+404s at display time, a corrupt cache row, an exhausted budget, an open circuit.
+
+## Security and privacy
+
+- No API key ever reaches the frontend. All AI calls go through the backend.
+- Keys are redacted to their last four characters in logs, errors and responses, and every log
+  record additionally passes through a redaction pass that catches a key-shaped token wherever it
+  came from.
+- `.env` is gitignored. The bring-your-own key goes in the OS keyring where there is one.
+- Binds to localhost and serves one user ([ADR-0002](docs/adr/0002-local-first-single-user.md)).
+  There is no login, because there is nobody else.
+- The image endpoint is not a general-purpose proxy: it validates the image id against a UUID
+  shape and the width against the five cached IIIF widths.
+
+## Limitations
+
+- **The index goes stale.** AIC can unpublish or replace any image at any time, so it is treated
+  as a cache: a dead image at display time skips to the next artwork rather than stopping.
+- **Style and subject filters are not built.** They need a full re-crawl and are batched with
+  other indexing work rather than triggering a 22-minute walk on their own — M3.5 in
+  `docs/roadmap.md`.
+- **Interpretations do not stream.** The panel waits for the whole answer. SSE is described in
+  `docs/ai-system.md` as a refinement, not a foundation.
+- **No shared cache.** Deliberately an interface and nothing else
+  ([ADR-0004](docs/adr/0004-defer-shared-cache.md)).
+- **Cloudflare's behaviour towards IIIF hotlinking was measured on one network on one day.** It
+  may differ elsewhere, and may change without notice. The fallback handles both worlds; a `live`
+  test asserts which one we are in.
 
 ## Documentation
 
@@ -56,14 +202,20 @@ four characters. Remove it with the button in the same panel.
 | `docs/ai-system.md` | Providers, caching, prompts, cost control |
 | `docs/testing.md` | Test strategy |
 | `docs/adr/` | Why things are the way they are |
+| `HANDOFF.md` | The state of play, for whoever picks this up next |
 
 ## Attribution
 
 Artwork data and images come from the Art Institute of Chicago's public API. Collection data is
-CC0; the `description` field is CC BY 4.0. See <https://www.artic.edu/terms>.
+CC0; the `description` field is CC BY 4.0, and the overlay credits the Art Institute whenever a
+description is shown. See <https://www.artic.edu/terms>.
+
+Only works flagged `is_public_domain` are ever displayed. That is a hard filter at index time and
+at display time, not a preference — [ADR-0007](docs/adr/0007-public-domain-only.md).
 
 ## How this was built
 
 Implementation was done by Claude Code working autonomously against the specification in
-`CLAUDE.md` and `docs/`, with me as reviewer and product owner. The architectural decisions,
-and the reasoning behind them, are recorded in `docs/adr/`.
+`CLAUDE.md` and `docs/`, with me as reviewer and product owner. The architectural decisions, and
+the reasoning behind them, are recorded in `docs/adr/` — including the two that were reversed or
+corrected in flight, which are the interesting ones.

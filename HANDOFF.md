@@ -1,15 +1,15 @@
 # Handoff
 
-State of vitrine as of 2026-09-03. Written for whoever (or whatever) picks this up next.
+State of vitrine as of 2026-09-03, with every milestone but M3.5 finished. Written for
+whoever (or whatever) picks this up next.
 
 ---
 
 ## Where the project actually is
 
-M0 through M5 are complete and committed, apart from one scoped-down item in M3 (M3.5, parked
-deliberately — see below). M6 is three items in: `/api/stats`, structured logging with request
-ids, and the CI workflow that was already there. `docs/roadmap.md` is accurate: it was
-reconciled against the code, not against intentions, and is ticked as work lands.
+**Every milestone is complete except M3.5, which is parked deliberately** — see below. M6
+finished on 2026-09-03. `docs/roadmap.md` is accurate: it was reconciled against the code, not
+against intentions, and is ticked as work lands.
 
 The app works end to end: it serves an artwork from a local SQLite index in ~19ms with no
 network call, rotates on a timer, has a keyboard map, a metadata overlay, a settings panel with
@@ -61,21 +61,21 @@ uv run python scripts/build_index.py --explain <artwork_id>
 
 ## What to do next
 
-**M6 — Finish.** Four items left.
+**Nothing is queued.** The roadmap has one unticked section, M3.5, and it is waiting on Karol
+rather than on work — see below. Two things are outstanding that are his rather than anyone's:
 
-**Playwright smoke tests needs a decision before it needs work.** Neither `playwright` nor its
-browser binaries are installed on this machine, and installing them is a few hundred megabytes
-of download — Karol's call, not one to make on his behalf. The five flows the roadmap wants are
-in `docs/testing.md`. Everything else in M6 is unblocked.
+1. **`uv run pytest -m live` with a real key.** Neither provider has ever been called with a
+   working key. It is the only thing that can catch a wrong default model id or
+   `max_completion_tokens` being wrong for the model in use. A fake key was pushed through the
+   whole path in a browser and came back a clean 401, which proves the wiring and nothing about
+   the model ids.
+2. **M3.5**, if he wants style and subject filters. It needs a re-crawl, which needs his say-so.
 
-- **README written properly.** No longer a pure stub: the bring-your-own key section was
-  written during M5, because `docs/ai-system.md` makes documenting the unencrypted fallback a
-  condition of having one. Everything else in it is still the stub text.
-- **Screenshots.** Needs a decision on where they live and whether binaries belong in the repo.
-- **ADRs reviewed against what was actually built.** ADR-0008 was already reversed once in
-  flight; the others have not been read against the code since they were written.
+If more is wanted beyond that, the honest candidates are streaming interpretations over SSE
+(`docs/ai-system.md` describes it and no roadmap item claims it), and re-testing ADR-0008's
+Cloudflare finding, which was one network on one day.
 
-What the two finished items put in place:
+What M6 put in place:
 
 - **`/api/stats`** — cache hit ratio, provider latency, AIC error rate, today's spend, index
   size. Counters are in `domain/metrics.py`: pure, in memory, from process start. The only
@@ -87,6 +87,14 @@ What the two finished items put in place:
   a key-shaped token wherever it came from — a net under the source-level redaction, not a
   replacement for it. uvicorn's access log is silenced because the middleware logs its own
   line; `uvicorn.error` is adopted so the banner matches everything else.
+- **Playwright** — `tests/test_e2e.py`, the five flows from `docs/testing.md` and no more. The
+  fixture starts its own uvicorn against a temporary database seeded from the bundled set, so
+  `uv run pytest -m e2e` needs nothing arranged but `playwright install chromium`. It strips
+  `AI_*` and every vendor key out of the inherited environment, or a key in the shell would turn
+  AI on and flow 5 would stop testing what it says it tests.
+- **The ADR review** — four postscripts, no supersessions. `docs/adr/README.md` says which and
+  why.
+- **README and screenshots** — `docs/screenshots/`, captured from the running app.
 
 **Still outstanding from M5, and it needs Karol:** neither real provider has been verified
 against its real API. **`uv run pytest -m live` with a key in `.env` is the manual step**, and
@@ -110,6 +118,9 @@ How bring-your-own keys fit together:
   validation error. See the note in "Things that will bite you".
 - The one text field in the app is the key field, which is why Esc is now exempt from the
   "shortcuts are inert while typing" rule in `shortcuts.js`.
+- On this machine the keyring path is the live one: `uv sync --all-extras` installs the extra and
+  Windows Credential Manager passes the probe, so the panel reads "Keys are kept in your system
+  keyring." The SQLite path is what a fresh clone without the extra gets, and both are tested.
 
 Adding the second provider did not change `providers/ai/base.py`, which is the result
 `docs/ai-system.md` set that exercise up to test. It did produce `providers/ai/http.py` — the
