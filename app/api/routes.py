@@ -66,6 +66,7 @@ INTERVAL_KEY: Final[str] = "interval_minutes"
 MODE_KEY: Final[str] = "mode"
 ARTWORK_TYPE_KEY: Final[str] = "artwork_type"
 LANGUAGE_KEY: Final[str] = "language"
+AMBIENT_KEY: Final[str] = "ambient"
 
 
 @router.get("/artwork/random", response_model=ArtworkResponse)
@@ -177,6 +178,9 @@ async def read_preferences(
     # Nothing saved yet means the deployment's own default, not the schema's — this is
     # what makes DEFAULT_LANGUAGE in .env do anything.
     fields["language"] = await preferences.get(LANGUAGE_KEY) or settings.default_language
+    # The table stores strings. Anything that is not the stored true is false, so a value
+    # written by an older version cannot switch ambient mode on by accident.
+    fields["ambient"] = await preferences.get(AMBIENT_KEY) == "1"
 
     try:
         return PreferencesResponse(**fields)
@@ -199,6 +203,7 @@ async def write_preferences(
     await preferences.set(MODE_KEY, body.mode)
     await preferences.set(ARTWORK_TYPE_KEY, body.artwork_type or "")
     await preferences.set(LANGUAGE_KEY, body.language)
+    await preferences.set(AMBIENT_KEY, "1" if body.ambient else "0")
     return body
 
 

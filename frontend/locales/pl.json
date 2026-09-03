@@ -26,6 +26,9 @@
   "mode_random_option": "Losowy — dzieła z całej kolekcji",
   "mode_curated_option": "Wyselekcjonowany — dzieła dobrane według punktacji",
 
+  "ambient_legend": "Tryb ambientowy",
+  "ambient_label": "Nie wygaszaj ekranu",
+
   "artwork_type_legend": "Typ dzieła",
   "filter_any": "Dowolny typ",
   "filter_option": "{value} ({count})",

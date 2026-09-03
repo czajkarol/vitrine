@@ -7,7 +7,8 @@ import { fetchFilters } from './api.js';
 import { t } from './i18n.js';
 
 export function createPanel(elements, handlers) {
-  const { panel, modeInputs, languageInputs, typeList, summary } = elements;
+  const { panel, modeInputs, languageInputs, ambientInput, ambientGroup, typeList, summary } =
+    elements;
 
   let open = false;
   let loaded = false;
@@ -17,11 +18,12 @@ export function createPanel(elements, handlers) {
   // The panel's idea of the current settings, kept because the filter list is built
   // lazily on first open — long after preferences were restored at boot. Without this the
   // radio would read "Any type" while the rotation was actually filtered.
-  let current = { mode: 'random', artworkType: null, language: 'en' };
+  let current = { mode: 'random', artworkType: null, language: 'en', ambient: false };
 
   function applySelection() {
     for (const input of modeInputs) input.checked = input.value === current.mode;
     for (const input of languageInputs) input.checked = input.value === current.language;
+    ambientInput.checked = current.ambient;
     const target = [...typeList.querySelectorAll('input')].find(
       (input) => input.value === (current.artworkType ?? ''),
     );
@@ -93,6 +95,16 @@ export function createPanel(elements, handlers) {
     });
   }
 
+  ambientInput.addEventListener('change', () => {
+    current = { ...current, ambient: ambientInput.checked };
+    handlers.onAmbientChange(current.ambient);
+  });
+
+  /** Offer ambient mode only where the browser can actually do it. */
+  function hideAmbient() {
+    ambientGroup.remove();
+  }
+
   return {
     async show() {
       open = true;
@@ -116,6 +128,8 @@ export function createPanel(elements, handlers) {
     isOpen() {
       return open;
     },
+
+    hideAmbient,
 
     /** Reflect restored preferences without firing change handlers. */
     sync(next) {

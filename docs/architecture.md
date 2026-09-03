@@ -140,6 +140,7 @@ frontend/
         overlay.js      metadata + AI panel
         panel.js        settings — named for what it is, not for what it holds
         i18n.js         locale loading, {placeholder} substitution, data-i18n in markup
+        ambient.js      the Screen Wake Lock, and re-taking it when the tab comes back
         state.js        the plain object described below
         shortcuts.js    the keyboard map
         fullscreen.js

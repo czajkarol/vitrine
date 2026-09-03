@@ -59,6 +59,16 @@
       <div id="panel-types" class="panel-options"></div>
     </fieldset>
 
+    <!-- Removed outright where the Screen Wake Lock API is missing, rather than shown
+         disabled: an inert toggle invites the user to wonder what they did wrong. -->
+    <fieldset class="panel-group" id="panel-ambient-group">
+      <legend data-i18n="ambient_legend">Ambient</legend>
+      <label class="panel-option">
+        <input type="checkbox" id="panel-ambient">
+        <span data-i18n="ambient_label">Keep the screen awake</span>
+      </label>
+    </fieldset>
+
     <fieldset class="panel-group">
       <legend data-i18n="language_legend">Language</legend>
       <label class="panel-option">

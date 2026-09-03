@@ -1,5 +1,6 @@
 // Entry point: wiring. The pieces it joins each own one concern.
 
+import { createAmbient, isSupported as ambientSupported } from './ambient.js';
 import { fetchPreferences, fetchRandomArtwork, savePreferences } from './api.js';
 import { createPanel } from './panel.js';
 import { chooseWidth, loadImage, present } from './display.js';
@@ -40,6 +41,8 @@ const overlay = createOverlay({
   credit: document.getElementById('ov-credit'),
   attribution: document.getElementById('ov-attribution'),
 });
+
+const ambient = createAmbient();
 
 // What the display is currently asking for. Persisted, so it survives a reload.
 const query = { mode: 'random', artworkType: null };
@@ -131,6 +134,8 @@ const panel = createPanel(
     panel: document.getElementById('panel'),
     modeInputs: [...document.querySelectorAll('input[name="mode"]')],
     languageInputs: [...document.querySelectorAll('input[name="language"]')],
+    ambientInput: document.getElementById('panel-ambient'),
+    ambientGroup: document.getElementById('panel-ambient-group'),
     typeList: document.getElementById('panel-types'),
     summary: document.getElementById('panel-summary'),
   },
@@ -156,6 +161,10 @@ const panel = createPanel(
       query.artworkType = artworkType;
       onQueryChanged();
     },
+    onAmbientChange: (on) => {
+      void ambient.setEnabled(on);
+      persist();
+    },
     onLanguageChange: async (code) => {
       await setLanguage(code);
       // A locale that would not load leaves the old one in effect, so the radio has to
@@ -172,6 +181,7 @@ function persist() {
     mode: query.mode,
     artwork_type: query.artworkType,
     language: getLanguage(),
+    ambient: ambient.isEnabled(),
   });
 }
 
@@ -241,7 +251,21 @@ async function boot() {
   }
   if (saved?.mode) query.mode = saved.mode;
   if (saved?.artwork_type) query.artworkType = saved.artwork_type;
-  panel.sync({ mode: query.mode, artworkType: query.artworkType, language: getLanguage() });
+
+  if (ambientSupported()) {
+    // No user gesture is needed for a wake lock, only a visible document, so a saved
+    // preference can be honoured at boot rather than waiting to be re-clicked.
+    if (saved?.ambient) await ambient.setEnabled(true);
+  } else {
+    panel.hideAmbient();
+  }
+
+  panel.sync({
+    mode: query.mode,
+    artworkType: query.artworkType,
+    language: getLanguage(),
+    ambient: ambient.isEnabled(),
+  });
 
   await rotation.start();
 }

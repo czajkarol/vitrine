@@ -26,6 +26,9 @@
   "mode_random_option": "Random — anything in the collection",
   "mode_curated_option": "Curated — ranked by transparent scoring",
 
+  "ambient_legend": "Ambient",
+  "ambient_label": "Keep the screen awake",
+
   "artwork_type_legend": "Artwork type",
   "filter_any": "Any type",
   "filter_option": "{value} ({count})",

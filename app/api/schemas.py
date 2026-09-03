@@ -93,6 +93,9 @@ class PreferencesResponse(BaseModel):
     # Only the languages frontend/locales/ actually has strings for. The default is
     # overridden by `default_language` when nothing has been saved yet.
     language: Literal["en", "pl"] = "en"
+    # Screen Wake Lock. Off unless asked for: keeping someone's screen awake is a side
+    # effect on their machine, not a default.
+    ambient: bool = False
 
 
 class FilterOption(BaseModel):

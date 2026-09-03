@@ -266,6 +266,25 @@ class TestPreferences:
         assert body["artwork_type"] == "Painting"
         assert body["language"] == "pl"
 
+    def test_ambient_is_off_until_it_is_asked_for(self, client):
+        # Keeping someone's screen awake is a side effect on their machine.
+        assert client.get("/api/preferences").json()["ambient"] is False
+
+    def test_ambient_survives_a_round_trip(self, client):
+        client.put("/api/preferences", json={"ambient": True})
+        assert client.get("/api/preferences").json()["ambient"] is True
+        client.put("/api/preferences", json={"ambient": False})
+        assert client.get("/api/preferences").json()["ambient"] is False
+
+    def test_an_unrecognised_stored_ambient_value_reads_as_off(self, client, settings):
+        from app.repositories.database import Database
+        from app.repositories.preferences import PreferencesRepository
+
+        PreferencesRepository(Database(settings.database_path)).set_sync("ambient", "yes")
+        # The table holds strings. Only the value this version writes counts as true, so
+        # nothing written by another version can switch a screen-affecting setting on.
+        assert client.get("/api/preferences").json()["ambient"] is False
+
     def test_rejects_a_language_we_have_no_strings_for(self, client):
         # frontend/locales/ has en and pl. Anything else would render as bare keys.
         assert client.put("/api/preferences", json={"language": "de"}).status_code == 422
@@ -317,6 +336,7 @@ class TestPreferences:
             "mode",
             "artwork_type",
             "language",
+            "ambient",
         }
 
 

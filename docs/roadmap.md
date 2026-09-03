@@ -90,8 +90,9 @@ Per `CLAUDE.md`, ask Karol before starting it.
       own labels are keyed in markup with `data-i18n`, and `language` joins the preferences
 - [x] Language switch without reload — radios in the panel; the caption, the filter list
       and any status message on screen are retranslated in place
-- [ ] Ambient mode via Screen Wake Lock, re-acquired on `visibilitychange`
-- [ ] Commit
+- [x] Ambient mode via Screen Wake Lock, re-acquired on `visibilitychange` — off by default,
+      and the toggle is removed outright where the API is missing
+- [x] Commit
 
 ## M5 — AI
 
