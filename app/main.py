@@ -26,6 +26,7 @@ from app.repositories.ai_usage import AiUsageRepository
 from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.credentials import create_credential_store
 from app.repositories.database import Database
+from app.repositories.feedback import FeedbackRepository
 from app.repositories.history import HistoryRepository
 from app.repositories.interpretations import NullSharedCache, SqliteInterpretationCache
 from app.repositories.preferences import PreferencesRepository
@@ -116,6 +117,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         preferences=preferences,
         fallback=fallback,
         client=app.state.aic_client,
+        feedback=FeedbackRepository(database),
     )
     # Seed the proxy's base from whatever we already know, so an index-only start can
     # still serve images without waiting for a live AIC response.

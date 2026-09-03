@@ -16,24 +16,32 @@ from app.api.schemas import (
     AiStatus,
     ArtworkResponse,
     CacheStats,
+    FeedbackItem,
+    FeedbackRequest,
+    FeedbackSummary,
     FilterOption,
     FiltersResponse,
     HealthResponse,
     InterpretationResponse,
     PreferencesResponse,
     ProviderStats,
+    ScoringResponse,
+    ScoringWeight,
     StatsResponse,
     UsageStats,
 )
 from app.core.config import Settings
+from app.domain.affinity import MIN_LIKES_FOR_PROFILE
 from app.domain.artwork import CACHED_IIIF_WIDTHS, PREFERRED_IIIF_WIDTH
 from app.domain.rate_limit import RateLimiter
+from app.domain.scoring import WEIGHTS
 from app.domain.vocabulary import FACET_GROUPS, FacetGroup, facet_for, label_for
 from app.providers.ai.base import AiError
 from app.providers.aic.client import AicClient, AicError, AicUnavailableError
 from app.repositories.ai_usage import AiUsageRepository, today
 from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.credentials import CredentialStoreError
+from app.repositories.feedback import FeedbackRepository
 from app.repositories.preferences import PreferencesRepository
 from app.services.ai_credentials import AiCredentialService, AiKeyStatus
 from app.services.interpretation import (
@@ -116,6 +124,10 @@ def _rate_limit(request: Request, *, dependent: bool) -> None:
     )
 
 
+def get_feedback(request: Request) -> FeedbackRepository:
+    return FeedbackRepository(request.app.state.database)
+
+
 def enforce_rate_limit(request: Request) -> None:
     """An advance. Spends a token and grants the credit its image will use."""
     _rate_limit(request, dependent=False)
@@ -147,6 +159,7 @@ SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 InterpretationDep = Annotated[InterpretationService, Depends(get_interpretation)]
 AiCredentialsDep = Annotated[AiCredentialService, Depends(get_ai_credentials)]
 UsageDep = Annotated[AiUsageRepository, Depends(get_usage)]
+FeedbackDep = Annotated[FeedbackRepository, Depends(get_feedback)]
 
 # Below this, a filter cannot sustain a rotation and is not offered at all.
 MIN_FILTER_COUNT: Final[int] = 40
@@ -181,7 +194,8 @@ EXCLUDE_SEPARATOR: Final[str] = ","
 async def random_artwork(
     request: Request,
     selection: SelectionDep,
-    mode: Annotated[Literal["random", "curated"], Query()] = "random",
+    feedback: FeedbackDep,
+    mode: Annotated[Literal["random", "curated", "personal"], Query()] = "random",
     artwork_type: Annotated[str | None, Query(max_length=100)] = None,
     style: Annotated[str | None, Query(max_length=100)] = None,
     subject: Annotated[str | None, Query(max_length=100)] = None,
@@ -197,7 +211,7 @@ async def random_artwork(
     `exclude` is repeatable and may name facets from any group.
     """
     query = SelectionQuery(
-        curated=mode == "curated",
+        mode=mode,
         facets=tuple(f for f in (artwork_type, style, subject) if f),
         exclude=tuple(_valid_facets(exclude)),
     )
@@ -220,7 +234,11 @@ async def random_artwork(
 
     # Remembered so the image proxy never has to guess a IIIF base or hardcode one.
     request.app.state.iiif_base = result.iiif_base
-    return ArtworkResponse.from_domain(result.artwork, result.iiif_base, source=result.source)
+    response = ArtworkResponse.from_domain(result.artwork, result.iiif_base, source=result.source)
+    response.personalised = result.personalised
+    existing = await feedback.get(result.artwork.id)
+    response.liked = existing is not None and existing.kind == "like"
+    return response
 
 
 @router.get("/image/{image_id}", dependencies=[DependentRateLimited])
@@ -581,6 +599,80 @@ async def stats(
         ),
         usage=UsageStats(day=today(), providers=await usage.totals()),
     )
+
+
+@router.get("/scoring", response_model=ScoringResponse)
+async def read_scoring() -> ScoringResponse:
+    """What curated mode weighs, taken from the code.
+
+    The panel explains the scoring in a paragraph and a list, and the numbers in that list
+    come from here rather than from prose somebody would have to remember to update. A
+    retuned weight changes what the UI says, in the same commit, without anyone noticing
+    it needed to. ADR-0006's transparency claim is only true if this cannot drift.
+    """
+    total = sum(WEIGHTS.values()) or 1.0
+    return ScoringResponse(
+        weights=[
+            ScoringWeight(name=name, weight=weight, share=round(weight / total, 4))
+            for name, weight in sorted(WEIGHTS.items(), key=lambda pair: -pair[1])
+        ]
+    )
+
+
+@router.get("/favorites", response_model=list[FeedbackItem])
+async def read_favorites(
+    feedback: FeedbackDep,
+    kind: Annotated[Literal["like", "hide"], Query()] = "like",
+) -> list[FeedbackItem]:
+    """Everything liked, or everything hidden. Most recent first."""
+    return [FeedbackItem(**vars(item)) for item in await feedback.all(kind)]
+
+
+@router.get("/favorites/summary", response_model=FeedbackSummary)
+async def read_favorites_summary(feedback: FeedbackDep) -> FeedbackSummary:
+    """How much the personal mode has to work with.
+
+    Read by the panel so it can say "showing curated picks until you have liked a few
+    more" rather than offering a mode that silently is not one yet.
+    """
+    counts = await feedback.counts()
+    return FeedbackSummary(
+        likes=counts["like"],
+        hides=counts["hide"],
+        personalising=counts["like"] >= MIN_LIKES_FOR_PROFILE,
+        minimum_likes=MIN_LIKES_FOR_PROFILE,
+    )
+
+
+@router.put("/favorites/{artwork_id}", response_model=FeedbackItem)
+async def write_favorite(
+    artwork_id: Annotated[int, Path(gt=0)],
+    body: FeedbackRequest,
+    feedback: FeedbackDep,
+) -> FeedbackItem:
+    """Like or hide one artwork, replacing whatever it was before.
+
+    The snapshot in the body is stored as sent: the server may never have seen this
+    artwork, because the display's second and third tiers serve straight from AIC and from
+    the bundled set. See migration 009 for why there is no foreign key here.
+    """
+    stored = await feedback.set(
+        artwork_id,
+        body.kind,
+        title=body.title,
+        artist=body.artist,
+        image_id=body.image_id,
+    )
+    return FeedbackItem(**vars(stored))
+
+
+@router.delete("/favorites/{artwork_id}", status_code=204)
+async def delete_favorite(
+    artwork_id: Annotated[int, Path(gt=0)], feedback: FeedbackDep
+) -> Response:
+    """Forget a like or a hide. Idempotent: forgetting nothing is not an error."""
+    await feedback.clear(artwork_id)
+    return Response(status_code=204)
 
 
 @router.get("/health", response_model=HealthResponse)

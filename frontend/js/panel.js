@@ -3,7 +3,14 @@
 // Opening it pauses rotation and closing resumes, per docs/product-spec.md — a panel you
 // are reading should not have the picture change underneath it.
 
-import { deleteAiKey, fetchAiKey, fetchFilters, saveAiKey } from './api.js';
+import {
+  deleteAiKey,
+  fetchAiKey,
+  fetchFeedbackSummary,
+  fetchFilters,
+  fetchScoring,
+  saveAiKey,
+} from './api.js';
 import { t } from './i18n.js';
 import { INTERVAL_SECONDS } from './rotation.js';
 
@@ -29,6 +36,11 @@ export function createPanel(elements, handlers) {
   // A transient line under the AI group: "Key saved", or why it was not. Kept as a key
   // rather than as text so a language change can say it again.
   let keyMessage = null;
+  // The curated weights, read once from /api/scoring. They cannot change while the app
+  // is running — they are constants in the code the server is running.
+  let scoring = null;
+  // How many likes there are, so "For you" can say whether it is personalising yet.
+  let feedbackSummary = null;
   // The filter vocabulary as fetched. Kept so a language change can relabel the list
   // without asking the server for it again.
   let filters = null;
@@ -395,11 +407,57 @@ export function createPanel(elements, handlers) {
     ambientGroup.remove();
   }
 
+  /**
+   * The curated weights, as a share of the total.
+   *
+   * The wording of each signal is a translated string; only the numbers come from the
+   * server. That is the whole point of `/api/scoring` — retuning a weight in the code
+   * changes what this says, instead of quietly making it wrong.
+   */
+  function renderScoring() {
+    const list = elements.scoringList ?? document.getElementById('panel-scoring');
+    if (!list) return;
+    list.textContent = '';
+    for (const entry of scoring?.weights ?? []) {
+      const item = document.createElement('li');
+      const name = document.createElement('span');
+      // Falls back to the server's own name, so a signal added to WEIGHTS shows up as
+      // something readable before anyone writes a translation for it.
+      name.textContent = t(`scoring_${entry.name}`, undefined, entry.name);
+      const share = document.createElement('span');
+      share.className = 'weight-share';
+      share.textContent = t('scoring_share', { percent: Math.round(entry.share * 100) });
+      item.append(name, share);
+      list.appendChild(item);
+    }
+  }
+
+  /** "For you" says what it is doing, because below the threshold it is not doing it. */
+  function renderPersonalHint() {
+    const hint = document.getElementById('panel-personal-hint');
+    if (!hint || !feedbackSummary) return;
+    hint.textContent = feedbackSummary.personalising
+      ? t('mode_personal_hint_active', { likes: feedbackSummary.likes })
+      : t('mode_personal_hint_cold', {
+          likes: feedbackSummary.likes,
+          minimum: feedbackSummary.minimum_likes,
+        });
+  }
+
   return {
     async show() {
       open = true;
       panel.classList.add('visible');
       panel.removeAttribute('inert');
+      // Read fresh on every open: someone may have liked several artworks since it was
+      // last read, and "For you" saying it needs three more when it needs none is the
+      // kind of small lie that makes a panel untrustworthy.
+      feedbackSummary = await fetchFeedbackSummary();
+      renderPersonalHint();
+      if (scoring === null) {
+        scoring = await fetchScoring();
+        renderScoring();
+      }
       await loadFilters();
       // Read fresh on every open rather than cached: the key can have been changed from
       // another tab, or the provider taken away by a restart.
@@ -437,6 +495,8 @@ export function createPanel(elements, handlers) {
      */
     retranslate() {
       renderIntervals();
+      renderScoring();
+      renderPersonalHint();
       if (loaded) renderFilters();
       renderAiKey();
       applySelection();

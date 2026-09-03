@@ -267,6 +267,13 @@ body {
 
 /* The expand button while the description is open. A visible state, so the control does
    not look identical whether it will expand or collapse. */
+/* The heart, once it has been given. Filled rather than merely brighter, so the state
+   is legible at a glance from across a room, which is where this display is looked at. */
+.ov-button[aria-pressed='true'] {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
 .ov-button[aria-expanded='true'] {
   background: rgba(255, 255, 255, 0.16);
   border-color: rgba(255, 255, 255, 0.45);
@@ -387,6 +394,57 @@ body {
 .panel-options {
   max-height: 22rem;
   overflow-y: auto;
+}
+
+/* A mode: a name, and a quieter line under it saying what it does. The em dash that used
+   to join the two was doing a job a layout should do. */
+.panel-option-stacked {
+  align-items: flex-start;
+  padding: 0.45rem 0;
+}
+
+.panel-option-name { display: block; }
+
+.panel-option-hint {
+  display: block;
+  margin-top: 0.1rem;
+  color: var(--fg-dim);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+/* The curated explanation. Closed at rest — it is an answer to a question, and an ambient
+   display's settings should not open onto a paragraph nobody asked for. */
+.panel-explain {
+  margin-top: 0.75rem;
+}
+
+.panel-explain > summary {
+  color: var(--fg-dim);
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0.2rem 0;
+}
+
+.panel-weights {
+  margin: 0.4rem 0 0.6rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.78rem;
+  color: var(--fg-dim);
+}
+
+.panel-weights li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.18rem 0;
+}
+
+/* The share of the total, right-aligned so the column reads as numbers. */
+.panel-weights .weight-share {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
 }
 
 /* The Exclude sub-list. Quieter than the group it sits under, and closed at rest —

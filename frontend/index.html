@@ -41,6 +41,10 @@
                 data-i18n-aria-label="description_expand">i</button>
         <button type="button" id="ov-next" class="ov-button"
                 data-i18n-aria-label="next_artwork">&rarr;</button>
+        <!-- The like state, and the only control here that changes what the display will
+             show you later. `L` does the same thing from the keyboard. -->
+        <button type="button" id="ov-like" class="ov-button" aria-pressed="false"
+                data-i18n-aria-label="like_artwork">&#9825;</button>
       </div>
       <!-- AI interpretation, in its own labelled container. It must never share one
            with the museum facts above: a glance should not be able to mistake generated
@@ -72,16 +76,46 @@
          data-i18n-aria-label="settings_title" inert>
     <h2 class="panel-heading" data-i18n="settings_title">Settings</h2>
 
+    <!-- Each mode is a name and a quieter second line. The em dash that used to join
+         them was doing a job a layout should do, so the dashes left the strings. -->
     <fieldset class="panel-group">
       <legend data-i18n="mode_legend">Mode</legend>
-      <label class="panel-option">
+      <label class="panel-option panel-option-stacked">
         <input type="radio" name="mode" value="random" checked>
-        <span data-i18n="mode_random_option">Random — anything in the collection</span>
+        <span>
+          <span class="panel-option-name" data-i18n="mode_random">Random</span>
+          <span class="panel-option-hint" data-i18n="mode_random_hint">Anything in the collection</span>
+        </span>
       </label>
-      <label class="panel-option">
+      <label class="panel-option panel-option-stacked">
         <input type="radio" name="mode" value="curated">
-        <span data-i18n="mode_curated_option">Curated — ranked by transparent scoring</span>
+        <span>
+          <span class="panel-option-name" data-i18n="mode_curated">Curated</span>
+          <span class="panel-option-hint" data-i18n="mode_curated_hint">Ranked by a transparent score</span>
+        </span>
       </label>
+      <label class="panel-option panel-option-stacked">
+        <input type="radio" name="mode" value="personal">
+        <span>
+          <span class="panel-option-name" data-i18n="mode_personal">For you</span>
+          <span class="panel-option-hint" id="panel-personal-hint" data-i18n="mode_personal_hint">Built from what you have liked</span>
+        </span>
+      </label>
+
+      <!-- What the curated score actually weighs, with the numbers read from
+           /api/scoring rather than written here — a weight retuned in the code updates
+           this instead of quietly making it wrong. -->
+      <details class="panel-explain">
+        <summary data-i18n="scoring_explain_open">How Curated ranks</summary>
+        <p class="panel-summary" data-i18n="scoring_explain_intro">
+          Curated ranks every indexed artwork by a weighted score over six signals, all of
+          them real fields from the museum's data.
+        </p>
+        <ul id="panel-scoring" class="panel-weights"></ul>
+        <p class="panel-summary" data-i18n="scoring_explain_caveat">
+          These are our heuristics about what suits a screen, not claims about art.
+        </p>
+      </details>
     </fieldset>
 
     <!-- Built by panel.js from the list in rotation.js, so the menu of intervals has

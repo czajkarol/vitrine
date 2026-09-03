@@ -9,6 +9,7 @@ from typing import Final
 from app.domain.artwork import Artwork, Color, Thumbnail
 from app.domain.vocabulary import FACET_GROUPS, FacetGroup, facet_for, facets_for
 from app.repositories.database import Database
+from app.repositories.feedback import hidden_clause
 
 # How many of the best-scoring rows curated mode draws from. Wide enough that the
 # rotation does not repeat the same twenty masterpieces all evening.
@@ -287,6 +288,7 @@ class ArtworkIndexRepository:
         curated: bool = False,
         facets: Sequence[str] = (),
         exclude: Sequence[str] = (),
+        hidden: Sequence[int] = (),
     ) -> list[Artwork]:
         """A pool of candidates.
 
@@ -302,6 +304,12 @@ class ArtworkIndexRepository:
         see `_facet_clauses`.
         """
         where, params = self._facet_clauses(facets, exclude)
+        # Hidden artworks are excluded in every mode, including plain random. `X` means
+        # never show me this again, and a mode switch is not a change of mind about it.
+        hidden_sql, hidden_params = hidden_clause(hidden)
+        if hidden_sql:
+            where.append(hidden_sql)
+            params.extend(hidden_params)
         if curated:
             where.append("score IS NOT NULL")
         clause = f"WHERE {' AND '.join(where)}" if where else ""
@@ -330,8 +338,9 @@ class ArtworkIndexRepository:
         curated: bool = False,
         facets: Sequence[str] = (),
         exclude: Sequence[str] = (),
+        hidden: Sequence[int] = (),
     ) -> list[Artwork]:
-        return await asyncio.to_thread(self.sample_sync, limit, curated, facets, exclude)
+        return await asyncio.to_thread(self.sample_sync, limit, curated, facets, exclude, hidden)
 
     def artwork_type_counts_sync(self) -> dict[str, int]:
         """How many indexed artworks sit behind each artwork type.
@@ -492,6 +501,41 @@ class ArtworkIndexRepository:
         exclude: Sequence[str] = (),
     ) -> dict[str, int]:
         return await asyncio.to_thread(self.facet_counts_sync, group, include, exclude)
+
+    def facets_and_scores_sync(
+        self, artwork_ids: Sequence[int]
+    ) -> tuple[dict[int, tuple[str, ...]], dict[int, float | None]]:
+        """The facets and curated score of a batch of candidates.
+
+        For the personal mode, which ranks in Python rather than in SQL: the affinity
+        profile changes with every like and belongs in `domain/`, not in a query that
+        would have to be rebuilt to hold it.
+        """
+        if not artwork_ids:
+            return {}, {}
+        placeholders = ",".join("?" for _ in artwork_ids)
+        ids = list(artwork_ids)
+        with self._db.connect() as connection:
+            facet_rows = connection.execute(
+                f"SELECT artwork_id, facet FROM artwork_facets "
+                f"WHERE artwork_id IN ({placeholders})",
+                ids,
+            ).fetchall()
+            score_rows = connection.execute(
+                f"SELECT id, score FROM artwork_index WHERE id IN ({placeholders})", ids
+            ).fetchall()
+        facets: dict[int, list[str]] = {}
+        for row in facet_rows:
+            facets.setdefault(row["artwork_id"], []).append(row["facet"])
+        return (
+            {key: tuple(values) for key, values in facets.items()},
+            {row["id"]: row["score"] for row in score_rows},
+        )
+
+    async def facets_and_scores(
+        self, artwork_ids: Sequence[int]
+    ) -> tuple[dict[int, tuple[str, ...]], dict[int, float | None]]:
+        return await asyncio.to_thread(self.facets_and_scores_sync, artwork_ids)
 
     def facet_row_count_sync(self) -> int:
         with self._db.connect() as connection:

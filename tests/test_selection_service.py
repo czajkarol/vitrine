@@ -174,7 +174,7 @@ class TestCuratedIsNotAFilter:
         ArtworkIndexRepository(database).upsert_many_sync([_artwork(1)])
         PreferencesRepository(database).set_sync(IIIF_BASE_KEY, IIIF)
 
-        selection = await _service(database).next_artwork(SelectionQuery(curated=True))
+        selection = await _service(database).next_artwork(SelectionQuery(mode="curated"))
 
         assert selection is not None
         assert selection.artwork.id == 1
@@ -185,7 +185,7 @@ class TestCuratedIsNotAFilter:
 
         client = _StubClient(result=(_artwork(42), IIIF))
         selection = await _service(database, client=client).next_artwork(
-            SelectionQuery(curated=True)
+            SelectionQuery(mode="curated")
         )
 
         assert selection is not None

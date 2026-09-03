@@ -2,10 +2,12 @@
 
 import { createAmbient, isSupported as ambientSupported } from './ambient.js';
 import {
+  clearFeedback,
   fetchHealth,
   fetchInterpretation,
   fetchPreferences,
   fetchRandomArtwork,
+  saveFeedback,
   savePreferences,
 } from './api.js';
 import { createPanel } from './panel.js';
@@ -48,6 +50,11 @@ const elements = {
 };
 
 const nextButton = document.getElementById('ov-next');
+const likeButton = document.getElementById('ov-like');
+
+// Whether the artwork on screen is liked. Set from the server's answer, never guessed,
+// so a failed save leaves the heart telling the truth.
+let liked = false;
 
 const overlay = createOverlay({
   overlay: document.getElementById('overlay'),
@@ -196,12 +203,80 @@ function cancelInterpretation() {
   interpretation.clear();
 }
 
+/**
+ * Like or un-like what is on screen.
+ *
+ * The heart is set from what the server actually stored, not optimistically: a display
+ * that says it saved your favourite and did not is worse than one that says nothing.
+ */
+async function toggleLike() {
+  const { artwork } = getState();
+  if (!artwork) return;
+  try {
+    if (liked) {
+      await clearFeedback(artwork.id);
+      liked = false;
+    } else {
+      await saveFeedback(artwork, 'like');
+      liked = true;
+    }
+  } catch (error) {
+    console.warn('Could not save that.', error);
+    flashStatus(t('feedback_failed'));
+    return;
+  }
+  renderLike();
+  flashStatus(t(liked ? 'liked' : 'unliked'));
+}
+
+/**
+ * Hide the artwork on screen: never show it again, in any mode.
+ *
+ * Advances afterwards, because the point of pressing it is not to look at this any more.
+ * It goes through the shared cooldown like every other manual advance.
+ */
+async function hideArtwork() {
+  const { artwork } = getState();
+  if (!artwork) return;
+  try {
+    await saveFeedback(artwork, 'hide');
+  } catch (error) {
+    console.warn('Could not hide that.', error);
+    flashStatus(t('feedback_failed'));
+    return;
+  }
+  liked = false;
+  renderLike();
+  flashStatus(t('hidden'));
+  // The preloaded artwork was chosen before this one was hidden, and is fine — but the
+  // one just hidden must not come back on the next rotation.
+  advance();
+}
+
+function renderLike() {
+  if (!likeButton) return;
+  likeButton.setAttribute('aria-pressed', String(liked));
+  // Filled when given, outline when not. The glyph carries the state as well as the
+  // styling, so it survives a stylesheet that has not loaded.
+  likeButton.textContent = liked ? '♥' : '♡';
+}
+
 function presentArtwork({ artwork, image }) {
   setArtwork(artwork);
+  // The server sends it with the artwork, so the heart is right on the first paint
+  // rather than a moment later.
+  liked = artwork.liked === true;
+  renderLike();
   // The previous artwork's interpretation is about a picture nobody is looking at.
   cancelInterpretation();
   present(elements, artwork, image);
   overlay.render(artwork);
+  // "For you" that is not personalising yet says so once, on the artwork it is showing
+  // instead. Silently serving curated picks under a personal label is the one thing a
+  // recommendation must not do.
+  if (query.mode === 'personal' && artwork.personalised === false) {
+    flashStatus(t('mode_personal_cold'));
+  }
   // Surfaced briefly on every change: it says what you are looking at, and it is what
   // credits the Art Institute, which CLAUDE.md makes non-negotiable. Stillness fades it.
   overlay.flash();
@@ -361,6 +436,7 @@ function holdAdvance(seconds) {
 }
 
 nextButton?.addEventListener('click', advance);
+likeButton?.addEventListener('click', () => void toggleLike());
 
 bindShortcuts({
   onNext: advance,
@@ -382,6 +458,8 @@ bindShortcuts({
   // fullscreen, so a panel that only opens has no keyboard way out of the one state
   // this app is meant to sit in. QUESTIONS.md #2, amended.
   onSettings: () => (panel.isOpen() ? panel.hide() : void panel.show()),
+  onLike: () => void toggleLike(),
+  onHide: () => void hideArtwork(),
   onDismissOverlay: () => {
     overlay.dismiss();
     setOverlayPinned(false);

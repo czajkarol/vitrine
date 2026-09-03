@@ -41,6 +41,16 @@ class ArtworkResponse(BaseModel):
     """Which tier produced this: index, aic, or fallback. The display shows a quiet
     offline indicator when it is not the live API."""
 
+    liked: bool = False
+    """Whether this artwork has been liked. Sent with the artwork rather than fetched
+    separately, because the display needs it on every rotation and it is one indexed
+    lookup — a second round trip per artwork to draw a heart is not worth it."""
+
+    personalised: bool = False
+    """Whether "For you" actually personalised this one, or fell back to curated ranking
+    for want of enough likes. The display says which — a recommendation that is not one is
+    worse than no recommendation."""
+
     @classmethod
     def from_domain(
         cls, artwork: Artwork, iiif_base: str, source: str = "aic"
@@ -95,7 +105,7 @@ class PreferencesResponse(BaseModel):
     # Seconds, not minutes: the menu has a 30-second rung and the unit has to hold the
     # shortest one it offers. 30s / 1m / 5m / 15m / 30m.
     interval_seconds: Literal[30, 60, 300, 900, 1800] = 300
-    mode: Literal["random", "curated"] = "random"
+    mode: Literal["random", "curated", "personal"] = "random"
     # Canonical facet keys since M10 — `type.print`, not `Print` (ADR-0009). One chosen
     # value per group, not a list: the panel offers radio buttons, because "landscape AND
     # portraits" narrows to almost nothing and reads as a bug rather than as a filter.
@@ -155,6 +165,66 @@ class FiltersResponse(BaseModel):
     minimum_count: int
     maximum_options: int
     indexed_total: int
+
+
+class ScoringWeight(BaseModel):
+    """One curated signal and what it is worth, taken from the code rather than prose.
+
+    `share` is the fraction of the total, which is the number a person can actually read:
+    "3.0" means nothing without the other five, and "35%" means something on its own.
+    """
+
+    name: str
+    weight: float
+    share: float
+
+
+class ScoringResponse(BaseModel):
+    """How curated mode ranks, straight out of `domain.scoring.WEIGHTS`.
+
+    An endpoint rather than a paragraph in the UI, so retuning a weight updates what the
+    panel says instead of quietly making it wrong. The wording that goes with each `name`
+    lives in `locales/`; only the numbers come from here.
+    """
+
+    weights: list[ScoringWeight]
+
+
+class FeedbackItem(BaseModel):
+    """One liked or hidden artwork, with enough of it to list and to show again."""
+
+    artwork_id: int
+    kind: Literal["like", "hide"]
+    title: str | None = None
+    artist: str | None = None
+    image_id: str | None = None
+    created_at: str
+
+
+class FeedbackRequest(BaseModel):
+    """A like or a hide, with the snapshot the display already has on screen.
+
+    The snapshot travels with the request because the server may never have seen this
+    artwork: it can have come from AIC or from the bundled set and not be in the index.
+    See migration 009.
+    """
+
+    kind: Literal["like", "hide"]
+    title: str | None = Field(default=None, max_length=500)
+    artist: str | None = Field(default=None, max_length=300)
+    image_id: str | None = Field(default=None, max_length=100)
+
+
+class FeedbackSummary(BaseModel):
+    """What the display needs to know about the personal mode without asking twice."""
+
+    likes: int
+    hides: int
+    personalising: bool
+    """Whether there are enough likes for "For you" to mean anything. Below the threshold
+    the mode falls back to curated ranking and the panel says so."""
+
+    minimum_likes: int
 
 
 class InterpretationResponse(BaseModel):

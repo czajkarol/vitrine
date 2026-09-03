@@ -94,6 +94,16 @@ export function bindShortcuts(handlers) {
         event.preventDefault();
         handlers.onSettings();
         break;
+      case 'l':
+      case 'L':
+        event.preventDefault();
+        handlers.onLike();
+        break;
+      case 'x':
+      case 'X':
+        event.preventDefault();
+        handlers.onHide();
+        break;
       case 'Escape':
         // Priority is most-transient-first, per the spec: settings, then overlay, then
         // fullscreen.

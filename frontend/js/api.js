@@ -186,6 +186,70 @@ export async function deleteAiKey() {
   return response.json();
 }
 
+/**
+ * Like or hide one artwork.
+ *
+ * The snapshot goes with it because the server may never have seen this artwork: the
+ * display's second and third tiers serve straight from AIC and from the bundled set, and
+ * a favourite has to survive a rebuilt index either way.
+ */
+export async function saveFeedback(artwork, kind) {
+  const response = await fetch(`/api/favorites/${encodeURIComponent(artwork.id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      kind,
+      title: artwork.title ?? null,
+      artist: artwork.artist ?? null,
+      image_id: artwork.image_id ?? null,
+    }),
+  });
+  if (!response.ok) throw withCode(new Error(`HTTP ${response.status}`), 'feedback_failed');
+  return response.json();
+}
+
+/** Forget a like or a hide. Idempotent — forgetting nothing is not an error. */
+export async function clearFeedback(artworkId) {
+  const response = await fetch(`/api/favorites/${encodeURIComponent(artworkId)}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw withCode(new Error(`HTTP ${response.status}`), 'feedback_failed');
+}
+
+/** Everything liked (or hidden), most recent first. */
+export async function fetchFavorites(kind = 'like') {
+  try {
+    const response = await fetch(`/api/favorites?kind=${encodeURIComponent(kind)}`, {
+      headers: { Accept: 'application/json' },
+    });
+    return response.ok ? await response.json() : [];
+  } catch {
+    return [];
+  }
+}
+
+/** How much "For you" has to work with. Null when the server will not say. */
+export async function fetchFeedbackSummary() {
+  try {
+    const response = await fetch('/api/favorites/summary', {
+      headers: { Accept: 'application/json' },
+    });
+    return response.ok ? await response.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The curated weights, straight from the code, so the panel's explanation cannot drift. */
+export async function fetchScoring() {
+  try {
+    const response = await fetch('/api/scoring', { headers: { Accept: 'application/json' } });
+    return response.ok ? await response.json() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Build the direct AIC IIIF URL. */
 export function directImageUrl(iiifBase, imageId, width) {
   return `${iiifBase.replace(/\/$/, '')}/${imageId}/full/${width},/0/default.jpg`;

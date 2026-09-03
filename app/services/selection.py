@@ -10,10 +10,12 @@ import random
 from dataclasses import dataclass
 from typing import Final
 
+from app.domain.affinity import AffinityProfile, build_profile, personal_score
 from app.domain.artwork import Artwork
 from app.domain.selection import choose_next
 from app.providers.aic.client import AicClient, AicError
 from app.repositories.artwork_index import ArtworkIndexRepository
+from app.repositories.feedback import FeedbackRepository
 from app.repositories.history import HistoryRepository
 from app.repositories.preferences import PreferencesRepository
 from app.services.fallback import FallbackSet
@@ -29,6 +31,10 @@ CANDIDATE_POOL: Final[int] = 60
 # for artworks that came out of the index, which carries no response of its own.
 IIIF_BASE_KEY: Final[str] = "iiif_base"
 
+# How many of the personally-ranked candidates to keep before the history penalty picks.
+# A floor rather than the whole answer — see `_rank_personally`.
+PERSONAL_SHORTLIST: Final[int] = 12
+
 
 @dataclass(frozen=True)
 class SelectionQuery:
@@ -41,9 +47,21 @@ class SelectionQuery:
     things at once is ordinary and does not collapse the result set.
     """
 
-    curated: bool = False
+    mode: str = "random"
+    """`random`, `curated` or `personal`. Personal ranks over curated rather than
+    replacing it — see `domain/affinity.py` and ADR-0010."""
+
     facets: tuple[str, ...] = ()
     exclude: tuple[str, ...] = ()
+
+    @property
+    def curated(self) -> bool:
+        """Whether the index should be sampled from its scored rows.
+
+        True for the personal mode as well: personal ranking multiplies the curated score,
+        so it wants the same pool to work from.
+        """
+        return self.mode in ("curated", "personal")
 
     @property
     def is_filtered(self) -> bool:
@@ -64,6 +82,11 @@ class Selection:
     iiif_base: str
     source: str  # "index" | "aic" | "fallback"
 
+    personalised: bool = False
+    """Whether the personal mode actually personalised this, or fell back to curated
+    ranking for want of enough likes. The display says which, because a recommendation
+    that is not one is worse than no recommendation."""
+
 
 class SelectionService:
     def __init__(
@@ -74,6 +97,7 @@ class SelectionService:
         fallback: FallbackSet,
         client: AicClient | None = None,
         rng: random.Random | None = None,
+        feedback: FeedbackRepository | None = None,
     ) -> None:
         self._index = index
         self._history = history
@@ -81,6 +105,24 @@ class SelectionService:
         self._fallback = fallback
         self._client = client
         self._rng = rng or random.Random()
+        self._feedback = feedback
+
+    async def _hidden(self) -> list[int]:
+        """Artworks the user has hidden, excluded in every mode. `X` is not a preference
+        about ordering, and a mode switch is not a change of mind about it."""
+        return await self._feedback.ids("hide") if self._feedback else []
+
+    async def profile(self) -> AffinityProfile:
+        """The affinity profile, rebuilt from the likes as they stand.
+
+        Not cached. It changes with every like, the query is two indexed lookups against a
+        table with tens of rows in it, and a cache here would be a staleness bug waiting
+        for someone to like something and not see the effect.
+        """
+        if self._feedback is None:
+            return AffinityProfile()
+        liked = await self._feedback.facets_of_liked()
+        return build_profile(liked.values())
 
     async def next_artwork(self, query: SelectionQuery | None = None) -> Selection | None:
         """The next artwork to show, from the first tier that can produce one."""
@@ -104,11 +146,13 @@ class SelectionService:
         return stored or self._fallback.iiif_base
 
     async def _from_index(self, query: SelectionQuery) -> Selection | None:
+        hidden = await self._hidden()
         candidates = await self._index.sample(
             CANDIDATE_POOL,
             curated=query.curated,
             facets=query.facets,
             exclude=query.exclude,
+            hidden=hidden,
         )
         if not candidates and query.curated:
             # Curated is a preference about *ordering*, not an exclusion. If nothing has
@@ -121,6 +165,7 @@ class SelectionService:
                 curated=False,
                 facets=query.facets,
                 exclude=query.exclude,
+                hidden=hidden,
             )
         if not candidates and query.is_filtered:
             # A filter that matches nothing must not silently become "anything". Falling
@@ -136,8 +181,45 @@ class SelectionService:
             logger.warning("Index has rows but no IIIF base is known yet")
             return None
         recent = await self._history.recent()
+        personalised = False
+        if query.mode == "personal":
+            candidates, personalised = await self._rank_personally(candidates)
         artwork = choose_next(candidates, [a.id for a in candidates], recent, self._rng)
-        return Selection(artwork=artwork, iiif_base=iiif_base, source="index")
+        return Selection(
+            artwork=artwork,
+            iiif_base=iiif_base,
+            source="index",
+            personalised=personalised,
+        )
+
+    async def _rank_personally(self, candidates: list[Artwork]) -> tuple[list[Artwork], bool]:
+        """Narrow the pool to what best matches the profile, or leave it alone.
+
+        Ranking happens here, in Python, rather than in the sampling query: the profile
+        changes with every like and lives in `domain/`, and a SQL expression carrying it
+        would have to be rebuilt on every request and could not be explained.
+
+        Below the cold-start threshold this returns the pool untouched and says so, so the
+        caller can tell the user it is showing curated picks rather than theirs. A
+        recommendation drawn from two likes is not a recommendation.
+        """
+        profile = await self.profile()
+        if not profile.is_usable:
+            return candidates, False
+
+        facets, scores = await self._index.facets_and_scores([a.id for a in candidates])
+        ranked = sorted(
+            candidates,
+            key=lambda artwork: personal_score(
+                scores.get(artwork.id), profile, facets.get(artwork.id, ())
+            ),
+            reverse=True,
+        )
+        # The best third, not the single best: the history penalty still has to have
+        # something to choose between, and an ambient display that shows the same
+        # top-ranked artwork every time is not one anybody would leave running.
+        keep = max(PERSONAL_SHORTLIST, len(ranked) // 3)
+        return ranked[:keep], True
 
     async def _from_aic(self) -> Selection | None:
         """No index yet. ADR-0003 calls this the fallback, not the design."""
