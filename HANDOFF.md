@@ -26,8 +26,9 @@ re-checking after any change here.
 ```bash
 uv sync --all-extras
 uv run uvicorn app.main:app --reload      # http://127.0.0.1:8000
-uv run pytest                             # 240 tests, excludes live/e2e
-uv run pytest -m live                     # 6 tests, hits the real AIC API
+uv run pytest                             # 281 tests, excludes live/e2e
+uv run pytest -m live                     # 9 tests: the real AIC API, and the AI
+                                          # providers if their keys are in .env
 uv run ruff check . && uv run ruff format --check . && uv run mypy app
 ```
 
@@ -40,6 +41,11 @@ To run with AI, using the provider that needs no key and no network:
 AI_ENABLED=true AI_PROVIDER=mock uv run uvicorn app.main:app
 ```
 
+With a real provider, put `AI_ENABLED`, `AI_PROVIDER` (`anthropic` or `openai`) and the
+matching key in `.env`. Name a provider without its key and the feature stays off with a
+warning rather than the app failing to start — worth re-checking after any change there,
+because "AI is an enhancement, never a dependency" is a `CLAUDE.md` non-negotiable.
+
 ```bash
 uv run python scripts/build_index.py             # full walk, ~22 min at 1 req/s, resumable
 uv run python scripts/build_index.py --limit 5000
@@ -49,22 +55,24 @@ uv run python scripts/build_index.py --explain <artwork_id>
 
 ## What to do next
 
-**M5 — AI** is in progress and blocked on one thing only: a real provider needs an API key,
-and Karol has been asked which vendor to build first. Everything up to that point is done and
-verified against the mock — the shape, the prompt, the provider protocol, the endpoint, the
-overlay panel, the cache chain, the budget guard and the circuit breaker.
+**M5 — AI** has one item left: **BYO key handling** — keyring first, SQLite with a plainly
+worded warning otherwise, redaction to the last four characters everywhere, and no key ever
+reaching the frontend. `app/core/redaction.py` already exists and is used by both providers.
 
-What is left in M5:
+Everything else in M5 is done. Two real providers are built — Anthropic (Karol's choice,
+first) and OpenAI (second, to test the abstraction). Neither is verified against its real API
+yet: **`uv run pytest -m live` with a key in `.env` is the outstanding manual step**, and it
+is the only thing that can catch a wrong default model id or `max_completion_tokens` being
+wrong for the model in use.
 
-- **One real provider**, then **a second one to prove the abstraction**. If adding the second
-  requires changing `providers/ai/base.py`, the abstraction was wrong and that is the moment
-  to find out. Their tests are `-m live` only; nothing in the default suite may touch a paid
-  API.
-- **BYO key handling** — keyring first, SQLite with a plainly-worded warning otherwise, and
-  redaction to the last four characters everywhere. No key ever reaches the frontend.
-- **Streaming over SSE** is described in `docs/ai-system.md` as a refinement to do after the
-  non-streaming path works and is cached. It is not a roadmap item yet and does not need to be
-  one before M6.
+Adding the second provider did not change `providers/ai/base.py`, which is the result
+`docs/ai-system.md` set that exercise up to test. It did produce `providers/ai/http.py` — the
+client, POST, error map and redaction both real providers share. Shared implementation, not a
+shared interface.
+
+**Streaming over SSE** is described in `docs/ai-system.md` as a refinement to do after the
+non-streaming path works and is cached. It is not a roadmap item yet and does not need to be
+one before M6.
 
 How the AI side fits together, so it does not have to be re-derived:
 
@@ -72,7 +80,9 @@ How the AI side fits together, so it does not have to be re-derived:
   `domain/prompts.py` builds the prompt and owns `PROMPT_VERSION`, which is part of that key.
 - `providers/ai/base.py` is the Protocol, the errors and `parse_interpretation()`, which every
   provider shares because "the model returned something unparseable" is not vendor-specific.
-  `factory.py` is the only place a vendor name is mapped to a class.
+  `http.py` is the transport both real providers share. `factory.py` is the only place a
+  vendor name is mapped to a class, and it returns `None` — a warning, not a crash — when a
+  provider is named without its key.
 - `services/interpretation.py` is the orchestration: cache chain, budget, breaker, timeout.
 - The frontend asks only when the overlay is *pinned* with `I`, never on the overlay's own
   flash at every rotation. That distinction is the feature's entire cost model — check it is
