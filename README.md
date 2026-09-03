@@ -43,7 +43,7 @@ Space      next artwork
 F          fullscreen
 I          metadata overlay — and, if AI is configured, an interpretation
 1 2 3 4 5  rotation interval: 30 sec / 1 / 5 / 15 / 30 min
-S          settings
+S          toggle settings
 Esc        close settings, else close the overlay, else leave fullscreen
 ```
 

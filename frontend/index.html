@@ -29,6 +29,19 @@
         <p id="ov-meta" class="ov-meta"></p>
         <p id="ov-description" class="ov-description"></p>
       </section>
+
+      <!-- The only clickable controls on the display itself. They live inside the
+           overlay, which is hidden at rest, so "no visible controls at rest" holds
+           (docs/product-spec.md). The overlay keeps pointer-events: none so it cannot
+           swallow the movement that reveals it; these two take the pointer back for
+           themselves. The expand button is shown only when the description is actually
+           clamped — overlay.js measures it rather than guessing from length. -->
+      <div class="ov-controls">
+        <button type="button" id="ov-expand" class="ov-button" hidden aria-expanded="false"
+                data-i18n-aria-label="description_expand">i</button>
+        <button type="button" id="ov-next" class="ov-button"
+                data-i18n-aria-label="next_artwork">&rarr;</button>
+      </div>
       <!-- AI interpretation, in its own labelled container. It must never share one
            with the museum facts above: a glance should not be able to mistake generated
            text for a museum caption (docs/product-spec.md). Hidden unless asked for. -->

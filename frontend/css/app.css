@@ -1,13 +1,89 @@
 /* vitrine — closer to a screensaver than a web app. No chrome unless asked for. */
 
+/* --- Type -------------------------------------------------------------------
+   Two voices, deliberately. The museum's words are set in a serif; the interface
+   is set in the system sans, because it is an interface and should look like one.
+
+   EB Garamond is self-hosted, not pulled from a CDN: the app has to work with no
+   network, and ADR-0005's "the source in the browser is the source in the
+   repository" is as true of a font as of a script. Copyright 2017 The EB Garamond
+   Project Authors, SIL Open Font License 1.1 — the full text ships beside the files
+   in frontend/fonts/OFL.txt, which the licence requires.
+
+   Two files, not one per weight: this is a variable font, and one woff2 carries the
+   whole 400-600 axis. Split by Unicode subset instead — latin, and latin-ext for the
+   Polish locale, which puts diacritics into the serif on every artwork through the
+   attribution line.
+
+   `swap` and not `block`: the fallback stack below is a real serif, and a readable
+   caption in Georgia beats an invisible one in Garamond. */
+
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('/fonts/eb-garamond-latin.woff2') format('woff2');
+  font-weight: 400 600;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('/fonts/eb-garamond-latin-ext.woff2') format('woff2');
+  font-weight: 400 600;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 :root {
   /* Near-black, not pure black: pure black makes dark artworks lose their edges. */
   --bg: #0e0e10;
   --fg: #e8e6e3;
-  --fg-dim: #9a9793;
+  /* Raised from #9a9793. The dim colour carries the description, the date and the
+     medium — the text most likely to be sitting over a pale part of an artwork —
+     and the old value only cleared AA against the scrim at its very strongest. */
+  --fg-dim: #b9b6b2;
   --fade: 900ms;
   /* UI answers faster than the artwork crossfade. */
   --fade-ui: 400ms;
+
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Georgia before the generic: it is the widest-installed serif with a large
+     x-height, so the swap-in is a change of face rather than of legibility. */
+  --font-museum: 'EB Garamond', Georgia, 'Times New Roman', serif;
+
+  /* The overlay scrim, as three numbers so the ground rule below can restate them
+     without swapping a whole gradient.
+
+     These are the *default*, and they are stronger than the 0.82 / 0.55 / 45% they
+     replace, because the artwork-driven variant below cannot be relied on. AIC's `color`
+     is the dominant colour of the whole image, and a Winslow Homer watercolour on tan
+     paper comes back at l=6 — as dark as anything in the collection — while reading as a
+     bright cream ground under the caption. So the default has to be legible on its own
+     and the light variant is insurance, not the mechanism. Measured on that Homer. */
+  --scrim-bottom: 0.88;
+  --scrim-mid: 0.66;
+  --scrim-mid-stop: 55%;
+
+  /* Overlay text sits directly on a photograph. The shadow costs nothing at rest and
+     rescues the case the scrim alone does not — a white-ground print, where the
+     gradient is fighting the brightest thing on screen. */
+  --text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+/* A pale artwork gets more still. Set by display.js from the `l` of AIC's own dominant
+   colour, which is already on every response — no new field, no sampling the image.
+   It is a hint and not a measurement (see the note above), so this adds to a default
+   that is already sufficient rather than rescuing one that is not. */
+body[data-ground='light'] {
+  --scrim-bottom: 0.94;
+  --scrim-mid: 0.78;
+  --scrim-mid-stop: 68%;
 }
 
 * { box-sizing: border-box; }
@@ -17,7 +93,7 @@ html, body {
   height: 100%;
   background: var(--bg);
   color: var(--fg);
-  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 14px/1.5 var(--font-ui);
   overflow: hidden;
 }
 
@@ -74,42 +150,70 @@ body {
   right: 0;
   bottom: 0;
   padding: 2rem 2.5rem;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.55) 45%, transparent);
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, var(--scrim-bottom)),
+    rgba(0, 0, 0, var(--scrim-mid)) var(--scrim-mid-stop),
+    transparent
+  );
   opacity: 0;
-  transition: opacity var(--fade-ui) ease-in-out;
-  /* Nothing here is clickable yet, and the overlay must never intercept the pointer
-     movement that reveals it. */
+  /* visibility, not only opacity: the overlay now holds real buttons, and a button at
+     opacity 0 is still in the tab order. Transitioning it alongside opacity means it
+     flips to hidden only once the fade has finished. */
+  visibility: hidden;
+  transition:
+    opacity var(--fade-ui) ease-in-out,
+    visibility var(--fade-ui) ease-in-out;
+  /* The overlay must never intercept the pointer movement that reveals it. The buttons
+     inside it take `pointer-events: auto` back for themselves, one element at a time. */
   pointer-events: none;
+  color: var(--fg);
+  font-family: var(--font-museum);
+  text-shadow: var(--text-shadow);
 }
 
-.overlay.visible { opacity: 1; }
+.overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
 
-/* Measured, not full-bleed: prose set across a 2560px monitor is unreadable. */
-.overlay-panel { max-width: 62ch; }
+/* Measured, not full-bleed: prose set across a 2560px monitor is unreadable. Widened
+   from 62ch with the type scale below — the same measure at a larger size is a
+   narrower column of words. */
+.overlay-panel { max-width: 68ch; }
 
 .ov-title {
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1.75rem;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  line-height: 1.2;
+  /* Garamond's caps are generous; the default tracking makes a long title sprawl. */
+  letter-spacing: -0.005em;
 }
 
 .ov-artist {
-  margin: 0.25rem 0 0;
-  font-size: 1rem;
+  margin: 0.3rem 0 0;
+  font-size: 1.125rem;
+  font-weight: 500;
   color: var(--fg);
 }
 
 .ov-meta {
   margin: 0.15rem 0 0;
+  font-size: 1rem;
   color: var(--fg-dim);
 }
 
 .ov-description {
-  margin: 0.75rem 0 0;
+  margin: 0.8rem 0 0;
+  /* Garamond has a small x-height, so the description needs a size a sans would not.
+     Set in a browser against a bright print, not chosen off a scale. */
+  font-size: 1.0625rem;
+  line-height: 1.6;
   color: var(--fg-dim);
   /* A glanceable caption, not an essay. Some AIC descriptions run many paragraphs and
-     would otherwise cover the artwork they describe. */
+     would otherwise cover the artwork they describe. This is the resting state and stays
+     that way — QUESTIONS.md #3, amended rather than reversed. */
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 5;
@@ -117,15 +221,78 @@ body {
   overflow: hidden;
 }
 
+/* Expanded by the `i` button, per artwork, and collapsed again on rotation, on Esc and
+   when the overlay fades. Bounded and scrollable rather than unbounded: an essay that
+   grows until it covers the artwork is the thing the clamp exists to prevent. */
+.ov-description.expanded {
+  display: block;
+  max-height: 45vh;
+  overflow-y: auto;
+  /* It has to be scrollable, so it is the second element allowed to take the pointer
+     back from the overlay. */
+  pointer-events: auto;
+}
+
+/* The two controls, and the only clickable things on the display itself. They live in
+   the overlay, which is hidden at rest, so "no visible controls at rest" survives. */
+.ov-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.85rem 0 0;
+}
+
+.ov-button {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--fg);
+  font: 500 0.85rem/1 var(--font-ui);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background-color 150ms ease-in-out, opacity 150ms ease-in-out;
+}
+
+/* `display: grid` above outranks the user agent's `[hidden] { display: none }`, which is
+   a bare attribute selector. Without this the expand button shows on every artwork,
+   including the ones with no description at all — seen on a Cup and Saucer with nothing
+   to expand and an `i` offering to expand it. */
+.ov-button[hidden] { display: none; }
+
+.ov-button:hover { background: rgba(0, 0, 0, 0.7); }
+
+/* The expand button while the description is open. A visible state, so the control does
+   not look identical whether it will expand or collapse. */
+.ov-button[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.ov-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+/* The advance button during its cooldown. Dimmed and inert rather than hidden: a control
+   that disappears under the cursor is worse than one that visibly will not answer yet. */
+.ov-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .ov-credit {
-  margin: 0.75rem 0 0;
-  font-size: 0.8rem;
+  margin: 0.85rem 0 0;
+  font-size: 0.85rem;
   color: var(--fg-dim);
 }
 
 .ov-attribution {
   margin: 0.35rem 0 0;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--fg-dim);
   opacity: 0.75;
 }
@@ -137,9 +304,15 @@ body {
   transform: translateX(-50%);
   padding: 0.5rem 0.9rem;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.6);
-  color: var(--fg-dim);
+  /* The status pill sits in the middle of the screen, where there is no scrim at all and
+     the artwork may be anything. A stronger ground and a blur behind it, so it is legible
+     over a white print without being a black slab over a dark painting. */
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--fg);
   font-size: 0.8rem;
+  text-shadow: var(--text-shadow);
   opacity: 0;
   transition: opacity 300ms ease-in-out;
   pointer-events: none;
@@ -287,6 +460,10 @@ body {
   margin-top: 1rem;
   padding-top: 0.85rem;
   border-top: 1px solid rgba(255, 255, 255, 0.18);
+  /* Back to the interface sans, against the serif the overlay now sets. The rule, the
+     label and the quieter colour were already doing this job; a different voice is the
+     strongest version of it, and it costs nothing — the two never share an element. */
+  font-family: var(--font-ui);
 }
 
 .ai-label {

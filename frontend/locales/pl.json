@@ -11,6 +11,8 @@
   "attribution_with_description": "Cyfrowa reprodukcja dzięki uprzejmości Art Institute of Chicago. Opis: Art Institute of Chicago, CC BY 4.0.",
   "overlay_pinned": "Szczegóły przypięte",
   "overlay_unpinned": "Szczegóły odpięte",
+  "description_expand": "Pokaż cały opis",
+  "next_artwork": "Następne dzieło",
   "interval_set_minutes": "Co {minutes} min",
   "interval_set_seconds": "Co {seconds} s",
 

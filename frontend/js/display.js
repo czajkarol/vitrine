@@ -25,10 +25,42 @@ const DIRECT_TIMEOUT_MS = 6_000;
 // answers, so it gets longer before we give up on the artwork entirely.
 const PROXY_TIMEOUT_MS = 20_000;
 
-/** Pick a cached width for this screen. */
-export function chooseWidth(viewportWidth, pixelRatio) {
+// Above this lightness in AIC's own dominant colour, the artwork gets the stronger
+// overlay scrim. 60 rather than 50 because the caption sits along the bottom edge, and a
+// work whose *average* is mid-grey usually has something darker down there; the works
+// that actually defeat the default scrim are prints and drawings on white paper, which
+// come back far higher than this. Checked against both in a browser, which is the only
+// way this number could have been chosen.
+const LIGHT_GROUND_L = 60;
+
+/**
+ * Pick a cached width for this screen, never asking for more pixels than exist.
+ *
+ * The clamp is not an optimisation. AIC's IIIF service answers `403` for a width larger
+ * than the source image — it will not upscale — and the display treats a `403` as an
+ * image that will not load and skips the artwork. On a monitor wide enough to want 1686,
+ * that silently dropped **8,993 of the 57,607 indexed works, one in six**, including
+ * every one of them at whatever size they do have. Found in a browser on a print that
+ * turned out to be 1602px wide; invisible to the test suite, which never asked AIC for a
+ * width the fixture could not honour.
+ *
+ * `sourceWidth` is `thumbnail.width`, already on every artwork response.
+ *
+ * One record in the index is narrower than the smallest rung, and it still 403s and is
+ * still skipped. Adding a `full/max` request for one artwork would put an uncached URL
+ * shape in the code for the rest of them, which is the trade the width ladder exists to
+ * avoid (`frontend/CLAUDE.md`).
+ */
+export function chooseWidth(viewportWidth, pixelRatio, sourceWidth = null) {
   const wanted = viewportWidth * (pixelRatio || 1);
-  return CACHED_WIDTHS.find((w) => w >= wanted) ?? CACHED_WIDTHS[CACHED_WIDTHS.length - 1];
+  const forScreen =
+    CACHED_WIDTHS.find((w) => w >= wanted) ?? CACHED_WIDTHS[CACHED_WIDTHS.length - 1];
+  if (!sourceWidth) return forScreen;
+  // The largest rung the source can actually satisfy — and never below the smallest,
+  // because there is no rung under it to ask for.
+  const available =
+    [...CACHED_WIDTHS].reverse().find((w) => w <= sourceWidth) ?? CACHED_WIDTHS[0];
+  return Math.min(forScreen, available);
 }
 
 /** True once a direct load has failed and the proxy became the default. */
@@ -135,11 +167,22 @@ export function present(elements, artwork, image) {
 
   // Tint the page behind the letterboxing with the artwork's dominant colour, heavily
   // desaturated and darkened so it reads as a ground rather than a colour cast.
+  //
+  // The same colour's lightness also decides how hard the overlay scrim has to work: a
+  // white-ground print needs a stronger and taller gradient than an oil painting, and
+  // the caption is illegible over the first without one. AIC gives us `l` on every
+  // response, so this costs no field, no request and no reading of the image itself.
+  // The threshold is a judgement, not a measurement — see LIGHT_GROUND_L.
   if (artwork.color) {
-    const { h, s } = artwork.color;
+    const { h, s, l } = artwork.color;
     body.style.backgroundColor = `hsl(${h}deg ${Math.min(s, 30)}% 7%)`;
+    body.dataset.ground = l > LIGHT_GROUND_L ? 'light' : 'dark';
   } else {
     body.style.backgroundColor = '';
+    // No colour reported is not evidence of a dark artwork. The stronger scrim is the
+    // safe default: it costs a little contrast against a dark painting and rescues the
+    // caption entirely against a pale one.
+    body.dataset.ground = 'light';
   }
 
   artworkEl.classList.remove('visible');

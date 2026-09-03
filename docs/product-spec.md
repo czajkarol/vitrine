@@ -19,7 +19,11 @@ If a feature would make it feel more like a dashboard, it does not belong.
 This is the single most visible piece of engineering in the app. Get it right.
 
 1. Paint `thumbnail.lqip` (the base64 blur) into the incoming layer immediately.
-2. Construct the IIIF URL at the width chosen for this screen.
+2. Construct the IIIF URL at the width chosen for this screen **and clamped to the artwork's
+   own `thumbnail.width`**. AIC's IIIF service answers `403` for a width larger than the source
+   and will not upscale, so asking for one is not merely wasteful, it is a skipped artwork. On a
+   monitor wide enough to want 1686, that silently dropped 8,993 of the 57,607 indexed works —
+   one in six — at any size at all. Found in a browser on a print that is 1602px wide.
 3. `const img = new Image(); img.src = url; await img.decode();`
 4. Only after `decode()` resolves, start the crossfade. Two stacked layers, opacity transition.
 5. On `decode()` rejection or image 404: retry once through `GET /api/image/{image_id}?w=…`,
@@ -58,6 +62,32 @@ than empty. Source it from the API `color` field, which is confirmed present and
 plus a population count (`docs/aic-api.md`). It is `null` on works without an image, so keep the
 `lqip` derivation as the fallback for that case only.
 
+The same field's `l` also picks the overlay scrim: above 60, the artwork gets a stronger and
+taller gradient. **It is a hint, not a measurement, and the design must not depend on it.** AIC
+reports the dominant colour of the whole image, and a Winslow Homer watercolour drawn in
+graphite on tan paper comes back at `l = 6` — as dark as anything in the collection — while
+reading as a bright cream ground under the caption. So the default scrim is strong enough on its
+own and the light variant only adds to it. Measured on that Homer, in a browser.
+
+### Typography
+
+Two voices. The museum's words — title, artist, date, medium, description, credit — are set in
+**EB Garamond**; the interface, the settings panel, the status pill and the AI section stay in
+the system sans. An interface should look like one.
+
+The font is self-hosted in `frontend/fonts/`, not pulled from a CDN: the app has to work with no
+network, and ADR-0005's "the source in the browser is the source in the repository" is as true
+of a font as of a script. Copyright 2017 The EB Garamond Project Authors, **SIL Open Font
+License 1.1**, whose text ships beside the files in `frontend/fonts/OFL.txt` as the licence
+requires. Two files — one variable `woff2` per Unicode subset, `latin` and `latin-ext`, covering
+weights 400–600 between them. `latin-ext` is not optional: the Polish locale puts diacritics
+into the serif on every artwork through the attribution line.
+
+Garamond designs have a small x-height and run light on screen, so the type scale is part of the
+choice rather than a polish pass — the description sits at 1.0625rem with `line-height: 1.6`,
+and the measure widens to 68ch to match. `font-display: swap`, with Georgia at the head of the
+fallback stack: a readable caption in Georgia beats an invisible one in Garamond.
+
 ---
 
 ## Rotation
@@ -82,13 +112,22 @@ Space      next artwork
 F          toggle fullscreen
 I          toggle metadata overlay
 1 2 3 4 5  set interval to 30 sec / 1 / 5 / 15 / 30 min
-S          settings
+S          toggle settings
 Esc        close settings if open, else close overlay if open, else exit fullscreen
 ```
 
 Esc priority is exactly that order — most transient thing first. Shortcuts are disabled while
 focus is inside a text input — except Esc itself, which always closes. The panel holds one text
 field, the API key, and a field you cannot escape from is a panel you cannot close.
+
+`S` **toggles** rather than only opening. In fullscreen the browser takes `Esc` for itself and
+uses it to leave fullscreen, so a key that opens the panel and cannot close it leaves no
+keyboard way out of the panel that does not also drop out of the one state this app is meant to
+sit in. `QUESTIONS.md` #2, amended.
+
+`Space` and the overlay's advance button share one 1500ms cooldown. A press inside the window is
+ignored rather than queued — a queued advance arrives after the user has stopped asking for
+one — and the button is visibly disabled for the duration rather than silently inert.
 
 ---
 
@@ -101,7 +140,33 @@ Art Institute of Chicago. When a description is shown, its CC BY attribution goe
 
 Museum facts and AI interpretation must be visually distinct — different container, a label,
 not merely a smaller font. A user glancing at the screen must never mistake generated text
-for a museum caption.
+for a museum caption. They are also set in different faces: the museum speaks in the serif, the
+machine in the interface sans.
+
+### The description, and expanding it
+
+The description clamps to five lines. That is the resting state and does not change.
+
+A small `i` button beside it expands it in place, bounded to 45vh and scrollable past that. It
+appears only when the clamp is actually hiding something — measured from `scrollHeight`, not
+guessed from how many characters the text has, because five *lines* depends on the viewport and
+on which font won the `font-display: swap` race.
+
+Expansion is per artwork and temporary. It collapses when the artwork rotates, on `Esc`, and
+when the overlay fades. While it is open the idle fade stretches from 3.5s to 20s, because
+reading is not moving the mouse and 3.5s takes the text away mid-paragraph; scrolling the
+description counts as activity for the same reason. An unattended display still returns to the
+artwork on its own, which is what the original ruling protects. `QUESTIONS.md` #3, amended.
+
+`I` keeps its own meaning — pin or unpin the whole overlay. Two affordances, two meanings.
+
+### Controls on the display
+
+The two buttons above are the only clickable controls outside the settings panel, and they live
+inside the overlay, which is hidden at rest. "No visible controls at rest" is unaffected.
+
+The overlay itself keeps `pointer-events: none` so it cannot swallow the movement that reveals
+it; the buttons and the expanded description take the pointer back one element at a time.
 
 ---
 
@@ -227,5 +292,6 @@ still displays something. It makes the first run work and it makes the offline s
 
 ## Accessibility
 
-Keyboard reachable throughout. `alt` text from `thumbnail.alt_text`. Sufficient contrast on the
-overlay. Honour `prefers-reduced-motion` by cutting instead of crossfading.
+Keyboard reachable throughout — including the overlay's two buttons, which are real `<button>`
+elements in the tab order, and which leave the tab order with the overlay when it fades.
+`alt` text from `thumbnail.alt_text`. Sufficient contrast on the overlay. Honour `prefers-reduced-motion` by cutting instead of crossfading.

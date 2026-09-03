@@ -174,14 +174,30 @@ Documentation and naming only, with the one exception noted below. Details in
 
 ## M8 — The display
 
-- [ ] Scrim strength driven by the artwork's own `color.l`, plus a text shadow and a readable
-      `--fg-dim` — verified in a browser against a white-ground print and a dark painting
-- [ ] Serif for museum text, self-hosted `woff2`, system sans kept for the interface
-- [ ] Expandable description behind a small `i` button, collapsing on rotation and on Esc
-- [ ] `S` toggles the settings panel, so it can be closed while fullscreen without Esc
+- [x] Scrim strength driven by the artwork's own `color.l`, plus a text shadow and a readable
+      `--fg-dim` — verified in a browser against a white-ground print and a dark painting.
+      The check changed the design: AIC's `color` is the dominant colour of the whole image,
+      and a Homer watercolour on tan paper reports `l = 6` while reading as a bright ground
+      under the caption. So the *default* scrim is now strong enough alone (0.88 / 0.66 / 55%)
+      and `l > 60` only adds to it. A hint, never the mechanism
+- [x] Serif for museum text, self-hosted `woff2`, system sans kept for the interface —
+      EB Garamond, OFL 1.1, with `frontend/fonts/OFL.txt` as the licence requires. Two
+      variable files, `latin` and `latin-ext`, 155KB; `latin-ext` is what keeps Polish
+      diacritics in the same face on the attribution line. The AI section takes the sans
+      back, which is the strongest version of "never mistakable for a museum caption"
+- [x] Expandable description behind a small `i` button, collapsing on rotation and on Esc —
+      shown only when the clamp is actually hiding something, measured from `scrollHeight`.
+      While it is open the idle fade stretches from 3.5s to 20s: reading is not moving the
+      mouse, and 3.5s takes the text away mid-paragraph
+- [x] `S` toggles the settings panel, so it can be closed while fullscreen without Esc
       dropping out of fullscreen
-- [ ] A manual "next artwork" control inside the overlay, sharing one 1500ms cooldown with Space
-- [ ] Commit
+- [x] A manual "next artwork" control inside the overlay, sharing one 1500ms cooldown with Space
+- [x] **Not planned, found by the browser check:** `chooseWidth()` asked for 1686 on a wide
+      monitor whatever the artwork's own size. AIC's IIIF service answers `403` rather than
+      upscaling, and the display treats that as an unloadable image and skips — so **8,993 of
+      the 57,607 indexed works, one in six, could not be shown at all**. Now clamped to
+      `thumbnail.width`, which was already on every response
+- [x] Commit
 
 ## M9 — Rate limiting
 

@@ -32,12 +32,22 @@ const MAX_IMAGE_ATTEMPTS = 3;
 // How long a transient confirmation stays on screen.
 const FLASH_MS = 1600;
 
+// The floor between manual advances, shared by Space and the overlay's next button.
+// Holding Space down, or leaning on the button, otherwise walks the collection at the
+// keyboard's repeat rate — every one of which is an image fetch from AIC's CDN. A repeat
+// inside the window is ignored, never queued: a queued advance arrives after the user has
+// stopped asking for it. The backend limit in M9 is the real ceiling; this is the part
+// that keeps the display from being the thing that needs limiting.
+const ADVANCE_COOLDOWN_MS = 1500;
+
 const elements = {
   artworkEl: document.getElementById('artwork'),
   layers: [document.getElementById('layer-a'), document.getElementById('layer-b')],
   status: document.getElementById('status'),
   body: document.body,
 };
+
+const nextButton = document.getElementById('ov-next');
 
 const overlay = createOverlay({
   overlay: document.getElementById('overlay'),
@@ -47,6 +57,7 @@ const overlay = createOverlay({
   description: document.getElementById('ov-description'),
   credit: document.getElementById('ov-credit'),
   attribution: document.getElementById('ov-attribution'),
+  expandButton: document.getElementById('ov-expand'),
 });
 
 const ambient = createAmbient();
@@ -78,6 +89,10 @@ const query = { mode: 'random', artworkType: null, style: null, subject: null };
 let queryChanged = false;
 
 let flashTimer = null;
+
+// When the next manual advance is allowed, and the timer that re-enables the button.
+let advanceReadyAt = 0;
+let advanceTimer = null;
 
 // What the status line is saying, so a language change can say it again in the new
 // language. An error can sit on screen for the whole retry delay.
@@ -115,7 +130,9 @@ function flashStatus(text) {
  */
 async function prepareArtwork(attemptsLeft = MAX_IMAGE_ATTEMPTS) {
   const artwork = await fetchRandomArtwork(query);
-  const width = chooseWidth(window.innerWidth, window.devicePixelRatio);
+  // source_width matters as much as the viewport: AIC refuses to upscale, and asking
+  // for more than the source has is a 403 and a skipped artwork. See chooseWidth().
+  const width = chooseWidth(window.innerWidth, window.devicePixelRatio, artwork.source_width);
   try {
     const image = await loadImage(artwork, width);
     return { artwork, image };
@@ -299,11 +316,36 @@ function onQueryChanged() {
   persist();
 }
 
+/**
+ * Advance, unless we just did. The one path for every manual "next" — Space and the
+ * overlay's button share the cooldown, because a user with both is still one user.
+ *
+ * Rotation's own timer does not come through here: it is already paced, and pausing the
+ * clock to press Space should not then make the clock late.
+ */
+function advance() {
+  if (Date.now() < advanceReadyAt) return;
+  advanceReadyAt = Date.now() + ADVANCE_COOLDOWN_MS;
+  armAdvanceButton();
+  showStatus('loading');
+  void rotation.next();
+}
+
+/** Dim and disable the button for the rest of the cooldown, then give it back. */
+function armAdvanceButton() {
+  if (!nextButton) return;
+  nextButton.disabled = true;
+  clearTimeout(advanceTimer);
+  advanceTimer = setTimeout(() => {
+    nextButton.disabled = false;
+    advanceTimer = null;
+  }, ADVANCE_COOLDOWN_MS);
+}
+
+nextButton?.addEventListener('click', advance);
+
 bindShortcuts({
-  onNext: () => {
-    showStatus('loading');
-    void rotation.next();
-  },
+  onNext: advance,
   onFullscreen: () => void fullscreen.toggle(),
   onToggleOverlay: () => {
     const pinned = overlay.toggle();
@@ -318,7 +360,10 @@ bindShortcuts({
     applyInterval(seconds);
     panel.sync({ intervalSeconds: seconds });
   },
-  onSettings: () => void panel.show(),
+  // Toggle, not open. In fullscreen the browser owns Esc and uses it to leave
+  // fullscreen, so a panel that only opens has no keyboard way out of the one state
+  // this app is meant to sit in. QUESTIONS.md #2, amended.
+  onSettings: () => (panel.isOpen() ? panel.hide() : void panel.show()),
   onDismissOverlay: () => {
     overlay.dismiss();
     setOverlayPinned(false);

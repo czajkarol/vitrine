@@ -11,7 +11,7 @@ derive from it. Read `docs/plan-improvements.md` next — it is the agreed work.
 against intentions.
 
 The app works end to end. It serves an artwork from a local SQLite index in ~19ms with **no AIC
-call at all**, rotates on a timer, has a keyboard map, a metadata overlay, a settings panel with
+call at all**, rotates on a timer, has a keyboard map, a metadata overlay set in a serif, a settings panel with
 Explore filters over artwork type, style and subject, and a Curated mode backed by transparent
 scoring. English and Polish, switchable without a reload. Ambient mode holds a Screen Wake Lock.
 
@@ -24,9 +24,16 @@ is worth re-checking after any change near it.
 The index holds **57,607 artworks**, all scored, plus 84,190 style/subject rows.
 `data/vitrine.db` is 60MB and gitignored.
 
-**M7–M12 are queued and unstarted.** See `docs/roadmap.md` for the list and
-`docs/plan-improvements.md` for the design, the four decisions already taken, and the six that
-still need the owner's ruling.
+**M7 and M8 are done. M9–M12 are queued.** See `docs/roadmap.md` for the list and
+`docs/plan-improvements.md` for the design and the decisions. Of the six that needed a ruling,
+three were taken at the top of M8 (font, rate-limit numbers, how far to fold the facet
+vocabulary), two were proceeded on under a stated assumption and are one substitution to
+reverse, and one — "more like this" — stays a proposal that is deliberately not in the roadmap.
+
+M8 changed more than its own list. Two bugs that 349 passing tests could not see turned up as
+soon as the app was opened and looked at, and both are in the Gotchas below: AIC refusing to
+upscale made one indexed artwork in six unshowable, and `color.l` turned out to be a hint about
+the whole image rather than a fact about the bottom of it.
 
 ## Run it
 
@@ -67,8 +74,10 @@ A fresh clone has no index and serves from AIC, then from the bundled 30-record 
   assert ordering, never values. ADR-0006, `QUESTIONS.md` #11.
 - **The index is a cache, not truth.** AIC can unpublish an image at any time. ADR-0003.
 - `QUESTIONS.md` is a settled record of twelve rulings, not an open list. Read it before
-  changing anything it covers. Two entries are being reopened deliberately in M7 — #2 (`S`) and
-  #3 (the description clamp) — and must be amended with a dated note rather than contradicted.
+  changing anything it covers. Two were reopened deliberately in M7 — #2 (`S` toggles) and #3
+  (the description gains an expand affordance) — and both carry a dated amendment in place. That
+  is how a ruling changes here. Contradicting one in the code and leaving this file saying the
+  opposite is not.
 
 ## Gotchas
 
@@ -97,9 +106,22 @@ All found the hard way, in a browser or against the live API. Each is documented
 8. **FastAPI's 422 echoes the rejected input**, which for the API key field meant the key came
    back out in the error body. `app/api/errors.py` strips `input` and `ctx`. `SecretStr` does not
    help — pydantic reports what it was handed, before the field type applies.
-9. **`.gitignore` patterns without a leading slash match at any depth.** A bare `data/` silently
-   excluded `app/data/fallback_artworks.json`, the bundled offline set. `QUESTIONS.md` #9.
-10. **`data/vitrine.db` holds a secret.** When there is no OS keyring, a pasted API key sits
+9. **AIC's IIIF service will not upscale, and a `403` looks exactly like a dead image.**
+   Requesting `full/1686,` from a source 1602px wide is a `403`, which `display.js` treats as
+   an artwork whose image will not load, and skips. One in six indexed works is narrower than
+   1686. `chooseWidth()` now clamps to `thumbnail.width`. `docs/product-spec.md`.
+10. **`color.l` does not tell you how bright the bottom of the picture is.** AIC reports the
+    dominant colour of the whole image. A graphite-on-tan-paper Homer comes back at `l = 6`,
+    as dark as anything in the collection, and reads as cream under the caption. The overlay
+    scrim uses it, but only to *add* to a default that is already legible.
+11. **There is no way to unit-test the frontend here, and that is deliberate.** No bundler, no
+    `node_modules`, so no test runner (ADR-0005). Playwright covers five smoke flows and no
+    more. Both bugs above were invisible to 349 passing tests and were found by opening the app
+    and looking at it, which is why the definition of done says to.
+12. **`.gitignore` patterns without a leading slash match at any depth.** A bare `data/`
+    silently excluded `app/data/fallback_artworks.json`, the bundled offline set.
+    `QUESTIONS.md` #9.
+13. **`data/vitrine.db` holds a secret.** When there is no OS keyring, a pasted API key sits
     unencrypted in the same file as the index. Never commit, publish or attach it.
     `docs/plan-improvements.md` Phase 6.
 

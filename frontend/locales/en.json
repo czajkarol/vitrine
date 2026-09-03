@@ -11,6 +11,8 @@
   "attribution_with_description": "Digital image courtesy of the Art Institute of Chicago. Description: Art Institute of Chicago, CC BY 4.0.",
   "overlay_pinned": "Details pinned",
   "overlay_unpinned": "Details unpinned",
+  "description_expand": "Show the full description",
+  "next_artwork": "Next artwork",
   "interval_set_minutes": "Every {minutes} min",
   "interval_set_seconds": "Every {seconds} sec",
 
