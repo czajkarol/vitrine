@@ -150,6 +150,83 @@ Per `CLAUDE.md`, ask Karol before starting it.
 
 ---
 
+## M7 — Truth-up
+
+Documentation and naming only, no behaviour change. Details in `docs/plan-improvements.md`
+Phase 0. Do this first: every later milestone edits these files.
+
+- [ ] Replace the personal name with "the owner" in `CLAUDE.md`, `HANDOFF.md`, `QUESTIONS.md`
+      and this file
+- [ ] Placeholder contact address in `app/core/config.py`, `tests/conftest.py`,
+      `docs/aic-api.md`, plus a startup warning when it is still the default
+- [ ] Reconcile `README.md` (style/subject *are* built), `HANDOFF.md` (it contradicts itself
+      about M3.5), `docs/architecture.md` (`classification` was renamed; `artwork_terms` and
+      `credentials` are missing) and the test count both files quote
+- [ ] Drop the unused `ai` extra from `pyproject.toml` and the orphan keys from `.env.example`
+- [ ] Amend `QUESTIONS.md` #2 (`S` stays bound and now toggles) and #3 (the description
+      clamp gains an expand affordance) with dated notes rather than silent contradiction
+- [ ] Commit
+
+## M8 — The display
+
+- [ ] Scrim strength driven by the artwork's own `color.l`, plus a text shadow and a readable
+      `--fg-dim` — verified in a browser against a white-ground print and a dark painting
+- [ ] Serif for museum text, self-hosted `woff2`, system sans kept for the interface
+- [ ] Expandable description behind a small `i` button, collapsing on rotation and on Esc
+- [ ] `S` toggles the settings panel, so it can be closed while fullscreen without Esc
+      dropping out of fullscreen
+- [ ] A manual "next artwork" control inside the overlay, sharing one 1500ms cooldown with Space
+- [ ] Commit
+
+## M9 — Rate limiting
+
+- [ ] `domain/rate_limit.py`: a pure token bucket, the clock passed in
+- [ ] Applied to `/api/artwork/random` and `/api/image/{image_id}`; 429 with `Retry-After`
+- [ ] The frontend waits out `Retry-After` calmly and never retry-storms
+- [ ] Commit
+
+## M10 — Canonical facets
+
+The largest milestone, and it needs **no AIC traffic**: the raw terms are already in SQLite.
+
+- [ ] `domain/vocabulary.py` — the canonical facet map, pure, with every dropped value listed
+      and commented
+- [ ] Migration 008 `artwork_facets`, with artwork type folded in as `type.*` so all three
+      groups share one query shape
+- [ ] `build_index.py --retag`, and run automatically after a crawl
+- [ ] Exclusion: multi-valued per group, `NOT IN`, offered as a sub-list under each group
+- [ ] Dependent counts between the groups, leave-one-out, zero-count options disabled not hidden
+- [ ] Facet labels in `locales/`, Polish written as UI copy rather than as translation
+- [ ] ADR-0009 — canonical facets over AIC's raw terms
+- [ ] Commit
+
+## M11 — Modes, scoring explained, favourites
+
+- [ ] Mode options rendered as name + quiet description; the em dashes leave the strings
+- [ ] `GET /api/scoring` and an `i` beside Mode explaining the weights in both languages,
+      with the numbers taken from the code
+- [ ] Migration 009 `artwork_feedback` — no foreign key, with a small snapshot
+- [ ] `L` likes, `X` hides, a heart in the overlay, `GET`/`PUT`/`DELETE /api/favorites`
+- [ ] "For you" as a third mode over `domain/affinity.py`, falling back to Curated below
+      about five likes and saying so
+- [ ] ADR-0010 — personalisation from explicit feedback only
+- [ ] Commit
+
+## M12 — Data, setup, and other sources
+
+- [ ] `scripts/export_index.py` — corpus tables only, into a fresh file, `VACUUM`ed
+- [ ] `scripts/fetch_index.py` — merge a published export without touching preferences,
+      history or credentials
+- [ ] `docs/setup.md`, verified by following it on a clean checkout
+- [ ] `docs/data.md` — what is stored, what is rebuildable, what may be published and why the
+      database is not committed
+- [ ] ADR-0011 — distribute the index as a release asset, never in Git
+- [ ] ADR-0012 (Proposed) — additional art sources, and what a second one would actually cost
+- [ ] ADRs re-read against the code, `docs/architecture.md` and `HANDOFF.md` reconciled
+- [ ] Commit
+
+---
+
 ## Not doing
 
 Recorded here so it does not get relitigated. Each has an ADR or a line in `CLAUDE.md`.
