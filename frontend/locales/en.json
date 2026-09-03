@@ -22,6 +22,7 @@
   "ai_disclaimer": "AI-generated from the museum's metadata. Not a curatorial text.",
   "ai_loading": "Generating…",
   "ai_unavailable": "Interpretation is unavailable right now.",
+  "ai_budget_exhausted": "The interpretation budget for today is spent.",
   "ai_themes": "Themes",
   "ai_look_closer": "Look closer",
   "ai_source": "{provider} · {model}",

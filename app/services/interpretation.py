@@ -26,6 +26,7 @@ from app.providers.ai.base import (
     ProviderUnavailableError,
 )
 from app.providers.aic.client import AicClient, AicError
+from app.repositories.ai_usage import AiUsageRepository
 from app.repositories.artwork_index import ArtworkIndexRepository
 from app.services.fallback import FallbackSet
 
@@ -34,6 +35,16 @@ logger = logging.getLogger(__name__)
 
 class ArtworkNotFoundError(LookupError):
     """No tier could produce metadata for that id, so there is nothing to interpret."""
+
+
+class BudgetExhaustedError(RuntimeError):
+    """The daily request cap is spent.
+
+    Not a provider failure: the provider is presumably fine and we are choosing not to
+    spend more today. It is kept distinct from unavailability because the display says
+    something different about it, and because it must never count toward the circuit
+    breaker — the provider did nothing wrong.
+    """
 
 
 class InterpretationService:
@@ -47,6 +58,7 @@ class InterpretationService:
         settings: Settings,
         local_cache: InterpretationCache,
         shared_cache: InterpretationCache,
+        usage: AiUsageRepository,
     ) -> None:
         self._provider = provider
         self._index = index
@@ -56,6 +68,7 @@ class InterpretationService:
         # Ordered: local, then shared. The chain reads them in this order and writes back
         # to both, which is the whole of `docs/ai-system.md`'s resolution rule.
         self._caches = (local_cache, shared_cache)
+        self._usage = usage
 
     @property
     def enabled(self) -> bool:
@@ -117,7 +130,11 @@ class InterpretationService:
             prompt_version=PROMPT_VERSION,
         )
         if (cached := await self._read_caches(key)) is not None:
+            # A cache hit costs nothing, so it is not counted and not capped. The budget
+            # exists to limit what we spend, not what we serve.
             return cached
+
+        await self._check_budget()
 
         artwork = await self.find_artwork(artwork_id)
         request = InterpretationRequest(
@@ -137,8 +154,22 @@ class InterpretationService:
                 f"{self._provider.name} timed out after {self._settings.ai_timeout_seconds}s"
             ) from exc
 
+        # Recorded after the call returns, because what is being counted is what was
+        # actually spent. A request that failed cost the provider nothing to answer, and
+        # the circuit breaker is what deals with a provider that keeps failing.
+        await self._usage.record(self._provider.name, result.usage)
         await self._write_caches(key, result.interpretation)
         return result.interpretation
+
+    async def _check_budget(self) -> None:
+        """Refuse before spending, per `docs/ai-system.md`. Cost control is a feature."""
+        assert self._provider is not None
+        limit = self._settings.ai_daily_request_limit
+        spent = await self._usage.requests_today(self._provider.name)
+        if spent >= limit:
+            raise BudgetExhaustedError(
+                f"{self._provider.name} has used {spent} of {limit} requests today"
+            )
 
     async def _read_caches(self, key: CacheKey) -> Interpretation | None:
         """Local, then shared. A cache that raises is skipped, never propagated."""

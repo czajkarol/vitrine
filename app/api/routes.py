@@ -22,7 +22,11 @@ from app.providers.ai.base import AiError
 from app.providers.aic.client import AicClient, AicError, AicUnavailableError
 from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.preferences import PreferencesRepository
-from app.services.interpretation import ArtworkNotFoundError, InterpretationService
+from app.services.interpretation import (
+    ArtworkNotFoundError,
+    BudgetExhaustedError,
+    InterpretationService,
+)
 from app.services.selection import SelectionQuery, SelectionService
 
 logger = logging.getLogger(__name__)
@@ -247,6 +251,11 @@ async def read_interpretation(
         result = await interpretation.interpret(artwork_id, language)
     except ArtworkNotFoundError as exc:
         raise HTTPException(status_code=404, detail="artwork_unknown") from exc
+    except BudgetExhaustedError as exc:
+        # Not a failure. We are choosing not to spend more today, and the display says
+        # something different about that than about a provider being down.
+        logger.info("Interpretation refused: %s", exc)
+        raise HTTPException(status_code=503, detail="ai_budget_exhausted") from exc
     except AiError as exc:
         logger.warning("Interpretation failed for artwork %s: %s", artwork_id, exc)
         raise HTTPException(status_code=503, detail="ai_unavailable") from exc

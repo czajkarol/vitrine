@@ -69,6 +69,13 @@ class Settings(BaseSettings):
     ai_timeout_seconds: float = Field(default=20.0, gt=0)
     ai_max_output_tokens: int = Field(default=600, gt=0)
 
+    ai_daily_request_limit: int = Field(default=200, ge=0)
+    """A hard stop, checked before a call is made rather than reconciled after it.
+
+    Without one, a rotation set to 30 seconds with generation on every artwork would be
+    2,880 calls a day. Generation is on demand, which is the real defence — this is the
+    backstop for when that assumption stops holding. Zero disables AI outright."""
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

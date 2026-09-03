@@ -104,7 +104,8 @@ Per `CLAUDE.md`, ask Karol before starting it.
       row from an older shape is a miss rather than something the display trusts
 - [x] `NullSharedCache` and the three-tier resolution chain — a cache that raises is
       skipped, never propagated
-- [ ] Budget guard: token cap, daily request cap, `ai_usage` tracking
+- [x] Budget guard: token cap, daily request cap, `ai_usage` tracking — checked before the
+      call, and a cache hit is never counted against it
 - [ ] Circuit breaker with cooling period
 - [x] Generation on demand only — never on rotation. Tied to pinning the overlay with `I`,
       not to the overlay's own flash on every artwork change

@@ -13,16 +13,28 @@ from app.core.config import Settings
 from app.domain.artwork import Artwork
 from app.domain.interpretation import CacheKey
 from app.main import create_app
-from app.providers.ai.base import ProviderUnavailableError
+from app.providers.ai.base import ProviderUnavailableError, TokenUsage
 from app.providers.ai.mock import MockProvider
 from app.providers.aic.client import AicClient
+from app.repositories.ai_usage import AiUsageRepository
 from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.database import Database
 from app.repositories.interpretations import NullSharedCache, SqliteInterpretationCache
 from app.services.fallback import FallbackSet
-from app.services.interpretation import ArtworkNotFoundError, InterpretationService
+from app.services.interpretation import (
+    ArtworkNotFoundError,
+    BudgetExhaustedError,
+    InterpretationService,
+)
 
 BASE = "https://api.artic.edu/api/v1"
+
+OTHER = Artwork(
+    id=27993,
+    title="Another work",
+    is_public_domain=True,
+    image_id="def",
+)
 
 INDEXED = Artwork(
     id=27992,
@@ -74,6 +86,7 @@ def _service(
         settings=settings,
         local_cache=SqliteInterpretationCache(database),
         shared_cache=NullSharedCache(),
+        usage=AiUsageRepository(database),
     )
 
 
@@ -144,6 +157,7 @@ class TestInterpreting:
             settings=settings,
             local_cache=SqliteInterpretationCache(database),
             shared_cache=NullSharedCache(),
+            usage=AiUsageRepository(database),
         )
         assert service.enabled is False
         # The route checks `enabled` and answers "ai_disabled". Getting here anyway is a
@@ -266,6 +280,7 @@ class TestTheCacheChain:
             settings=settings,
             local_cache=ExplodingCache(),
             shared_cache=NullSharedCache(),
+            usage=AiUsageRepository(database),
         )
 
         # A cache is an optimisation. Losing it costs a provider call, not the feature.
@@ -282,3 +297,77 @@ class TestTheCacheChain:
             )
             is None
         )
+
+
+class TestTheBudget:
+    async def test_records_what_each_call_cost(self, settings):
+        service = _service(settings, artworks=(INDEXED,))
+        await service.interpret(27992, "en")
+
+        usage = AiUsageRepository(Database(settings.database_path))
+        assert usage.requests_today_sync("mock") == 1
+        totals = usage.totals_sync()["mock"]
+        assert totals["tokens_in"] > 0 and totals["tokens_out"] > 0
+
+    async def test_a_cache_hit_costs_nothing_and_is_not_counted(self, settings):
+        service = _service(settings, artworks=(INDEXED,))
+        await service.interpret(27992, "en")
+        await service.interpret(27992, "en")
+
+        # The budget limits what we spend, not what we serve.
+        assert AiUsageRepository(Database(settings.database_path)).requests_today_sync("mock") == 1
+
+    async def test_refuses_once_the_daily_cap_is_reached(self, settings):
+        capped = settings.model_copy(update={"ai_daily_request_limit": 2})
+        provider = MockProvider()
+        service = _service(capped, provider=provider, artworks=(INDEXED, OTHER))
+
+        await service.interpret(27992, "en")
+        await service.interpret(27992, "pl")
+        with pytest.raises(BudgetExhaustedError):
+            await service.interpret(OTHER.id, "en")
+        # Checked before the call, not reconciled after it.
+        assert provider.calls == 2
+
+    async def test_an_already_cached_answer_survives_a_spent_budget(self, settings):
+        capped = settings.model_copy(update={"ai_daily_request_limit": 1})
+        service = _service(capped, artworks=(INDEXED, OTHER))
+
+        await service.interpret(27992, "en")
+        with pytest.raises(BudgetExhaustedError):
+            await service.interpret(OTHER.id, "en")
+
+        # Nothing is being spent to serve this, so refusing it would be a limit on the
+        # display rather than on the bill.
+        assert await service.interpret(27992, "en") is not None
+
+    async def test_a_zero_limit_stops_everything(self, settings):
+        stopped = settings.model_copy(update={"ai_daily_request_limit": 0})
+        provider = MockProvider()
+        service = _service(stopped, provider=provider, artworks=(INDEXED,))
+        with pytest.raises(BudgetExhaustedError):
+            await service.interpret(27992, "en")
+        assert provider.calls == 0
+
+    async def test_yesterdays_spending_does_not_count(self, settings):
+        from datetime import date, timedelta
+
+        capped = settings.model_copy(update={"ai_daily_request_limit": 1})
+        database = Database(capped.database_path)
+        database.migrate()
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
+        AiUsageRepository(database).record_sync("mock", TokenUsage(), day=yesterday)
+
+        service = _service(capped, artworks=(INDEXED,))
+        # The cap is daily. Spending it yesterday must not spend it again today.
+        assert await service.interpret(27992, "en") is not None
+
+    def test_a_spent_budget_reads_differently_from_a_broken_provider(self, ai_settings, tmp_path):
+        spent = ai_settings.model_copy(update={"ai_daily_request_limit": 0})
+        with TestClient(create_app(spent)) as client:
+            index = ArtworkIndexRepository(Database(spent.database_path))
+            index.upsert_many_sync([INDEXED])
+            response = client.get("/api/interpretation/27992")
+            assert response.status_code == 503
+            # The display says something different about a decision than about a fault.
+            assert response.json()["detail"] == "ai_budget_exhausted"

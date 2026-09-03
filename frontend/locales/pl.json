@@ -22,6 +22,7 @@
   "ai_disclaimer": "Tekst wygenerowany przez AI na podstawie metadanych muzeum. To nie jest tekst kuratorski.",
   "ai_loading": "Generowanie…",
   "ai_unavailable": "Interpretacja jest chwilowo niedostępna.",
+  "ai_budget_exhausted": "Dzienny limit interpretacji został wyczerpany.",
   "ai_themes": "Motywy",
   "ai_look_closer": "Przyjrzyj się",
   "ai_source": "{provider} · {model}",

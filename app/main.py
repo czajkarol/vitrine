@@ -16,6 +16,7 @@ from app.api.routes import router
 from app.core.config import Settings, get_settings
 from app.providers.ai.factory import create_provider
 from app.providers.aic.client import AicClient
+from app.repositories.ai_usage import AiUsageRepository
 from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.database import Database
 from app.repositories.history import HistoryRepository
@@ -67,6 +68,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         local_cache=SqliteInterpretationCache(database),
         # Always empty, by decision rather than by omission. See ADR-0004.
         shared_cache=NullSharedCache(),
+        usage=AiUsageRepository(database),
     )
 
     app.state.selection = SelectionService(

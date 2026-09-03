@@ -15,6 +15,8 @@ export function createInterpretation(elements) {
   // What is on screen, kept so a language change can redraw it without another call.
   let current = null;
   let state = 'idle';
+  // Which note is showing, so a language change can say the same thing again.
+  let unavailableKey = 'ai_unavailable';
 
   function setState(next, message) {
     state = next;
@@ -32,12 +34,16 @@ export function createInterpretation(elements) {
     },
 
     /**
-     * A provider that is down, over budget or simply slow. One quiet line — never a
-     * dialog, and never at the expense of the museum text above it.
+     * A provider that is down or simply slow. One quiet line — never a dialog, and never
+     * at the expense of the museum text above it.
+     *
+     * @param {string} [key] which quiet line. A spent budget is not a failure and says
+     * so; `docs/product-spec.md` asks for the two to read differently.
      */
-    unavailable() {
+    unavailable(key = 'ai_unavailable') {
       current = null;
-      setState('unavailable', t('ai_unavailable'));
+      unavailableKey = key;
+      setState('unavailable', t(key));
     },
 
     /** Fill in one interpretation. */
@@ -75,7 +81,7 @@ export function createInterpretation(elements) {
     retranslate() {
       if (state === 'ready' && current) this.render(current);
       else if (state === 'loading') setState('loading', t('ai_loading'));
-      else if (state === 'unavailable') setState('unavailable', t('ai_unavailable'));
+      else if (state === 'unavailable') setState('unavailable', t(unavailableKey));
     },
   };
 }

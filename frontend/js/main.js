@@ -162,7 +162,10 @@ async function requestInterpretation() {
       return;
     }
     console.warn('Interpretation failed.', error);
-    interpretation.unavailable();
+    // A spent budget is a decision, not a fault, and reads differently on screen.
+    interpretation.unavailable(
+      error?.code === 'ai_budget_exhausted' ? 'ai_budget_exhausted' : 'ai_unavailable',
+    );
   } finally {
     if (interpretationRequest === controller) interpretationRequest = null;
   }
