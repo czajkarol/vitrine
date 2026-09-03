@@ -7,29 +7,38 @@ State of vitrine as of 2026-09-03. Written for whoever (or whatever) picks this 
 ## Where the project actually is
 
 M0 through M4 are complete and committed, apart from one scoped-down item in M3 (M3.5, parked
-deliberately — see below). `docs/roadmap.md` is accurate: it was reconciled against the code,
-not against intentions, and is ticked as work lands.
+deliberately — see below). M5 is most of the way through: everything except the real providers
+and BYO keys is built and running against `MockProvider`. `docs/roadmap.md` is accurate: it was
+reconciled against the code, not against intentions, and is ticked as work lands.
 
 The app works end to end: it serves an artwork from a local SQLite index in ~19ms with no
 network call, rotates on a timer, has a keyboard map, a metadata overlay, a settings panel with
 Explore filters, and Curated mode backed by transparent scoring. It speaks English and Polish,
 switchable without a reload, and will hold the screen awake if asked.
 
-No AI anywhere yet. That is M5, and `CLAUDE.md` is emphatic that it stays an enhancement: the
-app has to remain fully usable with nothing configured.
+AI is wired end to end, but only against the mock provider. Pinning the overlay with `I` asks
+for an interpretation; it is cached, capped and breakered. With nothing configured — the
+default — the feature simply is not offered, which `CLAUDE.md` requires and which is worth
+re-checking after any change here.
 
 ## Run it
 
 ```bash
 uv sync --all-extras
 uv run uvicorn app.main:app --reload      # http://127.0.0.1:8000
-uv run pytest                             # 155 tests, excludes live/e2e
+uv run pytest                             # 240 tests, excludes live/e2e
 uv run pytest -m live                     # 6 tests, hits the real AIC API
 uv run ruff check . && uv run ruff format --check . && uv run mypy app
 ```
 
 `data/vitrine.db` is gitignored, so a fresh clone starts with no index and serves from AIC,
 then from the bundled fallback set. To build the index:
+
+To run with AI, using the provider that needs no key and no network:
+
+```bash
+AI_ENABLED=true AI_PROVIDER=mock uv run uvicorn app.main:app
+```
 
 ```bash
 uv run python scripts/build_index.py             # full walk, ~22 min at 1 req/s, resumable
@@ -40,19 +49,43 @@ uv run python scripts/build_index.py --explain <artwork_id>
 
 ## What to do next
 
-**M5 — AI** is the next milestone. Build it against `MockProvider` first and get the whole
-feature working end to end before a real vendor appears; `docs/ai-system.md` has the cache key,
-the budget guard and the circuit breaker. Two things in `CLAUDE.md` bound it: no provider key
-ever reaches the frontend, and the app stays fully usable with nothing configured. The overlay
-already has a comment marking where interpretation goes, and why it must not share a container
-with the museum facts.
+**M5 — AI** is in progress and blocked on one thing only: a real provider needs an API key,
+and Karol has been asked which vendor to build first. Everything up to that point is done and
+verified against the mock — the shape, the prompt, the provider protocol, the endpoint, the
+overlay panel, the cache chain, the budget guard and the circuit breaker.
+
+What is left in M5:
+
+- **One real provider**, then **a second one to prove the abstraction**. If adding the second
+  requires changing `providers/ai/base.py`, the abstraction was wrong and that is the moment
+  to find out. Their tests are `-m live` only; nothing in the default suite may touch a paid
+  API.
+- **BYO key handling** — keyring first, SQLite with a plainly-worded warning otherwise, and
+  redaction to the last four characters everywhere. No key ever reaches the frontend.
+- **Streaming over SSE** is described in `docs/ai-system.md` as a refinement to do after the
+  non-streaming path works and is cached. It is not a roadmap item yet and does not need to be
+  one before M6.
+
+How the AI side fits together, so it does not have to be re-derived:
+
+- `domain/interpretation.py` is the validated shape and the composite cache key;
+  `domain/prompts.py` builds the prompt and owns `PROMPT_VERSION`, which is part of that key.
+- `providers/ai/base.py` is the Protocol, the errors and `parse_interpretation()`, which every
+  provider shares because "the model returned something unparseable" is not vendor-specific.
+  `factory.py` is the only place a vendor name is mapped to a class.
+- `services/interpretation.py` is the orchestration: cache chain, budget, breaker, timeout.
+- The frontend asks only when the overlay is *pinned* with `I`, never on the overlay's own
+  flash at every rotation. That distinction is the feature's entire cost model — check it is
+  still true after touching `main.js`.
+- `/api/health` carries the AI block. The frontend reads it at boot rather than asking for an
+  interpretation and being refused.
 
 Note that **M3.5 sits above M4 in the roadmap and is deliberately parked**: style and subject
 filters need a full re-crawl, and Karol ruled they wait to be batched with other indexing work
 rather than triggering a 22-minute walk on their own. Do not start there just because it comes
 first in the file.
 
-What M4 put in place, and what M5 extends:
+What M4 put in place, and what M5 built on:
 
 - **Strings.** `frontend/locales/en.json` and `pl.json`, loaded by `frontend/js/i18n.js`.
   `t('key', { placeholder })` for text built in JS; `data-i18n="key"` in markup, which
@@ -99,7 +132,12 @@ the file named, but they are the ones that cost real time.
    silently excluding `app/data/fallback_artworks.json`, the bundled offline set.
 8. **Tests must set `database_path`.** The `settings` fixture in `tests/conftest.py` points at
    a tmp file. Without it the suite reads and writes the developer's real index.
-9. **A Screen Wake Lock is released whenever the tab stops being visible, and is not given
+9. **Chrome caches ES modules hard, and a stale one fails as a blank screen.** After editing
+   a JS module, a plain reload can still run the old file — the symptom is
+   `does not provide an export named X` for an export that is plainly there. Refetch with
+   `fetch(url, { cache: 'reload' })` for each changed file, then reload. There is no build
+   step and no cache-busting query, so this will keep happening.
+10. **A Screen Wake Lock is released whenever the tab stops being visible, and is not given
    back.** Same family as 1 and 2: the browser takes something away while you are not looking.
    Re-acquiring on `visibilitychange` is not a refinement of ambient mode, it *is* ambient
    mode. Also note that opening a second tab through browser automation did not hide the first
