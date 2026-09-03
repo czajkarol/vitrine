@@ -221,16 +221,32 @@ Documentation and naming only, with the one exception noted below. Details in
 
 The largest milestone, and it needs **no AIC traffic**: the raw terms are already in SQLite.
 
-- [ ] `domain/vocabulary.py` — the canonical facet map, pure, with every dropped value listed
-      and commented
-- [ ] Migration 008 `artwork_facets`, with artwork type folded in as `type.*` so all three
-      groups share one query shape
-- [ ] `build_index.py --retag`, and run automatically after a crawl
-- [ ] Exclusion: multi-valued per group, `NOT IN`, offered as a sub-list under each group
-- [ ] Dependent counts between the groups, leave-one-out, zero-count options disabled not hidden
-- [ ] Facet labels in `locales/`, Polish written as UI copy rather than as translation
-- [ ] ADR-0009 — canonical facets over AIC's raw terms
-- [ ] Commit
+- [x] `domain/vocabulary.py` — the canonical facet map, pure, with every dropped value listed
+      and commented. Only merges, relabels and drops are written by hand; everything else
+      derives its own facet, so nothing is silently lost and the map stays short. Broad, per
+      the owner's ruling: 30 type facets, 585 style, 1,611 subject, of which 26 / 82 / 173
+      clear the offering bar. `MAX_FILTER_OPTIONS` 30 → 60 to match
+- [x] Migration 008 `artwork_facets`, with artwork type folded in as `type.*` so all three
+      groups share one query shape. The primary key deduplicates, which is what fixed the
+      counts: the panel used to imply 3,169 portraits where there are 2,126
+- [x] `build_index.py --retag`, and run automatically after a crawl — 131,264 rows over
+      57,607 artworks in 1.7s, no network. The crawl also tags in the same transaction it
+      writes, so a row can never be indexed and invisible to every filter
+- [x] Exclusion: multi-valued per group, `NOT IN`, offered as a sub-list under each group
+- [x] Dependent counts between the groups, leave-one-out, zero-count options disabled not hidden
+- [x] Facet labels in `locales/`, Polish written as UI copy rather than as translation — 146
+      of them. `en.json` deliberately has none: the server's label is the English label
+- [x] ADR-0009 — canonical facets over AIC's raw terms
+- [x] **Two things the live vocabulary taught, after the code was written.** Stripping a
+      parenthetical looks like tidying and is not — it merged `orange (color)` with
+      `orange (fruit)`, and `edo (african)`, the Edo people of Nigeria, with
+      `edo (japanese period)`. And a slug cannot be reversed into a label: `chimú` became the
+      key `chim` and the label "Chim". Both are tests now
+- [x] **And one the browser caught.** Re-fetching the counts on every change rebuilt the radio
+      lists, and a fresh radio only knows the `defaultChecked` it was built with — so the panel
+      read "Any style" while the rotation was still filtered, and clicking "Any" to clear it
+      fired no event because it already looked checked
+- [x] Commit
 
 ## M11 — Modes, scoring explained, favourites
 

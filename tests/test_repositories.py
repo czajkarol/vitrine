@@ -334,3 +334,121 @@ class TestArtworkTypeCounts:
         repo = ArtworkIndexRepository(database)
         repo.upsert_many_sync([_artwork(1, artwork_type_title=None)])
         assert ArtworkIndexRepository(database).artwork_type_counts_sync() == {}
+
+
+class TestFacets:
+    """The canonical layer. One table, all three groups — ADR-0009."""
+
+    def test_artwork_type_is_a_facet_like_the_others(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1, artwork_type_title="Painting")])
+        assert repo.facet_counts_sync("type") == {"type.painting": 1}
+
+    def test_two_spellings_count_the_artwork_once(self, database: Database):
+        """The bug that made the panel claim 3,169 portraits when there were 2,126."""
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1, subject_titles=("portrait", "portraits"))])
+        assert repo.facet_counts_sync("subject") == {"subject.portrait": 1}
+
+    def test_a_crawl_tags_as_it_writes(self, database: Database):
+        """Not left to --retag: a row that is indexed but untagged is in the collection
+        and invisible to every filter, which is a bug nobody would think to look for."""
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1, subject_titles=("landscape",))])
+        assert repo.sample_sync(10, facets=["subject.landscape"]) != []
+
+    def test_a_recrawl_drops_a_facet_whose_term_the_museum_removed(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1, subject_titles=("landscape", "water"))])
+        repo.upsert_many_sync([_artwork(1, subject_titles=("landscape",))])
+        assert repo.facet_counts_sync("subject") == {"subject.landscape": 1}
+
+    def test_retag_rebuilds_from_the_raw_values_alone(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1, artwork_type_title="Coin", style_titles=("moche",))])
+        with database.connect() as connection:
+            connection.execute("DELETE FROM artwork_facets")
+        assert repo.facet_counts_sync("type") == {}
+
+        written, dropped = repo.retag_sync()
+        assert written == 2
+        assert repo.facet_counts_sync("type") == {"type.coin": 1}
+        assert repo.facet_counts_sync("style") == {"style.moche": 1}
+        assert dropped == {"type": 0, "style": 0, "subject": 0}
+
+    def test_retag_reports_what_the_vocabulary_threw_away(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1, subject_titles=("Collected by Hugh Edwards", "water"))])
+        _, dropped = repo.retag_sync()
+        assert dropped["subject"] == 1
+
+
+class TestExclusion:
+    def test_excluding_removes_everything_carrying_the_facet(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync(
+            [
+                _artwork(1, artwork_type_title="Coin"),
+                _artwork(2, artwork_type_title="Painting"),
+            ]
+        )
+        found = repo.sample_sync(10, exclude=["type.coin"])
+        assert [a.id for a in found] == [2]
+
+    def test_several_exclusions_at_once(self, database: Database):
+        """Multi-valued where inclusion is not: ruling several things out is ordinary and
+        leaves plenty behind, where "landscape AND portraits" narrows to nothing."""
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync(
+            [
+                _artwork(1, artwork_type_title="Coin"),
+                _artwork(2, artwork_type_title="Medals"),
+                _artwork(3, artwork_type_title="Painting"),
+            ]
+        )
+        found = repo.sample_sync(10, exclude=["type.coin", "type.medals"])
+        assert [a.id for a in found] == [3]
+
+    def test_including_and_excluding_the_same_facet_yields_nothing(self, database: Database):
+        """Contradictory rather than empty, and the route turns it into the same
+        "nothing matches those filters" the user can see and undo."""
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1, artwork_type_title="Coin")])
+        assert repo.sample_sync(10, facets=["type.coin"], exclude=["type.coin"]) == []
+
+
+class TestDependentCounts:
+    def test_counts_narrow_under_another_groups_selection(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync(
+            [
+                _artwork(1, artwork_type_title="Print", style_titles=("Japanese",)),
+                _artwork(2, artwork_type_title="Textile", style_titles=("Japanese",)),
+                _artwork(3, artwork_type_title="Print", style_titles=("Realism",)),
+            ]
+        )
+        assert repo.facet_counts_sync("type") == {"type.print": 2, "type.textile": 1}
+        constrained = repo.facet_counts_sync("type", include=["style.japanese"])
+        assert constrained == {"type.print": 1, "type.textile": 1}
+
+    def test_a_facet_ruled_out_is_absent_rather_than_zero(self, database: Database):
+        """The route turns absent into a zero the panel shows disabled, so the option is
+        still there — a list that reshuffles under the cursor is worse than a greyed row."""
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync(
+            [
+                _artwork(1, artwork_type_title="Print", style_titles=("Japanese",)),
+                _artwork(2, artwork_type_title="Textile", style_titles=("Realism",)),
+            ]
+        )
+        assert repo.facet_counts_sync("type", include=["style.japanese"]) == {"type.print": 1}
+
+    def test_an_exclusion_constrains_the_counts_too(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync(
+            [
+                _artwork(1, artwork_type_title="Print", subject_titles=("water",)),
+                _artwork(2, artwork_type_title="Print", subject_titles=("landscape",)),
+            ]
+        )
+        assert repo.facet_counts_sync("type", exclude=["subject.water"]) == {"type.print": 1}

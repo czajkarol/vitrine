@@ -599,3 +599,91 @@ class TestRateLimiting:
         with TestClient(create_app(off)) as client:
             for _ in range(12):
                 assert client.get("/api/artwork/random").status_code == 200
+
+
+class TestFacetFilters:
+    """The canonical layer over HTTP — ADR-0009."""
+
+    def _seed(self, database):
+        from app.api.routes import MIN_FILTER_COUNT
+        from app.repositories.artwork_index import ArtworkIndexRepository
+        from app.repositories.preferences import PreferencesRepository
+        from app.services.selection import IIIF_BASE_KEY
+
+        PreferencesRepository(database).set_sync(IIIF_BASE_KEY, IIIF)
+        rows = [
+            # `water` is carried only by the prints, so it is the handle the dependent
+            # count tests pull on from a different group.
+            _indexed(i, "Print").model_copy(update={"subject_titles": ("portrait", "water")})
+            for i in range(MIN_FILTER_COUNT)
+        ] + [
+            _indexed(1000 + i, "Painting").model_copy(update={"subject_titles": ("portraits",)})
+            for i in range(MIN_FILTER_COUNT)
+        ]
+        ArtworkIndexRepository(database).upsert_many_sync(rows)
+
+    def test_two_spellings_are_offered_as_one_option_with_one_count(self, client, database):
+        from app.api.routes import MIN_FILTER_COUNT
+
+        self._seed(database)
+        body = client.get("/api/filters").json()
+        subjects = {o["value"]: o for o in body["subjects"]}
+        # `portrait` on the prints and `portraits` on the paintings are one option, and
+        # the count is the two halves added rather than either half shown twice.
+        assert subjects["subject.portrait"]["count"] == MIN_FILTER_COUNT * 2
+        assert subjects["subject.portrait"]["label"] == "Portraits"
+        assert "subject.portraits" not in subjects
+
+    def test_counts_are_dependent_and_zeroes_stay_in_the_list(self, client, database):
+        """A choice in one group changes the counts in the others. Painting still appears
+        — at zero, for the panel to show it disabled rather than remove it."""
+        self._seed(database)
+        body = client.get("/api/filters?subject=subject.water").json()
+        types = {o["value"]: o["count"] for o in body["artwork_types"]}
+        assert types["type.painting"] == 0
+        assert types["type.print"] > 0
+
+    def test_a_group_does_not_collapse_around_its_own_choice(self, client, database):
+        """Leave-one-out. Otherwise choosing an artwork type empties the artwork type
+        list you are standing in, which reads as the app breaking."""
+        self._seed(database)
+        plain = {o["value"]: o["count"] for o in client.get("/api/filters").json()["artwork_types"]}
+        chosen = client.get("/api/filters?artwork_type=type.print").json()["artwork_types"]
+        assert {o["value"]: o["count"] for o in chosen}["type.print"] == plain["type.print"]
+
+    def test_exclusion_is_honoured_when_serving(self, client, database):
+        self._seed(database)
+        for _ in range(5):
+            body = client.get("/api/artwork/random?exclude=type.print").json()
+            assert body["id"] >= 1000, "a print was served despite being excluded"
+
+    def test_a_selection_that_matches_nothing_says_so(self, client, database):
+        """Including and excluding the same facet is contradictory, not empty, and must
+        not silently become "anything"."""
+        self._seed(database)
+        response = client.get("/api/artwork/random?artwork_type=type.print&exclude=type.print")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "no_matching_artwork"
+
+    def test_junk_in_the_exclude_list_is_dropped_rather_than_rejected(self, client, database):
+        """A saved preference outlives the vocabulary that produced it. An unknown facet
+        should match nothing, not 400 the page load."""
+        self._seed(database)
+        assert client.get("/api/artwork/random?exclude=nonsense&exclude=x.y").status_code == 200
+
+    def test_the_exclusion_list_survives_a_round_trip(self, client, database):
+        self._seed(database)
+        client.put(
+            "/api/preferences",
+            json={
+                "interval_seconds": 300,
+                "mode": "random",
+                "artwork_type": None,
+                "style": None,
+                "subject": None,
+                "exclude": ["type.coin", "subject.man", "nonsense"],
+                "language": "en",
+                "ambient": False,
+            },
+        )
+        assert client.get("/api/preferences").json()["exclude"] == ["type.coin", "subject.man"]

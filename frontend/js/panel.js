@@ -152,6 +152,12 @@ export function createPanel(elements, handlers) {
     }
     styleGroup.hidden = (filters.styles ?? []).length === 0;
     subjectGroup.hidden = (filters.subjects ?? []).length === 0;
+    // The lists were just rebuilt from scratch, and a fresh radio only knows the
+    // `defaultChecked` it was built with — which is "Any". Without this the panel showed
+    // "Any style" while the rotation was still filtered to Japanese, and clicking "Any"
+    // to clear it fired no change event because it already looked checked. Seen in a
+    // browser, and the state and the screen disagreed silently.
+    applySelection();
   }
 
   /** One list of radios: an "any" entry, then the options the server thought worth it. */

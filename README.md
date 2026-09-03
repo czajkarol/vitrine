@@ -57,8 +57,12 @@ locally and survives a reload.
 
 **Explore and Curated.** Explore filters by artwork type, style and subject, offering only the
 values the index can actually sustain — a filter with four artworks behind it is worse than no
-filter, so it is not shown. Artwork type is a closed list of 45; style and subject run to
-thousands, so those two are capped at the 30 most populous values that clear the bar. Curated
+filter, so it is not shown. The options are our own vocabulary rather than the museum's
+cataloguing ([ADR-0009](docs/adr/0009-canonical-facets.md)): `portrait` and `portraits` are one
+option with one honest count, and provenance terms like "Collected by Hugh Edwards" are not
+offered as subjects at all. Each group also has a collapsed **Exclude** list, which is
+multi-valued where inclusion is not, and every count is what choosing it would actually yield
+under the rest of your selection. Curated
 ranks by a transparent weighted score over six signals: AIC's own `is_boosted`
 curatorial flag, weighted highest because it is the only one carrying a human judgement about
 the work; resolution; aspect ratio; how complete the caption will be; whether the museum wrote a
@@ -157,7 +161,7 @@ so the failed round trip is paid once rather than every rotation.
 |---|---|
 | `GET /api/artwork/random` | one artwork, from whichever tier answers — rate limited |
 | `GET /api/image/{image_id}` | the IIIF fallback — allow-listed widths, id format checked, rate limited |
-| `GET /api/filters` | Explore vocabulary with real counts |
+| `GET /api/filters` | the facet vocabulary, with counts dependent on the current selection |
 | `GET`/`PUT /api/preferences` | the settings panel's state |
 | `GET /api/interpretation/{id}` | one interpretation, on demand |
 | `GET`/`PUT`/`DELETE /api/ai/key` | the bring-your-own key, never returned |
@@ -167,7 +171,7 @@ so the failed round trip is paid once rather than every rotation.
 ## Testing
 
 ```bash
-uv run pytest                 # 371 tests: unit, contract, integration. No network
+uv run pytest                 # 493 tests: unit, contract, integration. No network
 uv run pytest -m live         # 9, against the real AIC API and a real AI provider if keyed
 uv run pytest -m e2e          # 5 Playwright flows; it starts its own server
 uv run ruff check . && uv run ruff format --check . && uv run mypy app
@@ -196,10 +200,11 @@ lists the failure paths that each have a named test — a 500 that succeeds on r
 
 - **The index goes stale.** AIC can unpublish or replace any image at any time, so it is treated
   as a cache: a dead image at display time skips to the next artwork rather than stopping.
-- **The filter vocabulary is the museum's, not ours.** Style and subject come straight from
-  AIC's cataloguing, so `portrait` and `portraits` are separate options and a provenance term
-  like `Collected by Hugh Edwards` shows up as a subject. A canonical facet layer over the raw
-  terms is M10 in `docs/roadmap.md`.
+- **The facet vocabulary is an editorial map, and AIC's own vocabulary drifts.** Merging and
+  dropping is written down one value at a time in `app/domain/vocabulary.py`, so it stays
+  correct only as long as someone maintains it. `build_index.py --retag` rebuilds the whole
+  layer in under two seconds with no network, and reports how many raw values it dropped — a
+  change in that number is the signal that the map has fallen behind.
 - **Interpretations do not stream.** The panel waits for the whole answer. SSE is described in
   `docs/ai-system.md` as a refinement, not a foundation.
 - **No shared cache.** Deliberately an interface and nothing else

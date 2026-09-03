@@ -186,10 +186,10 @@ AIC's `classification_title`, which sounds like the same thing and is not — it
 medium (`oil on canvas`). See the table in `docs/aic-api.md`.
 
 Style and subject (`style_titles`, `subject_titles`) are filters too, added in M3.5. They differ
-from artwork type in one way that shows in the UI: type is a closed vocabulary of 45 values and
-all of it can be offered, while style and subject run to thousands, so only the most populous
-thirty are — on top of the same "enough behind it" rule. A group with nothing to offer is hidden
-rather than shown empty.
+from artwork type in one way that shows in the UI: type is a closed vocabulary and all of it can
+be offered, while style and subject run to hundreds of facets, so only the most populous sixty
+are — on top of the same "enough behind it" rule. A group with nothing to offer is hidden rather
+than shown empty.
 
 The three combine with AND, and each takes one value rather than several. "Landscape **and**
 portraits" narrows to almost nothing and reads as a bug rather than as a filter, so the panel
@@ -198,6 +198,42 @@ offers radio buttons and not checkboxes.
 A filtered request is answerable only from the local index. AIC and the bundled set cannot
 honour the filter, so a filter matching nothing returns nothing rather than quietly falling
 through and showing a work the user filtered out.
+
+#### The vocabulary is ours, not the museum's
+
+Since M10 the options are **canonical facets**, not AIC's raw cataloguing — see ADR-0009 and
+`app/domain/vocabulary.py`. AIC's own vocabulary is correct as cataloguing and unusable as a
+menu: `portrait` and `portraits` were two options, the panel implied 3,169 portrait artworks
+where there are 2,126, and the third most common "subject" in the collection is
+`Collected by Hugh Edwards`, which is provenance.
+
+A facet key (`style.japanese`) is the API value, the saved preference and the i18n key, and is
+permanent once shipped. Labels come from `locales/` like every other string, falling back to the
+English the server sends — so an untranslated facet reads as a word, never as a slug.
+`locales/en.json` deliberately carries no facet keys at all: the server's label *is* the English
+label, and a second copy would only be somewhere for it to drift.
+
+#### Exclusion
+
+Each group also offers a collapsed **Exclude** sub-list, and it is checkboxes where inclusion is
+radios. That is not an inconsistency: the reasoning above applies to inclusion and simply is not
+true of exclusion. Ruling several things out at once is ordinary and leaves plenty behind.
+
+Including and excluding the same facet is contradictory rather than empty, and returns the usual
+"nothing matches those filters" — never a silently dropped exclusion.
+
+#### Counts follow the selection
+
+The number beside an option is what choosing it would actually yield **under the rest of the
+current selection**, computed leave-one-out: each group is counted under the other groups'
+choices but not its own. So choosing a style updates the subject and type counts, and the style
+list the user is standing in does not collapse around their own choice.
+
+What is *offered at all* is decided separately and unconstrained, against the same "enough behind
+it" rule — a filter the index cannot sustain is not a filter whatever else is selected, and
+re-deciding it under the selection would make options appear and vanish as the user clicks. An
+option whose constrained count is zero stays, at zero, shown disabled. A list that reshuffles
+under the cursor is worse than a greyed row.
 
 ### Curated
 

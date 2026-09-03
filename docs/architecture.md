@@ -23,6 +23,9 @@ Rules that matter more than the diagram:
 - **Only `providers/aic/` knows AIC's JSON shape.** It parses into domain models and everything
   downstream sees only those. When AIC changes a field name, exactly one module changes.
 - **Only `providers/ai/` names an AI vendor.** No `if provider == "openai"` outside that package.
+- **Editorial judgement lives in `domain/vocabulary.py` and nowhere else.** Which of AIC's terms
+  are the same thing, and which are not terms at all, is a product decision — pure, testable and
+  in one file, so changing it is an edit and a `--retag` rather than an archaeology exercise.
 - **Config is constructed once and injected.** No module reads `os.environ` at call time.
   A bring-your-own API key is the one piece of configuration that arrives after startup, and it
   goes through `repositories/credentials.py` and `services/ai_credentials.py` rather than around
@@ -100,6 +103,7 @@ artwork_index        id, image_id, title, artist, date_display, medium_display,
                      has_alt_text, alt_text, lqip, color_h, color_s, color_l,
                      score, indexed_at
 artwork_terms        artwork_id, kind ('style' | 'subject'), value    — PK all three
+artwork_facets       artwork_id, facet                                — PK both
 history              artwork_id, shown_at
 interpretations      cache_key PK, artwork_id, language, provider, model,
                      prompt_version, payload_json, created_at
@@ -108,7 +112,7 @@ ai_usage             day, provider, requests, tokens_in, tokens_out
 credentials          provider PK, api_key, updated_at
 ```
 
-Two of those need a sentence each.
+Four of those need a sentence each.
 
 `artwork_type` is AIC's `artwork_type_title` — "Painting", "Coin" — and is the thing Explore
 filters on and Curated scores. It was called `classification` until migration 002, which is a
@@ -119,6 +123,12 @@ canvas". Renamed so nobody reaches for the wrong one.
 `artwork_index`, because Explore's real question is "how many artworks have subject X, for every
 X" every time the panel opens. Against a join table that is an index lookup; against JSON it is a
 full scan of 57,000 rows. Migration 007 has the working.
+
+`artwork_facets` is the canonical filter layer over both of the above, artwork type included
+as `type.*`. It exists so that filtering, excluding and counting are one query shape for all
+three groups instead of a column special case plus a join table — which is what made exclusion
+and dependent counts affordable at all. Derived and rebuildable: `build_index.py --retag` writes
+it from the raw values in seconds with no network. ADR-0009.
 
 `credentials` is the fallback tier for a bring-your-own API key, used only when the OS keyring is
 unavailable, and it is unencrypted. It is the reason `data/vitrine.db` can never be published:
