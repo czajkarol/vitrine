@@ -389,6 +389,38 @@ body {
   overflow-y: auto;
 }
 
+/* The Exclude sub-list. Quieter than the group it sits under, and closed at rest —
+   it is the secondary half of a filter, not a second filter. */
+.panel-exclude {
+  margin-top: 0.5rem;
+}
+
+.panel-exclude > summary {
+  color: var(--fg-dim);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  padding: 0.2rem 0;
+  opacity: 0.8;
+}
+
+.panel-exclude > summary:hover { opacity: 1; }
+
+.panel-exclude .panel-options {
+  max-height: 14rem;
+  padding-left: 0.25rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* An option the current selection rules out: zero artworks behind it, or the very value
+   being included. Dimmed and left in place rather than removed — a list that reshuffles
+   under the cursor is worse than a greyed row. */
+.panel-option.is-disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .panel-summary {
   margin: 0 0 0.5rem;
   color: var(--fg-dim);

@@ -95,6 +95,14 @@
       <legend data-i18n="artwork_type_legend">Artwork type</legend>
       <p id="panel-summary" class="panel-summary"></p>
       <div id="panel-types" class="panel-options"></div>
+      <!-- Exclusion. A collapsed sub-list under each group, because ruling several
+           things out at once is ordinary where including several is not — the radios
+           above are radios for a reason (docs/product-spec.md). Collapsed by default:
+           an ambient display's settings should not open onto three lists of checkboxes. -->
+      <details class="panel-exclude" data-exclude-group="artwork-type">
+        <summary data-i18n="exclude_legend">Exclude</summary>
+        <div class="panel-options" data-exclude-list="artwork-type"></div>
+      </details>
     </fieldset>
 
     <!-- Style and subject. Both lists are built by panel.js from /api/filters, and both
@@ -103,11 +111,27 @@
     <fieldset class="panel-group" id="panel-style-group">
       <legend data-i18n="style_legend">Style</legend>
       <div id="panel-styles" class="panel-options"></div>
+      <!-- Exclusion. A collapsed sub-list under each group, because ruling several
+           things out at once is ordinary where including several is not — the radios
+           above are radios for a reason (docs/product-spec.md). Collapsed by default:
+           an ambient display's settings should not open onto three lists of checkboxes. -->
+      <details class="panel-exclude" data-exclude-group="style">
+        <summary data-i18n="exclude_legend">Exclude</summary>
+        <div class="panel-options" data-exclude-list="style"></div>
+      </details>
     </fieldset>
 
     <fieldset class="panel-group" id="panel-subject-group">
       <legend data-i18n="subject_legend">Subject</legend>
       <div id="panel-subjects" class="panel-options"></div>
+      <!-- Exclusion. A collapsed sub-list under each group, because ruling several
+           things out at once is ordinary where including several is not — the radios
+           above are radios for a reason (docs/product-spec.md). Collapsed by default:
+           an ambient display's settings should not open onto three lists of checkboxes. -->
+      <details class="panel-exclude" data-exclude-group="subject">
+        <summary data-i18n="exclude_legend">Exclude</summary>
+        <div class="panel-options" data-exclude-list="subject"></div>
+      </details>
     </fieldset>
 
     <!-- Removed outright where the Screen Wake Lock API is missing, rather than shown

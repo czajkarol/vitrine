@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import Final
 
 from app.domain.artwork import Artwork, Color, Thumbnail
+from app.domain.vocabulary import FACET_GROUPS, FacetGroup, facet_for, facets_for
 from app.repositories.database import Database
 
 # How many of the best-scoring rows curated mode draws from. Wide enough that the
@@ -179,6 +180,7 @@ class ArtworkIndexRepository:
         with self._db.connect() as connection:
             connection.executemany(_UPSERT, rows)
             self._replace_terms(connection, artworks)
+            self._replace_facets(connection, artworks)
         return len(rows)
 
     @staticmethod
@@ -206,6 +208,35 @@ class ArtworkIndexRepository:
             ],
         )
 
+    @staticmethod
+    def _replace_facets(connection: sqlite3.Connection, artworks: Sequence[Artwork]) -> None:
+        """Tag the rows being written, in the same transaction that writes them.
+
+        Not left to `--retag`: a crawl that wrote rows and did not tag them would leave
+        them in the index but invisible to every filter until someone remembered, and
+        "the artwork exists but no filter can find it" is a bug nobody would think to
+        look for. `--retag` is for when the *vocabulary* changes, not for catching up.
+
+        Delete-then-insert for the same reason as the terms above: a facet can stop
+        applying when a term is removed upstream, and an upsert would leave it behind.
+        """
+        connection.executemany(
+            "DELETE FROM artwork_facets WHERE artwork_id = ?",
+            [(artwork.id,) for artwork in artworks],
+        )
+        pairs: list[tuple[int, str]] = []
+        for artwork in artworks:
+            by_group: dict[FacetGroup, tuple[str, ...]] = {
+                "type": (artwork.artwork_type_title,) if artwork.artwork_type_title else (),
+                "style": tuple(artwork.style_titles),
+                "subject": tuple(artwork.subject_titles),
+            }
+            for group, values in by_group.items():
+                pairs.extend((artwork.id, key) for key in facets_for(group, values))
+        connection.executemany(
+            "INSERT OR IGNORE INTO artwork_facets (artwork_id, facet) VALUES (?, ?)", pairs
+        )
+
     async def upsert_many(self, artworks: Sequence[Artwork]) -> int:
         return await asyncio.to_thread(self.upsert_many_sync, artworks)
 
@@ -219,13 +250,43 @@ class ArtworkIndexRepository:
     async def count(self) -> int:
         return await asyncio.to_thread(self.count_sync)
 
+    @staticmethod
+    def _facet_clauses(
+        include: Sequence[str], exclude: Sequence[str], id_column: str = "id"
+    ) -> tuple[list[str], list[object]]:
+        """WHERE fragments for a facet selection. One query shape for all three groups.
+
+        That is what migration 008 bought: before it, artwork type was a column and style
+        and subject were a join table, so this had to be written twice and kept in step.
+
+        Inclusion is ANDed one facet at a time — an artwork must carry every one. Exclusion
+        is a single NOT IN over all of them, because excluding several things at once is
+        one condition, not several.
+
+        `id_column` is the artwork id in whatever the caller is selecting from: `id` in
+        `artwork_index`, `artwork_id` when counting inside `artwork_facets` itself. It is
+        never user input — the two callers below pass literals.
+        """
+        where: list[str] = []
+        params: list[object] = []
+        for facet in include:
+            where.append(f"{id_column} IN (SELECT artwork_id FROM artwork_facets WHERE facet = ?)")
+            params.append(facet)
+        if exclude:
+            placeholders = ",".join("?" for _ in exclude)
+            where.append(
+                f"{id_column} NOT IN (SELECT artwork_id FROM artwork_facets "
+                f"WHERE facet IN ({placeholders}))"
+            )
+            params.extend(exclude)
+        return where, params
+
     def sample_sync(
         self,
         limit: int,
         curated: bool = False,
-        artwork_type: str | None = None,
-        style: str | None = None,
-        subject: str | None = None,
+        facets: Sequence[str] = (),
+        exclude: Sequence[str] = (),
     ) -> list[Artwork]:
         """A pool of candidates.
 
@@ -236,23 +297,11 @@ class ArtworkIndexRepository:
         scored NULL are excluded there rather than sorted to one end, because an unscored
         row is unranked, not bad — it just has not been through a scoring pass yet.
 
-        The three filters combine with AND. Style and subject go through `artwork_terms`,
-        so a work needs a matching row there rather than a matching column.
+        `facets` are canonical facet keys and combine with AND; `exclude` removes anything
+        carrying any of them. Both go through `artwork_facets`, artwork type included —
+        see `_facet_clauses`.
         """
-        where: list[str] = []
-        params: list[object] = []
-        if artwork_type:
-            where.append("artwork_type = ?")
-            params.append(artwork_type)
-        for kind, value in (("style", style), ("subject", subject)):
-            if not value:
-                continue
-            # IN over the (kind, value) index, rather than a correlated EXISTS: this way
-            # the term index picks the ids and the primary key does the rest.
-            where.append(
-                "id IN (SELECT artwork_id FROM artwork_terms WHERE kind = ? AND value = ?)"
-            )
-            params.extend([kind, value])
+        where, params = self._facet_clauses(facets, exclude)
         if curated:
             where.append("score IS NOT NULL")
         clause = f"WHERE {' AND '.join(where)}" if where else ""
@@ -279,13 +328,10 @@ class ArtworkIndexRepository:
         self,
         limit: int,
         curated: bool = False,
-        artwork_type: str | None = None,
-        style: str | None = None,
-        subject: str | None = None,
+        facets: Sequence[str] = (),
+        exclude: Sequence[str] = (),
     ) -> list[Artwork]:
-        return await asyncio.to_thread(
-            self.sample_sync, limit, curated, artwork_type, style, subject
-        )
+        return await asyncio.to_thread(self.sample_sync, limit, curated, facets, exclude)
 
     def artwork_type_counts_sync(self) -> dict[str, int]:
         """How many indexed artworks sit behind each artwork type.
@@ -327,6 +373,130 @@ class ArtworkIndexRepository:
 
     async def term_counts(self, kind: str, limit: int | None = None) -> dict[str, int]:
         return await asyncio.to_thread(self.term_counts_sync, kind, limit)
+
+    # --- facets -------------------------------------------------------------------
+
+    def retag_sync(self, batch: int = 5000) -> tuple[int, dict[str, int]]:
+        """Rebuild `artwork_facets` from the raw values already in SQLite.
+
+        No network. It reads `artwork_index.artwork_type` and `artwork_terms`, applies
+        `domain.vocabulary`, and rewrites the table wholesale — which is the point of
+        keeping the raw values: changing the vocabulary is an edit to one pure module and
+        one re-run of this.
+
+        Wholesale rather than incremental because a facet can *stop* existing when the map
+        changes, and an incremental update would leave it behind forever with nothing
+        pointing at it.
+
+        :returns: how many facet rows were written, and how many raw tags each group threw
+            away. Nothing can be *unmapped* — a value with no rule of its own derives its
+            own facet — so the only number worth reporting is what `DROPPED` removed, and
+            it is worth reporting because a sudden change in it means AIC's vocabulary has
+            moved under the map.
+        """
+        written = 0
+        dropped: dict[str, int] = dict.fromkeys(FACET_GROUPS, 0)
+        with self._db.connect() as connection:
+            connection.execute("DELETE FROM artwork_facets")
+            offset = 0
+            while True:
+                rows = connection.execute(
+                    "SELECT id, artwork_type FROM artwork_index ORDER BY id LIMIT ? OFFSET ?",
+                    (batch, offset),
+                ).fetchall()
+                if not rows:
+                    break
+                ids = [row["id"] for row in rows]
+                raw = self._raw_terms_by_group(connection, ids)
+                for row in rows:
+                    if row["artwork_type"]:
+                        raw.setdefault(row["id"], {}).setdefault("type", []).append(
+                            row["artwork_type"]
+                        )
+                pairs: list[tuple[int, str]] = []
+                for artwork_id in ids:
+                    by_group = raw.get(artwork_id, {})
+                    for group in FACET_GROUPS:
+                        values = by_group.get(group, [])
+                        keys = facets_for(group, values)
+                        pairs.extend((artwork_id, key) for key in keys)
+                        # Not len(values) - len(keys): merging also reduces the count, and
+                        # a merge is not a loss. Only a value with no facet at all is.
+                        dropped[group] += sum(
+                            1 for value in values if facet_for(group, value) is None
+                        )
+                connection.executemany(
+                    "INSERT OR IGNORE INTO artwork_facets (artwork_id, facet) VALUES (?, ?)",
+                    pairs,
+                )
+                written += len(pairs)
+                offset += len(rows)
+        return written, dropped
+
+    @staticmethod
+    def _raw_terms_by_group(
+        connection: sqlite3.Connection, artwork_ids: Sequence[int]
+    ) -> dict[int, dict[str, list[str]]]:
+        """The raw style and subject values for a batch, grouped the way facets are."""
+        if not artwork_ids:
+            return {}
+        placeholders = ",".join("?" for _ in artwork_ids)
+        rows = connection.execute(
+            f"SELECT artwork_id, kind, value FROM artwork_terms "
+            f"WHERE artwork_id IN ({placeholders})",
+            list(artwork_ids),
+        ).fetchall()
+        collected: dict[int, dict[str, list[str]]] = {}
+        for row in rows:
+            collected.setdefault(row["artwork_id"], {}).setdefault(row["kind"], []).append(
+                row["value"]
+            )
+        return collected
+
+    async def retag(self) -> tuple[int, dict[str, int]]:
+        return await asyncio.to_thread(self.retag_sync)
+
+    def facet_counts_sync(
+        self,
+        group: FacetGroup,
+        include: Sequence[str] = (),
+        exclude: Sequence[str] = (),
+    ) -> dict[str, int]:
+        """How many artworks sit behind each facet in one group.
+
+        `include` and `exclude` constrain the count. Leave-one-out is the caller's job:
+        pass the *other* groups' selections, not this one's, so choosing a style updates
+        the subject counts without collapsing the style list you are standing in.
+
+        Called with nothing constraining it, this is the unconstrained count that decides
+        what is offered at all.
+        """
+        where, params = self._facet_clauses(include, exclude, id_column="artwork_id")
+        clause = f" AND {' AND '.join(where)}" if where else ""
+        # A prefix LIKE on the indexed facet column is a range scan, not a table scan:
+        # the group is the first segment of every key, which is why keys are built that
+        # way rather than the group living in a column of its own.
+        sql = (
+            "SELECT facet, COUNT(*) AS n FROM artwork_facets "
+            f"WHERE facet LIKE ?{clause} "
+            "GROUP BY facet ORDER BY n DESC, facet"
+        )
+        with self._db.connect() as connection:
+            rows = connection.execute(sql, [f"{group}.%", *params]).fetchall()
+        return {row["facet"]: int(row["n"]) for row in rows}
+
+    async def facet_counts(
+        self,
+        group: FacetGroup,
+        include: Sequence[str] = (),
+        exclude: Sequence[str] = (),
+    ) -> dict[str, int]:
+        return await asyncio.to_thread(self.facet_counts_sync, group, include, exclude)
+
+    def facet_row_count_sync(self) -> int:
+        with self._db.connect() as connection:
+            row = connection.execute("SELECT COUNT(*) AS n FROM artwork_facets").fetchone()
+        return int(row["n"])
 
     # --- scoring ------------------------------------------------------------------
 

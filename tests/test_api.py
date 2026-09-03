@@ -206,7 +206,7 @@ class TestModesAndFilters:
         body = client.get("/api/filters").json()
         offered = {option["value"]: option["count"] for option in body["artwork_types"]}
         # A filter with three artworks behind it is worse than no filter.
-        assert offered == {"Painting": MIN_FILTER_COUNT}
+        assert offered == {"type.painting": MIN_FILTER_COUNT}
 
     def test_offers_style_and_subject_alongside_type(self, client, database):
         from app.api.routes import MAX_FILTER_OPTIONS, MIN_FILTER_COUNT
@@ -225,8 +225,10 @@ class TestModesAndFilters:
         ArtworkIndexRepository(database).upsert_many_sync(rows)
 
         body = client.get("/api/filters").json()
-        assert [option["value"] for option in body["styles"]] == ["Impressionism"]
-        assert [option["value"] for option in body["subjects"]] == ["landscape"]
+        assert [option["value"] for option in body["styles"]] == ["style.impressionism"]
+        assert [option["value"] for option in body["subjects"]] == ["subject.landscape"]
+        # Our label, not AIC's raw value: `landscape` and `landscapes` are one facet.
+        assert body["subjects"][0]["label"] == "Landscapes"
         assert body["maximum_options"] == MAX_FILTER_OPTIONS
 
     def test_caps_how_many_options_it_will_offer(self, client, database):
@@ -261,7 +263,7 @@ class TestModesAndFilters:
             ]
         )
 
-        body = client.get("/api/artwork/random?subject=landscape").json()
+        body = client.get("/api/artwork/random?subject=subject.landscape").json()
         assert body["id"] == 1
 
     @respx.mock
@@ -445,6 +447,7 @@ class TestPreferences:
             "artwork_type",
             "style",
             "subject",
+            "exclude",
             "language",
             "ambient",
         }

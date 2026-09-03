@@ -82,7 +82,9 @@ let aiEnabled = false;
 let interpretationRequest = null;
 
 // What the display is currently asking for. Persisted, so it survives a reload.
-const query = { mode: 'random', artworkType: null, style: null, subject: null };
+// The three filters hold one canonical facet key each; `exclude` holds several, from any
+// group — see app/domain/vocabulary.py and ADR-0009.
+const query = { mode: 'random', artworkType: null, style: null, subject: null, exclude: [] };
 
 // Set when the criteria change while the panel is open, so closing it shows the result
 // straight away instead of leaving the user to wait out the rest of the interval.
@@ -266,10 +268,11 @@ const panel = createPanel(
       onQueryChanged();
       flashStatus(t(`mode_${mode}`));
     },
-    onFilterChange: ({ artworkType, style, subject }) => {
+    onFilterChange: ({ artworkType, style, subject, exclude }) => {
       query.artworkType = artworkType;
       query.style = style;
       query.subject = subject;
+      query.exclude = exclude ?? [];
       onQueryChanged();
     },
     onIntervalChange: (seconds) => {
@@ -308,6 +311,7 @@ function persist() {
     artwork_type: query.artworkType,
     style: query.style,
     subject: query.subject,
+    exclude: query.exclude,
     language: getLanguage(),
     ambient: ambient.isEnabled(),
   });
@@ -439,6 +443,7 @@ async function boot() {
   if (saved?.artwork_type) query.artworkType = saved.artwork_type;
   if (saved?.style) query.style = saved.style;
   if (saved?.subject) query.subject = saved.subject;
+  if (Array.isArray(saved?.exclude)) query.exclude = saved.exclude;
 
   if (ambientSupported()) {
     // No user gesture is needed for a wake lock, only a visible document, so a saved
@@ -453,6 +458,7 @@ async function boot() {
     artworkType: query.artworkType,
     style: query.style,
     subject: query.subject,
+    exclude: query.exclude,
     language: getLanguage(),
     ambient: ambient.isEnabled(),
     intervalSeconds: rotation.getIntervalSeconds(),

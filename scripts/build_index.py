@@ -136,6 +136,33 @@ async def rescore(settings: Settings) -> int:
     return written
 
 
+async def retag(settings: Settings) -> int:
+    """Rebuild `artwork_facets` from the raw values already in SQLite.
+
+    **No network at all.** The whole reason `artwork_terms` and `artwork_index.artwork_type`
+    keep AIC's own values is that the canonical vocabulary is derived from them: changing
+    `app/domain/vocabulary.py` and re-running this is the entire procedure for changing
+    what the settings panel offers. See ADR-0009.
+
+    Runs in seconds over the whole index, so it also runs automatically at the end of a
+    crawl, next to the rescore — fresh rows arriving untagged would be invisible to every
+    filter until someone remembered to do this by hand.
+    """
+    database = Database(settings.database_path)
+    database.migrate()
+    index = ArtworkIndexRepository(database)
+
+    written, dropped = await index.retag()
+    logger.info("Tagged %d facet rows across %d artworks", written, await index.count())
+    for group, count in sorted(dropped.items()):
+        if count:
+            # Expected, and worth printing: these are the provenance terms and the
+            # publication titles that DROPPED removes on purpose. A sudden change in the
+            # number is the signal that AIC's vocabulary has moved under the map.
+            logger.info("  %s: %d raw values dropped by the vocabulary", group, count)
+    return written
+
+
 async def explain_one(settings: Settings, artwork_id: int) -> None:
     """Print one artwork's score breakdown.
 
@@ -163,6 +190,11 @@ def main() -> None:
         "--score-only", action="store_true", help="skip the crawl and just recompute scores"
     )
     parser.add_argument(
+        "--retag",
+        action="store_true",
+        help="skip the crawl and rebuild the canonical facets from what is already indexed",
+    )
+    parser.add_argument(
         "--explain", type=int, metavar="ARTWORK_ID", help="print one artwork's score breakdown"
     )
     parser.add_argument("--verbose", action="store_true")
@@ -180,10 +212,15 @@ def main() -> None:
     if args.score_only:
         asyncio.run(rescore(settings))
         return
+    if args.retag:
+        asyncio.run(retag(settings))
+        return
 
     asyncio.run(build(settings, args.limit, args.restart))
-    # Fresh rows arrive unscored, so curated mode would not see them until the next pass.
+    # Fresh rows arrive unscored and untagged, so curated mode and every filter would miss
+    # them until someone remembered to run these by hand. Both are local and quick.
     asyncio.run(rescore(settings))
+    asyncio.run(retag(settings))
 
 
 if __name__ == "__main__":

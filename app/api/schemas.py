@@ -1,6 +1,6 @@
 """HTTP response shapes. Serialisation only — no logic lives here."""
 
-from typing import Literal
+from typing import Final, Literal
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
 
@@ -79,6 +79,11 @@ class ErrorResponse(BaseModel):
     detail: str
 
 
+MAX_EXCLUSIONS: Final[int] = 20
+"""How many facets one selection may exclude. Twenty is far more than anyone will use and
+still bounds the `NOT IN (...)` this becomes."""
+
+
 class PreferencesResponse(BaseModel):
     """The preferences the user can actually set.
 
@@ -91,12 +96,17 @@ class PreferencesResponse(BaseModel):
     # shortest one it offers. 30s / 1m / 5m / 15m / 30m.
     interval_seconds: Literal[30, 60, 300, 900, 1800] = 300
     mode: Literal["random", "curated"] = "random"
+    # Canonical facet keys since M10 — `type.print`, not `Print` (ADR-0009). One chosen
+    # value per group, not a list: the panel offers radio buttons, because "landscape AND
+    # portraits" narrows to almost nothing and reads as a bug rather than as a filter.
     artwork_type: str | None = Field(default=None, max_length=100)
-    # The two multi-valued filters, added in M3.5. Each holds one chosen value, not a
-    # list: the panel offers radio buttons, because "landscape AND portraits" narrows to
-    # almost nothing and reads as a bug rather than as a filter.
     style: str | None = Field(default=None, max_length=100)
     subject: str | None = Field(default=None, max_length=100)
+    # Exclusion, and the one filter that *is* multi-valued. Excluding several things at
+    # once is ordinary and does not collapse the result set, which is the whole reason
+    # inclusion is a radio and this is not. Capped so a saved preference cannot grow into
+    # a query with a thousand placeholders in it.
+    exclude: list[str] = Field(default_factory=list, max_length=MAX_EXCLUSIONS)
     # Only the languages frontend/locales/ actually has strings for. The default is
     # overridden by `default_language` when nothing has been saved yet.
     language: Literal["en", "pl"] = "en"
@@ -106,10 +116,19 @@ class PreferencesResponse(BaseModel):
 
 
 class FilterOption(BaseModel):
-    """One Explore filter, with the number of artworks actually behind it."""
+    """One Explore filter: a canonical facet, and how many artworks are behind it."""
 
     value: str
+    """The facet key — `style.japanese`. Stable, and what a preference stores."""
+
     count: int
+    """Constrained by whatever else is selected, so it is what choosing this would yield.
+    Zero means the option is shown disabled rather than removed: a list that reshuffles
+    under the cursor is worse than a greyed row."""
+
+    label: str
+    """Our English label. The frontend translates `facet_style_japanese` and falls back to
+    this, so an untranslated facet degrades to English rather than to a slug."""
 
 
 class FiltersResponse(BaseModel):
@@ -118,14 +137,19 @@ class FiltersResponse(BaseModel):
     Only options the local index can sustain appear here: a filter yielding four
     artworks is worse than no filter (docs/product-spec.md). The counts are real, from
     the index, not from a hardcoded list that would drift from what the API supports.
+
+    Since M10 these are canonical facets rather than AIC's raw cataloguing, and the counts
+    are *dependent*: each group is counted under the other groups' current selection, so
+    choosing a style updates the subject and type counts without collapsing the style list
+    the user is standing in.
     """
 
     artwork_types: list[FilterOption] = []
 
     styles: list[FilterOption] = []
     subjects: list[FilterOption] = []
-    """Where the 45 artwork types are a closed vocabulary, these two run to thousands of
-    values, so they are also capped at the most populous few — `maximum_options`. A list
+    """Where artwork type is a closed vocabulary of 30-odd facets, these two run to
+    hundreds, so they are also capped at the most populous few — `maximum_options`. A list
     nobody can scroll to the end of is not a filter either."""
 
     minimum_count: int

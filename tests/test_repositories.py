@@ -186,13 +186,13 @@ class TestCuratedSampling:
                 _artwork(2, artwork_type_title="Coin"),
             ]
         )
-        sampled = repo.sample_sync(10, artwork_type="Painting")
+        sampled = repo.sample_sync(10, facets=["type.painting"])
         assert [a.id for a in sampled] == [1]
 
     def test_an_unmatched_filter_returns_nothing_rather_than_everything(self, database: Database):
         repo = ArtworkIndexRepository(database)
         repo.upsert_many_sync([_artwork(1, artwork_type_title="Painting")])
-        assert repo.sample_sync(10, artwork_type="Sculpture") == []
+        assert repo.sample_sync(10, facets=["type.sculpture"]) == []
 
 
 class TestTerms:
@@ -237,7 +237,7 @@ class TestTerms:
                 _artwork(3, subject_titles=("landscape", "water")),
             ]
         )
-        found = repo.sample_sync(10, subject="landscape")
+        found = repo.sample_sync(10, facets=["subject.landscape"])
         assert {artwork.id for artwork in found} == {1, 3}
 
     def test_filters_combine_with_and(self, database: Database):
@@ -249,7 +249,7 @@ class TestTerms:
                 _artwork(3, style_titles=("Cubism",), subject_titles=("landscape",)),
             ]
         )
-        found = repo.sample_sync(10, style="Impressionism", subject="landscape")
+        found = repo.sample_sync(10, facets=["style.impressionism", "subject.landscape"])
         assert {artwork.id for artwork in found} == {1}
 
     def test_counts_are_biggest_first_and_can_be_capped(self, database: Database):

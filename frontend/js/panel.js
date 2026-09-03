@@ -13,11 +13,12 @@ export function createPanel(elements, handlers) {
     aiKeyInput, aiSaveButton, aiClearButton, aiStatusLine, aiStorageLine } = elements;
 
   // The three filter vocabularies, in the order the panel shows them. Each names the
-  // radio group in the markup, the field it sets, and where its options are rendered.
+  // radio group in the markup, the field it sets, where its options are rendered, and
+  // which of the server's three lists it draws from.
   const FILTERS = [
-    { group: 'artwork-type', field: 'artworkType', any: 'filter_any' },
-    { group: 'style', field: 'style', any: 'filter_any_style' },
-    { group: 'subject', field: 'subject', any: 'filter_any_subject' },
+    { group: 'artwork-type', field: 'artworkType', any: 'filter_any', source: 'artwork_types' },
+    { group: 'style', field: 'style', any: 'filter_any_style', source: 'styles' },
+    { group: 'subject', field: 'subject', any: 'filter_any_subject', source: 'subjects' },
   ];
 
   let open = false;
@@ -39,6 +40,8 @@ export function createPanel(elements, handlers) {
     artworkType: null,
     style: null,
     subject: null,
+    // Several at once, unlike the three above. See the Exclude sub-lists below.
+    exclude: [],
     language: 'en',
     ambient: false,
     intervalSeconds: 300,
@@ -58,11 +61,45 @@ export function createPanel(elements, handlers) {
     }
   }
 
+  /**
+   * Fetch the vocabulary and draw it.
+   *
+   * Re-fetched whenever the selection changes, not cached after the first open: the
+   * counts are dependent, so they are only true for the selection they were asked for.
+   * It is one local query against an indexed table and the panel is already open.
+   */
   async function loadFilters() {
-    if (loaded) return;
+    filters = await fetchFilters(currentSelection());
     loaded = true;
-    filters = await fetchFilters();
     renderFilters();
+  }
+
+  function currentSelection() {
+    return {
+      artworkType: current.artworkType,
+      style: current.style,
+      subject: current.subject,
+      exclude: current.exclude,
+    };
+  }
+
+  /** Tell the display, and redraw the counts under the new selection. */
+  function announceFilterChange() {
+    handlers.onFilterChange(currentSelection());
+    void loadFilters();
+  }
+
+  /**
+   * A facet's label: ours, not the museum's.
+   *
+   * Before M10 these were AIC's raw values and were deliberately left in English, because
+   * they were data. A canonical facet label is interface text, so it comes from locales/
+   * like everything else — falling back to the English the server sent, so a facet no
+   * locale has caught up with reads as a word rather than as a slug.
+   */
+  function facetLabel(option) {
+    const key = `facet_${option.value.replace(/\./g, '_')}`;
+    return t(key, undefined, option.label ?? option.value);
   }
 
   /** How long a rung reads as: under a minute in seconds, otherwise in minutes. */
@@ -108,27 +145,94 @@ export function createPanel(elements, handlers) {
     }
 
     summary.textContent = t('filters_summary', { total: filters.indexed_total });
-    renderFilterList(typeList, 'artwork-type', filters.artwork_types);
-    renderFilterList(styleList, 'style', filters.styles ?? []);
-    renderFilterList(subjectList, 'subject', filters.subjects ?? []);
+    for (const filter of FILTERS) {
+      const options = filters[filter.source] ?? [];
+      renderFilterList(filter, options);
+      renderExcludeList(filter, options);
+    }
     styleGroup.hidden = (filters.styles ?? []).length === 0;
     subjectGroup.hidden = (filters.subjects ?? []).length === 0;
   }
 
   /** One list of radios: an "any" entry, then the options the server thought worth it. */
-  function renderFilterList(list, group, options) {
+  function renderFilterList(filter, options) {
+    const list = listFor(filter.group);
     list.textContent = '';
     if (options.length === 0) return;
     // Each list says what it is letting through — "Any subject" under Subject, not the
     // artwork type's wording repeated three times.
-    const anyKey = FILTERS.find((filter) => filter.group === group)?.any ?? 'filter_any';
-    list.appendChild(buildOption(t(anyKey), '', true, group));
+    list.appendChild(buildOption(t(filter.any), '', true, filter.group));
     for (const option of options) {
-      // The values themselves are AIC's vocabulary and arrive in English. They are data,
-      // not interface text, so they are not translated.
-      const label = t('filter_option', { value: option.value, count: option.count });
-      list.appendChild(buildOption(label, option.value, false, group));
+      const label = t('filter_option', { value: facetLabel(option), count: option.count });
+      const element = buildOption(label, option.value, false, filter.group);
+      // Zero under the *current* selection. Disabled rather than removed: a list that
+      // reshuffles under the cursor is worse than a greyed row, and the row is what says
+      // the option exists but is empty right now.
+      if (option.count === 0) disable(element);
+      list.appendChild(element);
     }
+  }
+
+  /**
+   * The "Exclude" sub-list under each group.
+   *
+   * Checkboxes, where inclusion is radios, and the difference is not an inconsistency.
+   * `docs/product-spec.md`'s reasoning for radios is that "landscape AND portraits"
+   * narrows to nothing — which is true of inclusion and simply not true of exclusion:
+   * ruling several things out at once is ordinary and leaves plenty behind.
+   *
+   * Collapsed by default. Most of the time nobody wants it, and an ambient display's
+   * settings panel should not open onto three lists of sixty checkboxes.
+   */
+  function renderExcludeList(filter, options) {
+    const list = excludeListFor(filter.group);
+    const group = excludeGroupFor(filter.group);
+    if (!list || !group) return;
+    list.textContent = '';
+    group.hidden = options.length === 0;
+    for (const option of options) {
+      const wrapper = document.createElement('label');
+      wrapper.className = 'panel-option';
+
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.value = option.value;
+      input.checked = current.exclude.includes(option.value);
+      // Excluding what you have just asked for is contradictory rather than empty, and
+      // the server would answer it with "nothing matches". Say so by not offering it.
+      input.disabled = current[filter.field] === option.value;
+      input.addEventListener('change', () => {
+        const next = current.exclude.filter((facet) => facet !== option.value);
+        if (input.checked) next.push(option.value);
+        current = { ...current, exclude: next };
+        announceFilterChange();
+      });
+
+      const text = document.createElement('span');
+      text.textContent = facetLabel(option);
+
+      wrapper.append(input, text);
+      if (input.disabled) wrapper.classList.add('is-disabled');
+      list.appendChild(wrapper);
+    }
+  }
+
+  function listFor(group) {
+    return { 'artwork-type': typeList, style: styleList, subject: subjectList }[group];
+  }
+
+  function excludeListFor(group) {
+    return panel.querySelector(`[data-exclude-list="${group}"]`);
+  }
+
+  function excludeGroupFor(group) {
+    return panel.querySelector(`[data-exclude-group="${group}"]`);
+  }
+
+  function disable(optionElement) {
+    optionElement.classList.add('is-disabled');
+    const input = optionElement.querySelector('input');
+    if (input) input.disabled = true;
   }
 
   function buildOption(label, value, checked, group = 'artwork-type') {
@@ -144,11 +248,7 @@ export function createPanel(elements, handlers) {
     if (filter) {
       input.addEventListener('change', () => {
         current = { ...current, [filter.field]: value || null };
-        handlers.onFilterChange({
-          artworkType: current.artworkType,
-          style: current.style,
-          subject: current.subject,
-        });
+        announceFilterChange();
       });
     }
 

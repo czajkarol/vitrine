@@ -5,12 +5,14 @@
  * @returns {Promise<object>} the artwork payload
  * @throws {Error} with a `code` property keyed to a message the UI can translate
  */
-export async function fetchRandomArtwork({ mode, artworkType, style, subject } = {}) {
+export async function fetchRandomArtwork({ mode, artworkType, style, subject, exclude } = {}) {
   const params = new URLSearchParams();
   if (mode && mode !== 'random') params.set('mode', mode);
   if (artworkType) params.set('artwork_type', artworkType);
   if (style) params.set('style', style);
   if (subject) params.set('subject', subject);
+  // Repeatable, unlike the three above: excluding several things at once is ordinary.
+  for (const facet of exclude ?? []) params.append('exclude', facet);
   const query = params.toString();
 
   let response;
@@ -57,10 +59,25 @@ function retryAfter(response) {
   return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
 }
 
-/** The Explore vocabulary: artwork types the index can actually sustain, with counts. */
-export async function fetchFilters() {
+/**
+ * The Explore vocabulary: the facets the index can actually sustain, with counts.
+ *
+ * The current selection goes with the request so the counts come back *dependent* — each
+ * group counted under the other groups' choices. Without it the panel would show what a
+ * facet is worth in the whole index while the rotation is already narrowed, which is the
+ * number that is not useful.
+ */
+export async function fetchFilters({ artworkType, style, subject, exclude } = {}) {
+  const params = new URLSearchParams();
+  if (artworkType) params.set('artwork_type', artworkType);
+  if (style) params.set('style', style);
+  if (subject) params.set('subject', subject);
+  for (const facet of exclude ?? []) params.append('exclude', facet);
+  const query = params.toString();
   try {
-    const response = await fetch('/api/filters', { headers: { Accept: 'application/json' } });
+    const response = await fetch(`/api/filters${query ? `?${query}` : ''}`, {
+      headers: { Accept: 'application/json' },
+    });
     if (!response.ok) return null;
     return await response.json();
   } catch {

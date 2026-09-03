@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Res
 from pydantic import ValidationError
 
 from app.api.schemas import (
+    MAX_EXCLUSIONS,
     AicStats,
     AiKeyRequest,
     AiKeyResponse,
@@ -27,6 +28,7 @@ from app.api.schemas import (
 from app.core.config import Settings
 from app.domain.artwork import CACHED_IIIF_WIDTHS, PREFERRED_IIIF_WIDTH
 from app.domain.rate_limit import RateLimiter
+from app.domain.vocabulary import FACET_GROUPS, FacetGroup, facet_for, label_for
 from app.providers.ai.base import AiError
 from app.providers.aic.client import AicClient, AicError, AicUnavailableError
 from app.repositories.ai_usage import AiUsageRepository, today
@@ -149,17 +151,30 @@ UsageDep = Annotated[AiUsageRepository, Depends(get_usage)]
 # Below this, a filter cannot sustain a rotation and is not offered at all.
 MIN_FILTER_COUNT: Final[int] = 40
 
-# And above this many options, a list stops being a menu. Applies to style and subject,
-# whose vocabularies run to thousands of values; the 45 artwork types are all offered.
-MAX_FILTER_OPTIONS: Final[int] = 30
+# And above this many options, a list stops being a menu. Applies to style and subject;
+# artwork type is a closed vocabulary of 30 facets and all of it is offered.
+#
+# Raised from 30 with M10, to the owner's "keep it broad". The canonical layer changed what
+# this number is cutting off: it used to hide values that were duplicates of ones already
+# on the list — `portraits` under `portrait` — and now every option is a distinct thing.
+# 82 styles and 173 subjects clear MIN_FILTER_COUNT, so this still cuts, and the count
+# beside each option is what makes a long list navigable rather than the length itself.
+MAX_FILTER_OPTIONS: Final[int] = 60
 
 INTERVAL_KEY: Final[str] = "interval_seconds"
 MODE_KEY: Final[str] = "mode"
 ARTWORK_TYPE_KEY: Final[str] = "artwork_type"
 STYLE_KEY: Final[str] = "style"
 SUBJECT_KEY: Final[str] = "subject"
+EXCLUDE_KEY: Final[str] = "exclude"
 LANGUAGE_KEY: Final[str] = "language"
 AMBIENT_KEY: Final[str] = "ambient"
+
+# The exclusion list is several values in a table that stores one string per key. Comma
+# separated rather than JSON because a facet key is `[a-z0-9.-]` by construction and can
+# never contain a comma — see `domain/vocabulary.py` — so the encoding cannot be ambiguous
+# and stays readable to anyone who opens the database.
+EXCLUDE_SEPARATOR: Final[str] = ","
 
 
 @router.get("/artwork/random", response_model=ArtworkResponse, dependencies=[RateLimited])
@@ -170,14 +185,21 @@ async def random_artwork(
     artwork_type: Annotated[str | None, Query(max_length=100)] = None,
     style: Annotated[str | None, Query(max_length=100)] = None,
     subject: Annotated[str | None, Query(max_length=100)] = None,
+    exclude: Annotated[list[str] | None, Query(max_length=MAX_EXCLUSIONS)] = None,
 ) -> ArtworkResponse:
     """One random public-domain artwork with a usable image.
 
     The service decides where it comes from — local index first, then AIC, then the
     bundled set (ADR-0003). This route only shapes the answer.
+
+    The three named parameters keep their names for the three groups, and carry canonical
+    facet keys since M10 — `style=style.japanese`, not `style=Japanese (culture or style)`.
+    `exclude` is repeatable and may name facets from any group.
     """
     query = SelectionQuery(
-        curated=mode == "curated", artwork_type=artwork_type, style=style, subject=subject
+        curated=mode == "curated",
+        facets=tuple(f for f in (artwork_type, style, subject) if f),
+        exclude=tuple(_valid_facets(exclude)),
     )
     try:
         result = await selection.next_artwork(query)
@@ -243,28 +265,118 @@ async def image_proxy(
 
 
 @router.get("/filters", response_model=FiltersResponse)
-async def read_filters(index: IndexDep) -> FiltersResponse:
+async def read_filters(
+    index: IndexDep,
+    artwork_type: Annotated[str | None, Query(max_length=100)] = None,
+    style: Annotated[str | None, Query(max_length=100)] = None,
+    subject: Annotated[str | None, Query(max_length=100)] = None,
+    exclude: Annotated[list[str] | None, Query(max_length=MAX_EXCLUSIONS)] = None,
+) -> FiltersResponse:
     """The Explore vocabulary, built from the index rather than a hardcoded list.
 
-    Three vocabularies now. Artwork type is closed and small, so all of it is offered;
-    style and subject are open and large, so they are cut to the most populous
-    `MAX_FILTER_OPTIONS` as well as to what clears `MIN_FILTER_COUNT`.
+    Canonical facets since M10, all three groups out of one table — see ADR-0009.
+
+    **Two different counts, and the difference matters.** What is *offered at all* is
+    decided once, unconstrained, against `MIN_FILTER_COUNT`: a filter the index cannot
+    sustain is not a filter whatever else is selected, and re-deciding that under the
+    current selection would make options appear and vanish as the user clicks. What is
+    *shown beside each option* is the constrained count — leave-one-out, so each group is
+    counted under the other groups' choices but not its own. Choosing a style updates the
+    subject and type counts; the style list the user is standing in does not collapse
+    around their own choice.
+
+    An option whose constrained count is zero stays, at zero, and the panel disables it.
+    A list that reshuffles under the cursor is worse than a greyed row.
     """
+    chosen = {"type": artwork_type, "style": style, "subject": subject}
+    excluded = _valid_facets(exclude)
+    labels = await _facet_labels(index)
+
+    groups = {}
+    for group in FACET_GROUPS:
+        # Leave-one-out: every group's selection except this one's.
+        others = [value for key, value in chosen.items() if key != group and value]
+        groups[group] = (
+            await index.facet_counts(group),
+            await index.facet_counts(group, include=others, exclude=excluded),
+            labels,
+        )
+
     return FiltersResponse(
-        artwork_types=_options(await index.artwork_type_counts()),
-        styles=_options(await index.term_counts("style"), limit=MAX_FILTER_OPTIONS),
-        subjects=_options(await index.term_counts("subject"), limit=MAX_FILTER_OPTIONS),
+        artwork_types=_options(*groups["type"]),
+        styles=_options(*groups["style"], limit=MAX_FILTER_OPTIONS),
+        subjects=_options(*groups["subject"], limit=MAX_FILTER_OPTIONS),
         minimum_count=MIN_FILTER_COUNT,
         maximum_options=MAX_FILTER_OPTIONS,
         indexed_total=await index.count(),
     )
 
 
-def _options(counts: dict[str, int], limit: int | None = None) -> list[FilterOption]:
-    """Counts to offerable options: drop the thin ones, keep the order, cap the length."""
+async def _facet_labels(index: ArtworkIndexRepository) -> dict[str, str]:
+    """The English label for every facet, derived from the raw values behind it.
+
+    `artwork_facets` stores keys and nothing else, deliberately — a label repeated on every
+    one of 131,000 rows is a column that can go stale. But a key cannot be turned back into
+    a label: `style.chimu` was `chimú` and `style.pre-columbian` was `Pre-Columbian`, and
+    neither accent nor internal capital survives a slug.
+
+    So the labels come from the raw vocabularies, which the index already groups and counts
+    for us. Three cheap queries against indexed columns, and the answer is exact rather
+    than reconstructed.
+    """
+    labels: dict[str, str] = {}
+    raw: dict[FacetGroup, dict[str, int]] = {
+        "type": await index.artwork_type_counts(),
+        "style": await index.term_counts("style"),
+        "subject": await index.term_counts("subject"),
+    }
+    for group, counts in raw.items():
+        for value in counts:
+            if (facet := facet_for(group, value)) is not None:
+                # First writer wins, and the raw values arrive most-populous-first, so a
+                # merged facet is labelled after its commonest spelling when it has no
+                # written label of its own.
+                labels.setdefault(facet.key, facet.label_en)
+    return labels
+
+
+def _valid_facets(values: list[str] | None) -> list[str]:
+    """Keep only what looks like a facet key, and deduplicate.
+
+    Not a check that the facet exists: the vocabulary can change under a saved preference,
+    and an unknown key should simply match nothing rather than 400. This only keeps a
+    query string from putting arbitrary text into the `NOT IN` list.
+    """
+    if not values:
+        return []
+    seen = []
+    for value in values:
+        group, _, rest = value.partition(".")
+        if group in FACET_GROUPS and rest and value not in seen and len(value) <= 100:
+            seen.append(value)
+    return seen[:MAX_EXCLUSIONS]
+
+
+def _options(
+    unconstrained: dict[str, int],
+    constrained: dict[str, int],
+    labels: dict[str, str],
+    limit: int | None = None,
+) -> list[FilterOption]:
+    """Counts to offerable options.
+
+    Offered by the unconstrained count, ordered by it, and numbered by the constrained one
+    — which is zero for anything the current selection rules out, and is therefore absent
+    from `constrained` entirely. `label_for` is the last resort, for a facet whose raw
+    values have gone from the index since it was tagged.
+    """
     options = [
-        FilterOption(value=value, count=count)
-        for value, count in counts.items()
+        FilterOption(
+            value=value,
+            count=constrained.get(value, 0),
+            label=labels.get(value) or label_for(value),
+        )
+        for value, count in unconstrained.items()
         if count >= MIN_FILTER_COUNT
     ]
     return options[:limit] if limit is not None else options
@@ -288,6 +400,8 @@ async def read_preferences(
     fields["artwork_type"] = stored_type or None
     fields["style"] = await preferences.get(STYLE_KEY) or None
     fields["subject"] = await preferences.get(SUBJECT_KEY) or None
+    stored_exclude = await preferences.get(EXCLUDE_KEY) or ""
+    fields["exclude"] = _valid_facets(stored_exclude.split(EXCLUDE_SEPARATOR))
     # Nothing saved yet means the deployment's own default, not the schema's — this is
     # what makes DEFAULT_LANGUAGE in .env do anything.
     fields["language"] = await preferences.get(LANGUAGE_KEY) or settings.default_language
@@ -320,6 +434,7 @@ async def write_preferences(
     await preferences.set(ARTWORK_TYPE_KEY, body.artwork_type or "")
     await preferences.set(STYLE_KEY, body.style or "")
     await preferences.set(SUBJECT_KEY, body.subject or "")
+    await preferences.set(EXCLUDE_KEY, EXCLUDE_SEPARATOR.join(_valid_facets(body.exclude)))
     await preferences.set(LANGUAGE_KEY, body.language)
     await preferences.set(AMBIENT_KEY, "1" if body.ambient else "0")
     return body

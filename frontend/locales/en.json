@@ -6,7 +6,6 @@
   "image_unavailable": "That image could not be loaded. Trying another.",
   "no_matching_artwork": "Nothing in the index matches those filters.",
   "too_many_requests": "Taking a short break. The next artwork follows shortly.",
-
   "untitled": "Untitled",
   "attribution": "Digital image courtesy of the Art Institute of Chicago.",
   "attribution_with_description": "Digital image courtesy of the Art Institute of Chicago. Description: Art Institute of Chicago, CC BY 4.0.",
@@ -16,11 +15,9 @@
   "next_artwork": "Next artwork",
   "interval_set_minutes": "Every {minutes} min",
   "interval_set_seconds": "Every {seconds} sec",
-
   "interval_legend": "Rotation",
   "interval_option_seconds": "{seconds} sec",
   "interval_option_minutes": "{minutes} min",
-
   "ai_label": "Interpretation",
   "ai_disclaimer": "AI-generated from the museum's metadata. Not a curatorial text.",
   "ai_loading": "Generating…",
@@ -29,7 +26,6 @@
   "ai_themes": "Themes",
   "ai_look_closer": "Look closer",
   "ai_source": "{provider} · {model}",
-
   "ai_key_legend": "AI interpretation",
   "ai_key_unknown": "Checking…",
   "ai_key_none": "No key saved. Interpretation is off.",
@@ -45,23 +41,18 @@
   "ai_storage_keyring": "Keys are kept in your system keyring.",
   "ai_storage_database": "Keys are kept unencrypted in vitrine's own database file. Anyone who can read data/vitrine.db can read the key. Install the keyring extra to use your system keyring instead.",
   "key_store_unavailable": "Your system keyring refused to store the key.",
-
   "settings_title": "Settings",
   "panel_hint": "Esc to close. Rotation is paused while this is open.",
-
   "language_legend": "Language",
   "language_en": "English",
   "language_pl": "Polski",
-
   "mode_legend": "Mode",
   "mode_random": "Random",
   "mode_curated": "Curated",
   "mode_random_option": "Random — anything in the collection",
   "mode_curated_option": "Curated — ranked by transparent scoring",
-
   "ambient_legend": "Ambient",
   "ambient_label": "Keep the screen awake",
-
   "artwork_type_legend": "Artwork type",
   "style_legend": "Style",
   "subject_legend": "Subject",
@@ -71,5 +62,6 @@
   "filter_option": "{value} ({count})",
   "filters_summary": "{total} artworks indexed.",
   "filters_no_index": "No local index yet — run scripts/build_index.py to enable filters.",
-  "filters_too_thin": "No type has {minimum} or more artworks behind it yet. Index more to enable filters."
+  "filters_too_thin": "Nothing in the index has {minimum} or more artworks behind it yet.",
+  "exclude_legend": "Exclude"
 }

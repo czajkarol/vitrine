@@ -89,9 +89,22 @@ export async function setLanguage(code) {
  * @param {string} key
  * @param {Record<string, string | number>} [params] values for `{name}` placeholders
  */
-export function t(key, params) {
+/**
+ * @param {string} key
+ * @param {object} [params] values for `{name}` placeholders
+ * @param {string} [fallback] what to show when the key is missing from every locale
+ *
+ * `fallback` exists for the facet vocabulary. A facet label is *our* word rather than
+ * AIC's data, so it belongs in locales/ — but the vocabulary is derived from the museum's
+ * and grows when AIC's does, so a facet will sometimes arrive that no locale has a line
+ * for yet. The server sends its English label alongside the key, and passing that here
+ * makes an untranslated facet degrade to English rather than to `facet_style_edo-african`.
+ * Missing a translation is then not worth a console warning either.
+ */
+export function t(key, params, fallback) {
   const template = strings[key] ?? fallbackStrings[key];
   if (template === undefined) {
+    if (fallback !== undefined) return fallback;
     console.warn(`Missing translation for "${key}".`);
     return key;
   }

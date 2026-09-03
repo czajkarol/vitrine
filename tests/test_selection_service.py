@@ -197,7 +197,7 @@ class TestCuratedIsNotAFilter:
 
         client = _StubClient(result=(_artwork(42), IIIF))
         selection = await _service(database, client=client).next_artwork(
-            SelectionQuery(artwork_type="Painting")
+            SelectionQuery(facets=("type.painting",))
         )
 
         assert selection is None
