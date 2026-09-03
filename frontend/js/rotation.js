@@ -19,6 +19,25 @@ const RETRY_DELAY_MS = 20_000;
 
 const SECOND_MS = 1000;
 
+// A backstop on a server-supplied Retry-After. A limiter is not supposed to hand back
+// anything like this much, and a display that has silently stopped for an hour because
+// something upstream said so is worse than one that tries again and is refused again.
+const MAX_RETRY_DELAY_MS = 120_000;
+
+/**
+ * How long to wait after a failure.
+ *
+ * When the server has said — a 429 carries `Retry-After` — believe it. Coming back on
+ * our own 20-second schedule while a limiter is still counting down is exactly the
+ * retry storm the limiter exists to stop, and it is our own request that would be
+ * refused.
+ */
+function retryDelayMs(error) {
+  const seconds = error?.retryAfterSeconds;
+  if (!Number.isFinite(seconds) || seconds <= 0) return RETRY_DELAY_MS;
+  return Math.min(seconds * SECOND_MS, MAX_RETRY_DELAY_MS);
+}
+
 /**
  * @param {object} deps
  * @param {() => Promise<object>} deps.prepare  resolve to a ready-to-paint artwork
@@ -78,19 +97,19 @@ export function createRotation({ prepare, present, onError }) {
     clearTimers();
     const work = pending ?? prepare();
     pending = null;
-    let failed = false;
+    let failure = null;
     try {
       const prepared = await work;
       if (stopped) return;
       present(prepared);
     } catch (error) {
-      failed = true;
+      failure = error ?? new Error('prepare failed');
       if (!stopped) onError(error);
     } finally {
       running = false;
       if (!stopped) {
         // Measured from when the artwork actually appeared, not from when it was due.
-        deadline = Date.now() + (failed ? RETRY_DELAY_MS : intervalMs);
+        deadline = Date.now() + (failure ? retryDelayMs(failure) : intervalMs);
         arm();
       }
     }

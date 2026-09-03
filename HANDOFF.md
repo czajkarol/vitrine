@@ -24,16 +24,18 @@ is worth re-checking after any change near it.
 The index holds **57,607 artworks**, all scored, plus 84,190 style/subject rows.
 `data/vitrine.db` is 60MB and gitignored.
 
-**M7 and M8 are done. M9–M12 are queued.** See `docs/roadmap.md` for the list and
+**M7, M8 and M9 are done. M10–M12 are queued.** See `docs/roadmap.md` for the list and
 `docs/plan-improvements.md` for the design and the decisions. Of the six that needed a ruling,
 three were taken at the top of M8 (font, rate-limit numbers, how far to fold the facet
 vocabulary), two were proceeded on under a stated assumption and are one substitution to
 reverse, and one — "more like this" — stays a proposal that is deliberately not in the roadmap.
 
-M8 changed more than its own list. Two bugs that 349 passing tests could not see turned up as
-soon as the app was opened and looked at, and both are in the Gotchas below: AIC refusing to
-upscale made one indexed artwork in six unshowable, and `color.l` turned out to be a hint about
-the whole image rather than a fact about the bottom of it.
+M8 and M9 each changed more than their own list. Three bugs that a passing suite could not see
+turned up as soon as the app was opened and looked at, and all three are in the Gotchas below:
+AIC refusing to upscale made one indexed artwork in six unshowable; `color.l` turned out to be
+a hint about the whole image rather than a fact about the bottom of it; and the new rate
+limiter, on its first run in a browser, caused exactly the retry storm it was written to
+prevent.
 
 ## Run it
 
@@ -114,14 +116,20 @@ All found the hard way, in a browser or against the live API. Each is documented
     dominant colour of the whole image. A graphite-on-tan-paper Homer comes back at `l = 6`,
     as dark as anything in the collection, and reads as cream under the caption. The overlay
     scrim uses it, but only to *add* to a default that is already legible.
-11. **There is no way to unit-test the frontend here, and that is deliberate.** No bundler, no
+11. **An `<img>` cannot see an HTTP status, so a `429` on the image proxy looks exactly
+    like a dead image.** The display's response to a dead image is to skip to another
+    artwork immediately, which spends more of the budget that just refused it — the
+    limiter causing the storm it exists to prevent. The unit limited is therefore an
+    *advance*: an allowed artwork request grants a credit its image spends.
+    `app/domain/rate_limit.py`.
+12. **There is no way to unit-test the frontend here, and that is deliberate.** No bundler, no
     `node_modules`, so no test runner (ADR-0005). Playwright covers five smoke flows and no
-    more. Both bugs above were invisible to 349 passing tests and were found by opening the app
+    more. The bugs above were invisible to a passing suite and were found by opening the app
     and looking at it, which is why the definition of done says to.
-12. **`.gitignore` patterns without a leading slash match at any depth.** A bare `data/`
+13. **`.gitignore` patterns without a leading slash match at any depth.** A bare `data/`
     silently excluded `app/data/fallback_artworks.json`, the bundled offline set.
     `QUESTIONS.md` #9.
-13. **`data/vitrine.db` holds a secret.** When there is no OS keyring, a pasted API key sits
+14. **`data/vitrine.db` holds a secret.** When there is no OS keyring, a pasted API key sits
     unencrypted in the same file as the index. Never commit, publish or attach it.
     `docs/plan-improvements.md` Phase 6.
 

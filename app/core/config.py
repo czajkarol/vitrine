@@ -78,6 +78,23 @@ class Settings(BaseSettings):
             return int(value)
         return value
 
+    # --- Rate limiting -----------------------------------------------------------------
+    # Applied to /api/artwork/random and /api/image/{image_id} — the two routes whose
+    # cost leaves the machine. Numbers rather than logic, so they can be retuned from
+    # .env without an edit here. See app/domain/rate_limit.py for what they protect.
+    rate_limit_burst: int = Field(default=10, ge=0)
+    """How many requests may go through back to back. Zero disables limiting entirely,
+    which is a legitimate configuration for a machine nobody else can reach."""
+
+    rate_limit_refill_seconds: float = Field(default=3.0, ge=0)
+    """Seconds per token once the burst is spent. Three is twenty a minute sustained —
+    faster than anyone can look at a painting."""
+
+    rate_limit_hourly: int = Field(default=400, ge=0)
+    """A rolling ceiling, because a bucket alone permits its sustained rate forever. The
+    fastest rotation rung is 30s, or 120 an hour, so this leaves ~280 manual advances on
+    top of it. Zero removes the ceiling and leaves the bucket."""
+
     # --- AI ---------------------------------------------------------------------------
     # Optional throughout. `CLAUDE.md` makes it an enhancement and never a dependency, so
     # every field here has a default that means "off".

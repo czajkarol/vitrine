@@ -211,6 +211,11 @@ function onPrepareError(error) {
   setError(error);
   showStatus(error.code ?? 'artwork_unavailable');
   setLoading(false);
+  // A refusal from the rate limiter is the one failure the user can make worse. Hold the
+  // manual advance for as long as the server asked, so pressing Space at a limiter that
+  // is already counting down cannot keep it counting. The rotation clock backs off on
+  // its own — see retryDelayMs() in rotation.js.
+  if (error.code === 'too_many_requests') holdAdvance(error.retryAfterSeconds);
 }
 
 const rotation = createRotation({
@@ -325,21 +330,30 @@ function onQueryChanged() {
  */
 function advance() {
   if (Date.now() < advanceReadyAt) return;
-  advanceReadyAt = Date.now() + ADVANCE_COOLDOWN_MS;
-  armAdvanceButton();
+  holdAdvance();
   showStatus('loading');
   void rotation.next();
 }
 
-/** Dim and disable the button for the rest of the cooldown, then give it back. */
-function armAdvanceButton() {
+/**
+ * Refuse manual advances for a while, and show that we are refusing them.
+ *
+ * Disabled and dimmed rather than hidden: a control that disappears under the cursor is
+ * worse than one that visibly will not answer yet.
+ *
+ * @param {number} [seconds] how long, when the server has told us. Default is the
+ * ordinary cooldown between two deliberate presses.
+ */
+function holdAdvance(seconds) {
+  const ms = Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : ADVANCE_COOLDOWN_MS;
+  advanceReadyAt = Date.now() + ms;
   if (!nextButton) return;
   nextButton.disabled = true;
   clearTimeout(advanceTimer);
   advanceTimer = setTimeout(() => {
     nextButton.disabled = false;
     advanceTimer = null;
-  }, ADVANCE_COOLDOWN_MS);
+  }, ms);
 }
 
 nextButton?.addEventListener('click', advance);

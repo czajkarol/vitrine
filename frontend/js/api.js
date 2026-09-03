@@ -28,12 +28,33 @@ export async function fetchRandomArtwork({ mode, artworkType, style, subject } =
     const code =
       response.status === 404
         ? 'no_matching_artwork'
-        : response.status === 503
-          ? 'aic_unavailable'
-          : 'artwork_unavailable';
-    throw withCode(new Error(`HTTP ${response.status}`), code);
+        : response.status === 429
+          ? 'too_many_requests'
+          : response.status === 503
+            ? 'aic_unavailable'
+            : 'artwork_unavailable';
+    const error = withCode(new Error(`HTTP ${response.status}`), code);
+    // The server said how long to wait. Carrying it on the error is what lets the
+    // rotation wait exactly that long instead of guessing, and is the difference between
+    // backing off and retry-storming a limiter that is already refusing us.
+    if (response.status === 429) error.retryAfterSeconds = retryAfter(response);
+    throw error;
   }
   return response.json();
+}
+
+/**
+ * `Retry-After`, in seconds, or null if the header is missing or unusable.
+ *
+ * Only the delta-seconds form is read. The HTTP-date form is also legal, and no server we
+ * talk to sends it — parsing a date against a clock that may be wrong, to decide how long
+ * to wait, is a worse answer than the caller's own default.
+ */
+function retryAfter(response) {
+  const raw = response.headers.get('Retry-After');
+  if (!raw) return null;
+  const seconds = Number.parseInt(raw, 10);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
 }
 
 /** The Explore vocabulary: artwork types the index can actually sustain, with counts. */

@@ -5,6 +5,7 @@
   "artwork_unavailable": "No artwork available right now.",
   "image_unavailable": "That image could not be loaded. Trying another.",
   "no_matching_artwork": "Nothing in the index matches those filters.",
+  "too_many_requests": "Taking a short break. The next artwork follows shortly.",
 
   "untitled": "Untitled",
   "attribution": "Digital image courtesy of the Art Institute of Chicago.",

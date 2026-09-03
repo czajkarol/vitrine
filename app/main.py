@@ -19,6 +19,7 @@ from app.api.middleware import request_id_middleware
 from app.api.routes import router
 from app.core.config import DEFAULT_AIC_USER_AGENT, Settings, get_settings
 from app.core.logging import configure as configure_logging
+from app.domain.rate_limit import RateLimiter
 from app.providers.ai.factory import create_provider
 from app.providers.aic.client import AicClient
 from app.repositories.ai_usage import AiUsageRepository
@@ -56,6 +57,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # something a clock change can make negative.
     app.state.started_at = time.monotonic()
     app.state.aic_client = AicClient(settings)
+    # One limiter for the whole process, shared by both limited routes. Shared and not
+    # one each, because it is the machine's outbound traffic being bounded, and the two
+    # routes are two halves of the same advance: the browser asks for an artwork and then
+    # for its image. Two separate buckets would let a stuck tab spend both.
+    app.state.rate_limiter = RateLimiter(
+        burst=settings.rate_limit_burst,
+        refill_seconds=settings.rate_limit_refill_seconds,
+        hourly_limit=settings.rate_limit_hourly,
+    )
     # Learned from the first AIC response; the image proxy reads it from here rather than
     # accepting a base URL from the caller.
     app.state.iiif_base = None

@@ -507,3 +507,92 @@ class TestStartupWarnings:
     def test_stays_quiet_once_it_is_set(self, settings: Settings):
         # The settings fixture already carries a real-looking one.
         assert not any("AIC_USER_AGENT" in m for m in self._warnings_during_startup(settings))
+
+
+class TestRateLimiting:
+    """The two routes whose cost leaves the machine, and only those."""
+
+    @pytest.fixture
+    def tight(self, settings: Settings):
+        """A bucket of two, so the limit is reachable without 400 requests."""
+        return settings.model_copy(
+            update={
+                "rate_limit_burst": 2,
+                "rate_limit_refill_seconds": 30.0,
+                "rate_limit_hourly": 0,
+            }
+        )
+
+    @respx.mock
+    def test_refuses_with_429_and_a_retry_after(self, tight: Settings, search_response):
+        respx.get(f"{BASE}/artworks/search").mock(
+            return_value=httpx.Response(200, json=search_response)
+        )
+        with TestClient(create_app(tight)) as client:
+            assert client.get("/api/artwork/random").status_code == 200
+            assert client.get("/api/artwork/random").status_code == 200
+
+            refused = client.get("/api/artwork/random")
+            assert refused.status_code == 429
+            assert refused.json()["detail"] == "too_many_requests"
+            # Whole seconds, and never zero — the frontend waits exactly this long.
+            assert int(refused.headers["Retry-After"]) >= 1
+
+    @respx.mock
+    def test_an_advance_can_always_fetch_its_own_image(self, tight: Settings, search_response):
+        """The bug this credit exists for. An `<img>` cannot see a 429, so a refused
+        image reads to the display as a dead one — it drops the artwork and asks for
+        another immediately, spending more of the budget that just refused it. Measured
+        in a browser: it does not recover on its own."""
+        respx.get(f"{BASE}/artworks/search").mock(
+            return_value=httpx.Response(200, json=search_response)
+        )
+        respx.get(f"{IIIF}/{IMAGE_ID}/full/843,/0/default.jpg").mock(
+            return_value=httpx.Response(200, content=b"x", headers={"content-type": "image/jpeg"})
+        )
+        with TestClient(create_app(tight)) as client:
+            # Two advances is the whole burst of two. Both must still get their image.
+            for _ in range(2):
+                assert client.get("/api/artwork/random").status_code == 200
+                assert client.get(f"/api/image/{IMAGE_ID}?w=843").status_code == 200
+
+            assert client.get("/api/artwork/random").status_code == 429
+
+    @respx.mock
+    def test_the_proxy_pays_full_price_with_no_advance_behind_it(
+        self, tight: Settings, search_response
+    ):
+        """Otherwise the credit is a way around the limit rather than an accounting of
+        what one advance costs."""
+        respx.get(f"{BASE}/artworks/search").mock(
+            return_value=httpx.Response(200, json=search_response)
+        )
+        respx.get(f"{IIIF}/{IMAGE_ID}/full/843,/0/default.jpg").mock(
+            return_value=httpx.Response(200, content=b"x", headers={"content-type": "image/jpeg"})
+        )
+        with TestClient(create_app(tight)) as client:
+            # One advance, so one credit — and then the bucket, which the advance already
+            # drew on. A tab stuck on one image id cannot loop for free.
+            assert client.get("/api/artwork/random").status_code == 200
+            statuses = [client.get(f"/api/image/{IMAGE_ID}?w=843").status_code for _ in range(4)]
+            assert statuses[0] == 200
+            assert 429 in statuses
+
+    def test_leaves_the_rest_of_the_api_alone(self, tight: Settings):
+        """Limiting /preferences or /health would bound nothing and would make the
+        settings panel feel broken under a burst."""
+        with TestClient(create_app(tight)) as client:
+            for _ in range(20):
+                assert client.get("/api/health").status_code == 200
+                assert client.get("/api/preferences").status_code == 200
+                assert client.get("/api/filters").status_code == 200
+
+    @respx.mock
+    def test_a_burst_of_zero_disables_it(self, settings: Settings, search_response):
+        respx.get(f"{BASE}/artworks/search").mock(
+            return_value=httpx.Response(200, json=search_response)
+        )
+        off = settings.model_copy(update={"rate_limit_burst": 0, "rate_limit_hourly": 1})
+        with TestClient(create_app(off)) as client:
+            for _ in range(12):
+                assert client.get("/api/artwork/random").status_code == 200

@@ -5,6 +5,7 @@
   "artwork_unavailable": "Dzieło jest niedostępne.",
   "image_unavailable": "Obraz jest niedostępny. Wczytywanie kolejnego…",
   "no_matching_artwork": "Brak dzieł pasujących do wybranych filtrów.",
+  "too_many_requests": "Krótka przerwa. Kolejne dzieło za chwilę.",
 
   "untitled": "Bez tytułu",
   "attribution": "Cyfrowa reprodukcja dzięki uprzejmości Art Institute of Chicago.",

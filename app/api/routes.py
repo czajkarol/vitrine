@@ -26,6 +26,7 @@ from app.api.schemas import (
 )
 from app.core.config import Settings
 from app.domain.artwork import CACHED_IIIF_WIDTHS, PREFERRED_IIIF_WIDTH
+from app.domain.rate_limit import RateLimiter
 from app.providers.ai.base import AiError
 from app.providers.aic.client import AicClient, AicError, AicUnavailableError
 from app.repositories.ai_usage import AiUsageRepository, today
@@ -88,6 +89,54 @@ def get_ai_credentials(request: Request) -> AiCredentialService:
     return service
 
 
+def _rate_limit(request: Request, *, dependent: bool) -> None:
+    """Spend one token, or refuse with a `Retry-After` the caller can actually wait out.
+
+    A dependency and not middleware, so that it applies to exactly the two routes whose
+    cost leaves the machine. Limiting `/api/preferences` or `/api/health` would bound
+    nothing and would make the settings panel feel broken under a burst.
+
+    The refusal carries the same `detail` shape as every other error here, because the
+    frontend keys its message off `detail` and a 429 is not special enough to be the one
+    exception.
+    """
+    limiter: RateLimiter = request.app.state.rate_limiter
+    decision = limiter.check(dependent=dependent)
+    if decision.allowed:
+        return
+    logger.info(
+        "Rate limit refused %s; retry after %ds.", request.url.path, decision.retry_after_seconds
+    )
+    raise HTTPException(
+        status_code=429,
+        detail="too_many_requests",
+        headers={"Retry-After": str(decision.retry_after_seconds)},
+    )
+
+
+def enforce_rate_limit(request: Request) -> None:
+    """An advance. Spends a token and grants the credit its image will use."""
+    _rate_limit(request, dependent=False)
+
+
+def enforce_dependent_rate_limit(request: Request) -> None:
+    """The image for an artwork already served — the second half of one advance.
+
+    Spends the credit that advance granted rather than a token of its own. Without this
+    the limiter caused the storm it exists to prevent: an `<img>` cannot see a `429`, so
+    the display read a refused image as a dead one, dropped the artwork and asked for
+    another immediately. Seen in a browser, and it did not recover on its own.
+
+    A proxy call with no advance behind it still pays full price, so this is not a way
+    around the limit.
+    """
+    _rate_limit(request, dependent=True)
+
+
+RateLimited = Depends(enforce_rate_limit)
+DependentRateLimited = Depends(enforce_dependent_rate_limit)
+
+
 ClientDep = Annotated[AicClient, Depends(get_client)]
 SelectionDep = Annotated[SelectionService, Depends(get_selection)]
 PreferencesDep = Annotated[PreferencesRepository, Depends(get_preferences)]
@@ -113,7 +162,7 @@ LANGUAGE_KEY: Final[str] = "language"
 AMBIENT_KEY: Final[str] = "ambient"
 
 
-@router.get("/artwork/random", response_model=ArtworkResponse)
+@router.get("/artwork/random", response_model=ArtworkResponse, dependencies=[RateLimited])
 async def random_artwork(
     request: Request,
     selection: SelectionDep,
@@ -152,7 +201,7 @@ async def random_artwork(
     return ArtworkResponse.from_domain(result.artwork, result.iiif_base, source=result.source)
 
 
-@router.get("/image/{image_id}")
+@router.get("/image/{image_id}", dependencies=[DependentRateLimited])
 async def image_proxy(
     request: Request,
     client: ClientDep,

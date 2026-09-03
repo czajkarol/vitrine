@@ -201,10 +201,21 @@ Documentation and naming only, with the one exception noted below. Details in
 
 ## M9 — Rate limiting
 
-- [ ] `domain/rate_limit.py`: a pure token bucket, the clock passed in
-- [ ] Applied to `/api/artwork/random` and `/api/image/{image_id}`; 429 with `Retry-After`
-- [ ] The frontend waits out `Retry-After` calmly and never retry-storms
-- [ ] Commit
+- [x] `domain/rate_limit.py`: a pure token bucket, the clock passed in — with a rolling
+      hourly ceiling over it, because a bucket alone permits its sustained rate forever and
+      forever is the failure mode a display left running has
+- [x] Applied to `/api/artwork/random` and `/api/image/{image_id}`; 429 with `Retry-After`.
+      Burst 10, one token per 3s, 400 an hour, all `RATE_LIMIT_*` in `.env`
+- [x] The frontend waits out `Retry-After` calmly and never retry-storms — the manual
+      advance is held for exactly that long, and the rotation clock backs off by the same
+      amount instead of its usual 20 seconds
+- [x] **The limiter caused the storm it prevents, and the browser check found it.** An
+      `<img>` cannot see a `429`, so a refused image read to the display as a dead one: it
+      dropped the artwork and asked for another immediately, spending more of the budget
+      that had just refused it. 27 refusals and no recovery. The unit being limited is now
+      an *advance* — an allowed artwork request grants a credit its image spends — which
+      took the same run to 2 refusals and a clean recovery at the exact `Retry-After`
+- [x] Commit
 
 ## M10 — Canonical facets
 

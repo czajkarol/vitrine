@@ -137,6 +137,14 @@ shape. `docs/architecture.md` has the rules; `docs/adr/` has the reasoning.
 answers without a network, which is the whole point of [ADR-0003](docs/adr/0003-local-artwork-index.md);
 the last means a fresh clone with no index and no connection still shows something.
 
+**Rate limited, on the two routes whose cost leaves the machine.** Burst 10, one token back
+every 3 seconds, and a rolling ceiling of 400 an hour — `RATE_LIMIT_*` in `.env`, and
+`RATE_LIMIT_BURST=0` turns it off. Not about AIC's 60 requests a minute, which the local index
+keeps us far below; about not leaning on a CDN and about bounding a tab that got stuck
+overnight. The unit is an *advance* rather than a request, because showing one artwork is two
+of them. Over the limit is a `429` with `Retry-After`, and the display waits out exactly that
+long rather than retrying on its own schedule.
+
 **Two paths for an image.** Direct from AIC's IIIF service first, and if that fails, once,
 through `GET /api/image/{image_id}`. AIC's images sit behind Cloudflare, which needs a request
 header an `<img>` tag cannot send — measured, in a browser, and written up in
@@ -147,8 +155,8 @@ so the failed round trip is paid once rather than every rotation.
 
 | | |
 |---|---|
-| `GET /api/artwork/random` | one artwork, from whichever tier answers |
-| `GET /api/image/{image_id}` | the IIIF fallback — allow-listed widths, id format checked |
+| `GET /api/artwork/random` | one artwork, from whichever tier answers — rate limited |
+| `GET /api/image/{image_id}` | the IIIF fallback — allow-listed widths, id format checked, rate limited |
 | `GET /api/filters` | Explore vocabulary with real counts |
 | `GET`/`PUT /api/preferences` | the settings panel's state |
 | `GET /api/interpretation/{id}` | one interpretation, on demand |
@@ -159,7 +167,7 @@ so the failed round trip is paid once rather than every rotation.
 ## Testing
 
 ```bash
-uv run pytest                 # 349 tests: unit, contract, integration. No network
+uv run pytest                 # 371 tests: unit, contract, integration. No network
 uv run pytest -m live         # 9, against the real AIC API and a real AI provider if keyed
 uv run pytest -m e2e          # 5 Playwright flows; it starts its own server
 uv run ruff check . && uv run ruff format --check . && uv run mypy app

@@ -284,6 +284,33 @@ spins forever:
 - Image 404 → skip to next artwork, silently
 - AI unavailable → overlay shows museum data only, with a quiet note
 - AI budget exhausted → same, with a different note
+- Rate limited (429) → one calm line, and **wait out `Retry-After` exactly**
+
+---
+
+## Rate limiting
+
+`/api/artwork/random` and `/api/image/{image_id}` are limited. They are the two routes whose
+cost leaves the machine: with an index present, serving an artwork makes no AIC call at all, so
+the outbound cost of an advance is one IIIF image fetch. Nothing else is limited — bounding
+`/api/preferences` would bound nothing and would make the settings panel feel broken.
+
+Burst 10, one token back every 3s (20 a minute sustained), and a rolling ceiling of 400 an hour.
+All three are `RATE_LIMIT_*` in `.env`; `RATE_LIMIT_BURST=0` turns it off. This is not about
+AIC's documented 60 requests/minute, which the index keeps us far below. It is about not leaning
+on someone else's CDN and about bounding a tab that got stuck overnight.
+
+**The unit is an advance, not a request.** Showing one artwork is two requests — the artwork,
+then its image through the proxy when the direct load was blocked — so an allowed artwork
+request grants a credit that its image spends. Without that the limiter caused the storm it
+exists to prevent: an `<img>` cannot see a `429`, so the display read a refused image as a dead
+one, dropped the artwork and asked for another immediately. Measured in a browser; it did not
+recover on its own. A proxy call with no advance behind it still pays full price.
+
+On the display side, a `429` is the one failure the user can make worse, so it is the one that
+locks the controls: the manual advance is held for exactly `Retry-After`, and the rotation
+clock backs off by the same amount instead of its usual 20 seconds. Never a retry sooner than
+the server asked for.
 
 Ship a bundled fallback set of ~30 artwork records in the repo so a fresh clone with no network
 still displays something. It makes the first run work and it makes the offline story real.
