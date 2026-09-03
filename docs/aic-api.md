@@ -105,11 +105,25 @@ Style and subject filters need `style_titles` and `subject_titles` indexed per a
 in the crawl's `fields=` list and in the index as of M3.5, stored in `artwork_terms` rather than
 as columns because they are multi-valued.
 
-Measured on one listing page of 100 records, 2026-09-03: **42 carried a style, 62 carried at
-least one subject**, the fattest record carried 17 subjects, and those 100 records alone held
-**152 distinct subjects**. Plan for the vocabulary being open-ended — artwork type is a closed
-list of 45 and can be offered whole, while style and subject have to be cut to the most populous
-few before they reach a settings panel.
+Measured across the whole indexed corpus after the M3.5 walk, 2026-09-03 — 57,607 artworks,
+84,190 term rows:
+
+| | Styles | Subjects |
+|---|---|---|
+| Distinct values | 595 | 1,659 |
+| Artworks carrying at least one | 20,750 (36%) | 11,355 (20%) |
+| Values with 40+ artworks behind them | 92 | 216 |
+
+So artwork type is a closed list of 45 and can be offered whole, while these two have to be cut
+to the most populous few before they reach a settings panel. Note also that most artworks carry
+*neither* — a subject filter is reaching into a fifth of the collection, not all of it.
+
+**Two things about the vocabulary that look like bugs and are not.** `portrait` and `portraits`
+are separate values with 1,612 and 1,557 artworks behind them; they are not merged upstream and
+this app does not invent data, so both appear. And `subject_titles` carries terms that are not
+subjects in any ordinary sense — "Collected by Hugh Edwards" is the third most common one, with
+1,240 artworks. It is a provenance term sharing a field with "landscape". Nothing to fix; worth
+knowing before someone reports it.
 
 ### Confirmed present in search responses (2026-09-03)
 

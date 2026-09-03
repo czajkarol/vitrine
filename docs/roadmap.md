@@ -82,9 +82,11 @@ Per `CLAUDE.md`, ask Karol before starting it.
 - [x] Extend `/api/filters` and the Explore panel to offer style and subject alongside type —
       capped at the 30 most populous values, because these vocabularies run to thousands where
       artwork type is a closed list of 45
-- [ ] One re-walk covering this and anything else pending, with approval — approved and
-      **running**; see HANDOFF for how to check it and what is left afterwards
-- [ ] Commit
+- [x] One re-walk covering this and anything else pending, with approval — Karol approved it
+      on 2026-09-03. All 1,328 pages, 132,741 records, 57,607 indexed, 84,190 term rows, in
+      30 minutes. 92 styles and 216 subjects clear the 40-artwork bar, which is why the
+      30-option cap exists
+- [x] Commit
 
 ## M4 — Settings and i18n
 

@@ -61,33 +61,20 @@ uv run python scripts/build_index.py --explain <artwork_id>
 
 ## What to do next
 
-**A full re-walk of AIC is in flight, or has just finished.** Karol approved it on 2026-09-03 to
-pick up `style_titles` and `subject_titles`. Everything M3.5 needs is built, tested and
-committed; the only thing the walk changes is the *data*.
+**M3.5 is finished.** Karol approved the re-walk on 2026-09-03 and it ran to completion: all
+1,328 pages, 132,741 records seen, 57,607 indexed, 84,190 style and subject rows. Style and
+subject are in the index, in `/api/filters`, and in the settings panel, verified in a browser
+against the full corpus.
 
-```bash
-# where it got to — the script logs one line per page
-tail -3 "$TMP/crawl.log"        # the log this session used; any log will do
-uv run python scripts/build_index.py            # resumes from wherever it stopped
-```
+**The walk took 30 minutes**, close enough to the 22 that `CLAUDE.md` estimates from the request
+count. A measurement taken a third of the way through suggested an hour; that was AIC responding
+slowly for a stretch, and it evened out. Do not read a partial rate as the finished one.
 
-It is resumable and idempotent: progress is in the `index_last_page` preference and a re-run
-picks up from the next page, so a killed process costs nothing but time. **If it did not finish,
-just run it again** — no `--restart`, which would send it back to page one.
-
-Two things to do once it is done:
-
-1. Tick the last two M3.5 boxes in `docs/roadmap.md` and commit.
-2. Open the settings panel and look at Style and Subject with the full corpus behind them. They
-   were verified against a partially-built index (about 20,000 of 57,607 rows), where the top
-   values were skewed towards whatever the walk had reached — "Japanese (culture or style)",
-   "ancient", "portrait". With the whole collection indexed the vocabulary will be broader and
-   the 30-option cap will matter more than it did.
-
-Measured while it ran: the walk is going at roughly **2.6 seconds a page**, not the 1.0 the
-throttle asks for, because AIC's responses are themselves taking about 1.6s. That puts a full
-walk near **an hour**, not the 22 minutes `CLAUDE.md` estimates from the request count alone.
-Worth knowing before promising anyone it is quick.
+What the corpus turned out to look like, because it shaped the UI: 595 distinct styles and 1,659
+distinct subjects, but only 36% and 20% of artworks carry one at all, and 92 styles and 216
+subjects clear the 40-artwork bar. That is why the panel is capped at the 30 most populous of
+each — see `docs/aic-api.md`, which also records two vocabulary quirks that look like bugs and
+are not.
 
 **Nothing else is queued.** The roadmap has one unticked section, M3.5, and it is waiting on Karol
 rather than on work — see below. Two things are outstanding that are his rather than anyone's:
