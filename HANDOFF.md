@@ -7,9 +7,9 @@ State of vitrine as of 2026-09-03. Written for whoever (or whatever) picks this 
 ## Where the project actually is
 
 M0 through M5 are complete and committed, apart from one scoped-down item in M3 (M3.5, parked
-deliberately — see below). M6 has not started, beyond the CI workflow that was already there.
-`docs/roadmap.md` is accurate: it was reconciled against the code, not against intentions, and
-is ticked as work lands.
+deliberately — see below). M6 is three items in: `/api/stats`, structured logging with request
+ids, and the CI workflow that was already there. `docs/roadmap.md` is accurate: it was
+reconciled against the code, not against intentions, and is ticked as work lands.
 
 The app works end to end: it serves an artwork from a local SQLite index in ~19ms with no
 network call, rotates on a timer, has a keyboard map, a metadata overlay, a settings panel with
@@ -27,7 +27,7 @@ change here.
 ```bash
 uv sync --all-extras
 uv run uvicorn app.main:app --reload      # http://127.0.0.1:8000
-uv run pytest                             # 308 tests, excludes live/e2e
+uv run pytest                             # 334 tests, excludes live/e2e
 uv run pytest -m live                     # 9 tests: the real AIC API, and the AI
                                           # providers if their keys are in .env
 uv run ruff check . && uv run ruff format --check . && uv run mypy app
@@ -61,12 +61,32 @@ uv run python scripts/build_index.py --explain <artwork_id>
 
 ## What to do next
 
-**M6 — Finish.** Five items, none of them blocked: `/api/stats`, structured logging with
-request ids, the five Playwright smoke flows, the README written properly, screenshots, and a
-review of the ADRs against what was actually built. The README is no longer a pure stub — the
-bring-your-own key section was written for M5, because `docs/ai-system.md` makes documenting
-the unencrypted fallback a condition of having one — but everything else in it is still the
-stub text.
+**M6 — Finish.** Four items left.
+
+**Playwright smoke tests needs a decision before it needs work.** Neither `playwright` nor its
+browser binaries are installed on this machine, and installing them is a few hundred megabytes
+of download — Karol's call, not one to make on his behalf. The five flows the roadmap wants are
+in `docs/testing.md`. Everything else in M6 is unblocked.
+
+- **README written properly.** No longer a pure stub: the bring-your-own key section was
+  written during M5, because `docs/ai-system.md` makes documenting the unencrypted fallback a
+  condition of having one. Everything else in it is still the stub text.
+- **Screenshots.** Needs a decision on where they live and whether binaries belong in the repo.
+- **ADRs reviewed against what was actually built.** ADR-0008 was already reversed once in
+  flight; the others have not been read against the code since they were written.
+
+What the two finished items put in place:
+
+- **`/api/stats`** — cache hit ratio, provider latency, AIC error rate, today's spend, index
+  size. Counters are in `domain/metrics.py`: pure, in memory, from process start. The only
+  figure that survives a restart is the AI spend, because it is the only one anything enforces
+  against. Nothing in the frontend reads this endpoint; it is for whoever is running the thing.
+- **Logging** — `core/logging.py` and `api/middleware.py`. One id per request, from a
+  `ContextVar` read at format time, so no existing log call had to change. `LOG_FORMAT=json`
+  switches to one object per line. Every record goes through `redact_secrets()`, which catches
+  a key-shaped token wherever it came from — a net under the source-level redaction, not a
+  replacement for it. uvicorn's access log is silenced because the middleware logs its own
+  line; `uvicorn.error` is adopted so the banner matches everything else.
 
 **Still outstanding from M5, and it needs Karol:** neither real provider has been verified
 against its real API. **`uv run pytest -m live` with a key in `.env` is the manual step**, and
