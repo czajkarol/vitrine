@@ -48,3 +48,12 @@ class FallbackSet:
     def random(self, rng: random.Random) -> Artwork | None:
         displayable = [a for a in self.artworks if a.is_displayable]
         return rng.choice(displayable) if displayable else None
+
+    def get(self, artwork_id: int) -> Artwork | None:
+        """Look one up by id.
+
+        Needed because a request that names an artwork — an interpretation, say — has to
+        find the metadata for whichever tier put it on screen, and on a fresh clone with
+        no network that tier is this one.
+        """
+        return next((a for a in self.artworks if a.id == artwork_id), None)

@@ -371,7 +371,16 @@ class TestPreferences:
 class TestHealth:
     def test_health_does_not_call_aic(self, client):
         # respx is not active here: a call to AIC would raise instead of passing.
-        assert client.get("/api/health").json() == {"status": "ok"}
+        assert client.get("/api/health").json()["status"] == "ok"
+
+    def test_reports_ai_as_unavailable_when_nothing_is_configured(self, client):
+        # The frontend reads this to decide whether to offer the feature at all, rather
+        # than asking for an interpretation and being told no.
+        assert client.get("/api/health").json()["ai"] == {
+            "enabled": False,
+            "provider": None,
+            "model": None,
+        }
 
 
 class TestFrontend:

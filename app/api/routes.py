@@ -8,16 +8,21 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Res
 from pydantic import ValidationError
 
 from app.api.schemas import (
+    AiStatus,
     ArtworkResponse,
     FilterOption,
     FiltersResponse,
+    HealthResponse,
+    InterpretationResponse,
     PreferencesResponse,
 )
 from app.core.config import Settings
 from app.domain.artwork import CACHED_IIIF_WIDTHS, PREFERRED_IIIF_WIDTH
+from app.providers.ai.base import AiError
 from app.providers.aic.client import AicClient, AicError, AicUnavailableError
 from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.preferences import PreferencesRepository
+from app.services.interpretation import ArtworkNotFoundError, InterpretationService
 from app.services.selection import SelectionQuery, SelectionService
 
 logger = logging.getLogger(__name__)
@@ -49,6 +54,11 @@ def get_app_settings(request: Request) -> Settings:
     return settings
 
 
+def get_interpretation(request: Request) -> InterpretationService:
+    service: InterpretationService = request.app.state.interpretation
+    return service
+
+
 def get_index(request: Request) -> ArtworkIndexRepository:
     return ArtworkIndexRepository(request.app.state.database)
 
@@ -58,6 +68,7 @@ SelectionDep = Annotated[SelectionService, Depends(get_selection)]
 PreferencesDep = Annotated[PreferencesRepository, Depends(get_preferences)]
 IndexDep = Annotated[ArtworkIndexRepository, Depends(get_index)]
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
+InterpretationDep = Annotated[InterpretationService, Depends(get_interpretation)]
 
 # Below this, a filter cannot sustain a rotation and is not offered at all.
 MIN_FILTER_COUNT: Final[int] = 40
@@ -212,7 +223,58 @@ async def write_preferences(
     return body
 
 
-@router.get("/health")
-async def health() -> dict[str, str]:
-    """Liveness only. Deliberately does not call AIC."""
-    return {"status": "ok"}
+@router.get("/interpretation/{artwork_id}", response_model=InterpretationResponse)
+async def read_interpretation(
+    artwork_id: Annotated[int, Path(gt=0)],
+    interpretation: InterpretationDep,
+    language: Annotated[Literal["en", "pl"], Query()] = "en",
+) -> InterpretationResponse:
+    """Interpret one artwork, on demand.
+
+    Generated only when someone asks — never on rotation. `docs/ai-system.md` puts an
+    order of magnitude of cost on that one decision, because most artworks are shown and
+    never asked about.
+
+    Every failure here is quiet by design: the display keeps the museum's own facts and
+    shows a note. None of these are dialogs.
+    """
+    if not interpretation.enabled:
+        # Not an error. The app is complete with no AI configured, and the frontend uses
+        # /health to avoid asking in the first place.
+        raise HTTPException(status_code=503, detail="ai_disabled")
+
+    try:
+        result = await interpretation.interpret(artwork_id, language)
+    except ArtworkNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="artwork_unknown") from exc
+    except AiError as exc:
+        logger.warning("Interpretation failed for artwork %s: %s", artwork_id, exc)
+        raise HTTPException(status_code=503, detail="ai_unavailable") from exc
+
+    return InterpretationResponse(
+        artwork_id=artwork_id,
+        language=result.language,
+        provider=interpretation.provider_name or "",
+        model=interpretation.model or "",
+        visual_description=result.visual_description,
+        interpretation=result.interpretation,
+        themes=result.themes,
+        look_closer=result.look_closer,
+    )
+
+
+@router.get("/health", response_model=HealthResponse)
+async def health(interpretation: InterpretationDep) -> HealthResponse:
+    """Liveness, and whether AI is available. Deliberately does not call AIC.
+
+    The AI block is here so the frontend can decide whether to offer the feature without
+    asking for an interpretation and being told no. `docs/ai-system.md` also wants the
+    circuit breaker's state surfaced here once it exists.
+    """
+    return HealthResponse(
+        ai=AiStatus(
+            enabled=interpretation.enabled,
+            provider=interpretation.provider_name,
+            model=interpretation.model,
+        )
+    )

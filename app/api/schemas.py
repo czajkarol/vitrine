@@ -118,3 +118,35 @@ class FiltersResponse(BaseModel):
     artwork_types: list[FilterOption] = []
     minimum_count: int
     indexed_total: int
+
+
+class InterpretationResponse(BaseModel):
+    """One AI interpretation, plus who produced it.
+
+    The provider and model travel with the text because the display labels it as
+    generated. Anything the model produces is presented as interpretation, never as fact
+    (`docs/product-spec.md`), and naming the source is part of not pretending otherwise.
+    """
+
+    artwork_id: int
+    language: Literal["en", "pl"]
+    provider: str
+    model: str
+
+    visual_description: str
+    interpretation: str
+    themes: list[str]
+    look_closer: str
+
+
+class AiStatus(BaseModel):
+    """What the frontend needs to know before offering the feature at all."""
+
+    enabled: bool = False
+    provider: str | None = None
+    model: str | None = None
+
+
+class HealthResponse(BaseModel):
+    status: str = "ok"
+    ai: AiStatus = AiStatus()

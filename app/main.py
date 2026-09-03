@@ -14,13 +14,17 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
 from app.core.config import Settings, get_settings
+from app.providers.ai.factory import create_provider
 from app.providers.aic.client import AicClient
 from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.database import Database
 from app.repositories.history import HistoryRepository
 from app.repositories.preferences import PreferencesRepository
 from app.services.fallback import FallbackSet
+from app.services.interpretation import InterpretationService
 from app.services.selection import IIIF_BASE_KEY, SelectionService
+
+logger = logging.getLogger(__name__)
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -44,11 +48,28 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.database = database
 
     preferences = PreferencesRepository(database)
+    fallback = FallbackSet.load()
+    index = ArtworkIndexRepository(database)
+
+    # None when AI is not configured, which is the ordinary case and not a failure.
+    provider = create_provider(settings)
+    if provider is None:
+        logger.info("AI is not configured; interpretation is unavailable.")
+    else:
+        logger.info("AI provider %s (%s) is available.", provider.name, provider.model)
+    app.state.interpretation = InterpretationService(
+        provider=provider,
+        index=index,
+        fallback=fallback,
+        client=app.state.aic_client,
+        settings=settings,
+    )
+
     app.state.selection = SelectionService(
-        index=ArtworkIndexRepository(database),
+        index=index,
         history=HistoryRepository(database),
         preferences=preferences,
-        fallback=FallbackSet.load(),
+        fallback=fallback,
         client=app.state.aic_client,
     )
     # Seed the proxy's base from whatever we already know, so an index-only start can

@@ -53,6 +53,22 @@ class Settings(BaseSettings):
     # a value the UI cannot select would be discarded on every page load.
     default_interval_seconds: Literal[30, 60, 300, 900, 1800] = 300
 
+    # --- AI ---------------------------------------------------------------------------
+    # Optional throughout. `CLAUDE.md` makes it an enhancement and never a dependency, so
+    # every field here has a default that means "off".
+    ai_enabled: bool = False
+
+    ai_provider: Literal["", "mock"] = ""
+    """Only what is actually implemented. A vendor joins this list in the commit that
+    builds it — a name accepted here but unbuilt would fail at the first request instead
+    of at startup."""
+
+    ai_model: str = ""
+    """Empty means the provider's own default. Part of the cache key either way."""
+
+    ai_timeout_seconds: float = Field(default=20.0, gt=0)
+    ai_max_output_tokens: int = Field(default=600, gt=0)
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
