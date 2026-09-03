@@ -1,10 +1,15 @@
 // All mutable state, in one place, behind explicit setters.
 // No event bus, no global sprawl — there are only a handful of transitions.
+//
+// Timer bookkeeping is deliberately not here: rotation.js owns its own deadline. What
+// lives here is the state a user would recognise, which is what M4 persists.
 
 const state = {
   artwork: null,
   loading: false,
   error: null,
+  intervalMinutes: 5,
+  overlayPinned: false,
 };
 
 export function getState() {
@@ -22,4 +27,12 @@ export function setLoading(loading) {
 
 export function setError(error) {
   state.error = error;
+}
+
+export function setIntervalMinutes(minutes) {
+  state.intervalMinutes = minutes;
+}
+
+export function setOverlayPinned(pinned) {
+  state.overlayPinned = pinned;
 }

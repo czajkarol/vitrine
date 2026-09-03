@@ -7,21 +7,31 @@
 <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
-  <main id="stage" class="stage" aria-live="polite">
-    <!-- Two stacked layers; the crossfade swaps which one is on top. -->
-    <div class="layer" id="layer-a" aria-hidden="true"></div>
-    <div class="layer" id="layer-b" aria-hidden="true"></div>
+  <main id="stage" class="stage">
+    <!-- Two stacked blur layers; the crossfade swaps which one is on top. -->
+    <div class="layer" id="layer-a"></div>
+    <div class="layer" id="layer-b"></div>
     <img id="artwork" class="artwork" alt="">
   </main>
 
   <div id="status" class="status" role="status"></div>
 
-  <footer id="caption" class="caption">
-    <h1 id="caption-title" class="caption-title"></h1>
-    <p id="caption-artist" class="caption-artist"></p>
-    <p id="caption-credit" class="caption-credit">
-      Digital image courtesy of the Art Institute of Chicago.
-    </p>
+  <!-- Metadata overlay. Hidden at rest, revealed by mouse movement, pinned by `I`.
+       aria-live so a screen reader hears each new artwork announced. -->
+  <footer id="overlay" class="overlay" aria-live="polite">
+    <div class="overlay-panel">
+      <!-- Museum facts. AI interpretation gets its own labelled container in M5 and must
+           never share this one — a glance should never mistake generated text for a
+           museum caption (docs/product-spec.md). -->
+      <section class="facts">
+        <h1 id="ov-title" class="ov-title"></h1>
+        <p id="ov-artist" class="ov-artist"></p>
+        <p id="ov-meta" class="ov-meta"></p>
+        <p id="ov-description" class="ov-description"></p>
+      </section>
+      <p id="ov-credit" class="ov-credit"></p>
+      <p id="ov-attribution" class="ov-attribution"></p>
+    </div>
   </footer>
 
   <script type="module" src="/js/main.js"></script>

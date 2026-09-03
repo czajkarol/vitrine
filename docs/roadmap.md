@@ -28,14 +28,16 @@ The goal is one real artwork on screen, fetched over the network, in a browser. 
 - [x] Transition pipeline: `lqip` → `new Image()` → `decode()` → crossfade
 - [x] Image 404 and decode failure skip to the next artwork
 - [x] IIIF width selection from viewport and `devicePixelRatio`, clamped to the cached ladder
-- [ ] Rotation timer with 1/5/15/30 intervals, default 5
-- [ ] Next-artwork preload scheduled ahead of expiry
-- [ ] `visibilitychange` catch-up so a backgrounded tab does not drift
-- [ ] Keyboard shortcuts per `docs/product-spec.md`, disabled inside inputs
-- [ ] Fullscreen via the Fullscreen API
-- [ ] Metadata overlay with mouse-idle fade — a static caption with AIC attribution is in place; the idle fade is not
+- [x] Rotation timer with 1/5/15/30 intervals, default 5
+- [x] Next-artwork preload scheduled ahead of expiry
+- [x] `visibilitychange` catch-up so a backgrounded tab does not drift
+- [x] Keyboard shortcuts per `docs/product-spec.md`, disabled inside inputs — all but `S`,
+      which stays unbound until there is a settings panel to open in M4
+- [x] Fullscreen via the Fullscreen API — written, but not verified by hand: it needs a real
+      user gesture, which browser automation cannot supply
+- [x] Metadata overlay with mouse-idle fade, AIC attribution included
 - [x] `prefers-reduced-motion` cuts instead of fading
-- [ ] Commit
+- [x] Commit
 
 ## M2 — Local index and persistence
 

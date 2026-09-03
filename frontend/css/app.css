@@ -6,6 +6,8 @@
   --fg: #e8e6e3;
   --fg-dim: #9a9793;
   --fade: 900ms;
+  /* UI answers faster than the artwork crossfade. */
+  --fade-ui: 400ms;
 }
 
 * { box-sizing: border-box; }
@@ -66,35 +68,64 @@ body {
 
 .layer.visible { opacity: 1; }
 
-.caption {
+.overlay {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 1.6rem 2rem;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), transparent);
+  padding: 2rem 2.5rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.55) 45%, transparent);
   opacity: 0;
-  transition: opacity 400ms ease-in-out;
+  transition: opacity var(--fade-ui) ease-in-out;
+  /* Nothing here is clickable yet, and the overlay must never intercept the pointer
+     movement that reveals it. */
   pointer-events: none;
 }
 
-.caption.visible { opacity: 1; }
+.overlay.visible { opacity: 1; }
 
-.caption-title {
+/* Measured, not full-bleed: prose set across a 2560px monitor is unreadable. */
+.overlay-panel { max-width: 62ch; }
+
+.ov-title {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.3rem;
   font-weight: 600;
   letter-spacing: 0.01em;
 }
 
-.caption-artist {
-  margin: 0.2rem 0 0;
+.ov-artist {
+  margin: 0.25rem 0 0;
+  font-size: 1rem;
+  color: var(--fg);
+}
+
+.ov-meta {
+  margin: 0.15rem 0 0;
   color: var(--fg-dim);
 }
 
-.caption-credit {
-  margin: 0.5rem 0 0;
-  font-size: 0.75rem;
+.ov-description {
+  margin: 0.75rem 0 0;
+  color: var(--fg-dim);
+  /* A glanceable caption, not an essay. Some AIC descriptions run many paragraphs and
+     would otherwise cover the artwork they describe. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+}
+
+.ov-credit {
+  margin: 0.75rem 0 0;
+  font-size: 0.8rem;
+  color: var(--fg-dim);
+}
+
+.ov-attribution {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
   color: var(--fg-dim);
   opacity: 0.75;
 }
@@ -118,6 +149,6 @@ body {
 
 /* Nothing should animate at rest, and reduced motion means cut, not fade. */
 @media (prefers-reduced-motion: reduce) {
-  :root { --fade: 1ms; }
-  .caption, .artwork, .layer, body { transition-duration: 1ms; }
+  :root { --fade: 1ms; --fade-ui: 1ms; }
+  .overlay, .artwork, .layer, body { transition-duration: 1ms; }
 }

@@ -31,6 +31,22 @@ This is the single most visible piece of engineering in the app. Get it right.
 Using `decode()` rather than the `load` event is what makes the fade flicker-free — the browser
 has finished decoding to a paintable bitmap before you touch opacity.
 
+**But `decode()` alone is not enough, and neither is `requestAnimationFrame`.** Both were
+measured failing in Chrome on a *hidden* tab, which an ambient display is for much of its life:
+
+- `img.decode()` never settles while the tab is hidden. It does not resolve and it does not
+  reject; it simply stays pending. The `load` event on the same image fires normally.
+- `requestAnimationFrame` callbacks do not run at all while the tab is hidden.
+
+So the rule is: `decode()` decides while the tab is visible, which is the only time a flicker
+could be seen; while it is hidden, a completed `load` is accepted instead. And never make an
+element's visibility depend on an rAF callback — a class that gets added in rAF is a class that
+never gets added, and the artwork stays at opacity 0 until something else forces a repaint.
+
+Every image load also needs a deadline. Cloudflare does not reliably *reject* a blocked hotlink;
+sometimes the request simply never answers. Without a timeout the rotation stalls on "Loading…"
+forever, which the error-state rules below rule out.
+
 CSS transitions only. No `requestAnimationFrame` loops. Nothing should be animating at rest —
 this app is idle 99% of the time and the GPU should know it.
 

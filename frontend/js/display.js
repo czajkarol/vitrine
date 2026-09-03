@@ -15,6 +15,16 @@ const CACHED_WIDTHS = [200, 400, 600, 843, 1686];
 // trip on every rotation. See ADR-0008.
 let preferProxy = false;
 
+// Cloudflare does not reliably *reject* a blocked hotlink. Sometimes the request simply
+// never answers, and img.decode() then neither resolves nor rejects — measured in a real
+// browser. Without a deadline the rotation stalls on "Loading…" forever, which is the one
+// failure docs/product-spec.md rules out. The direct load is only a probe, so it gets a
+// short leash.
+const DIRECT_TIMEOUT_MS = 6_000;
+// The proxy is our own backend pulling a full-size image on our behalf. Slower, but it
+// answers, so it gets longer before we give up on the artwork entirely.
+const PROXY_TIMEOUT_MS = 20_000;
+
 /** Pick a cached width for this screen. */
 export function chooseWidth(viewportWidth, pixelRatio) {
   const wanted = viewportWidth * (pixelRatio || 1);
@@ -35,27 +45,79 @@ export async function loadImage(artwork, width) {
   const proxied = () => proxiedImageUrl(artwork.image_id, width);
 
   if (preferProxy) {
-    return decodeImage(proxied(), artwork.alt_text);
+    return decodeImage(proxied(), artwork.alt_text, PROXY_TIMEOUT_MS);
   }
 
   try {
-    return await decodeImage(direct(), artwork.alt_text);
+    return await decodeImage(direct(), artwork.alt_text, DIRECT_TIMEOUT_MS);
   } catch (cause) {
-    // Could be a Cloudflare challenge, or this one image being unpublished. The retry
-    // distinguishes them: if the proxy succeeds, the image is fine and hotlinking is not.
-    const image = await decodeImage(proxied(), artwork.alt_text);
+    // Could be a Cloudflare challenge, a stalled request, or this one image being
+    // unpublished. The retry distinguishes them: if the proxy succeeds, the image is fine
+    // and hotlinking is not.
+    const image = await decodeImage(proxied(), artwork.alt_text, PROXY_TIMEOUT_MS);
     preferProxy = true;
     console.info('Direct AIC image load failed; using the backend proxy for this session.', cause);
     return image;
   }
 }
 
-function decodeImage(url, altText) {
+/**
+ * Resolve once the image is safe to put on screen.
+ *
+ * `decode()` is what makes the crossfade flicker-free — it resolves only when the browser
+ * holds a paintable bitmap, where the `load` event fires earlier than that. But Chrome
+ * never settles `decode()` while the tab is hidden (measured: pending indefinitely, while
+ * the `load` event on the same image fires normally). An ambient display is hidden or
+ * minimised for much of its life, so waiting on `decode()` alone strands the rotation on
+ * "Loading…" every time the user looks away.
+ *
+ * So: `decode()` decides while the tab is visible, which is the only time a flicker could
+ * be seen. While it is hidden, a completed load is accepted instead.
+ */
+function whenPaintable(img) {
+  let cleanup = () => {};
+  const settled = new Promise((resolve, reject) => {
+    const onError = () => reject(new Error(`image failed to load: ${img.src}`));
+    const settleIfHidden = () => {
+      if (document.hidden && img.complete && img.naturalWidth > 0) resolve(img);
+    };
+
+    img.addEventListener('error', onError, { once: true });
+    img.addEventListener('load', settleIfHidden);
+    // Covers the tab being hidden *after* the load event but before decode() settles.
+    document.addEventListener('visibilitychange', settleIfHidden);
+
+    cleanup = () => {
+      img.removeEventListener('error', onError);
+      img.removeEventListener('load', settleIfHidden);
+      document.removeEventListener('visibilitychange', settleIfHidden);
+    };
+
+    img.decode().then(() => resolve(img), onError);
+  });
+
+  return settled.finally(() => cleanup());
+}
+
+function decodeImage(url, altText, timeoutMs) {
   const img = new Image();
   img.decoding = 'async';
   img.alt = altText || '';
   img.src = url;
-  return img.decode().then(() => img);
+
+  let timer;
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      // Abandon the in-flight request. Left alone it holds a connection and a partially
+      // decoded bitmap, and this app starts a fresh image every rotation for hours.
+      img.src = '';
+      reject(new Error(`image load timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  return Promise.race([whenPaintable(img), deadline]).finally(() => {
+    clearTimeout(timer);
+  });
 }
 
 /**
