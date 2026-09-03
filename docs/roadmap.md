@@ -69,7 +69,8 @@ This is the milestone that makes the rest possible. See ADR-0003.
 
 ## M4 — Settings and i18n
 
-- [ ] Settings panel, pauses rotation while open
+- [x] Settings panel, pauses rotation while open — built in M3 to give Explore somewhere
+      to live and to bind `S`. M4 adds language, ambient mode and the AI toggles to it
 - [ ] `i18n.js` + `en.json` + `pl.json`, every string keyed including errors
 - [ ] Language switch without reload
 - [ ] Ambient mode via Screen Wake Lock, re-acquired on `visibilitychange`
