@@ -206,6 +206,72 @@ class AiKeyResponse(BaseModel):
     says so before anything is typed."""
 
 
+class CacheStats(BaseModel):
+    """How often an interpretation was already on hand.
+
+    The number that says whether the cache is doing its job. A low ratio on a display
+    nobody presses `I` twice on is expected; a low ratio on one artwork asked about
+    repeatedly means the cache key is changing when it should not.
+    """
+
+    hits: int = 0
+    misses: int = 0
+    hit_ratio: float = 0.0
+
+
+class ProviderStats(BaseModel):
+    """What the AI provider has cost in time and reliability, since this process started."""
+
+    name: str | None = None
+    model: str | None = None
+    calls: int = 0
+    errors: int = 0
+    error_rate: float = 0.0
+    average_ms: float = 0.0
+    max_ms: float = 0.0
+    circuit_open: bool = False
+
+
+class AicStats(BaseModel):
+    """Requests to the museum, and how many did not come back.
+
+    Counted per call made by the app, not per HTTP attempt: the client's own retries are
+    its business. A 404 counts as an error, because on this app it usually means the local
+    index has gone stale against a record AIC has withdrawn.
+    """
+
+    requests: int = 0
+    errors: int = 0
+    error_rate: float = 0.0
+
+
+class UsageStats(BaseModel):
+    """Today's AI spend, per provider, read from `ai_usage`.
+
+    The only part of /api/stats that survives a restart, because it is the only part the
+    budget guard enforces against.
+    """
+
+    day: str
+    providers: dict[str, dict[str, int]] = {}
+
+
+class StatsResponse(BaseModel):
+    """Operational numbers. Not a dashboard, and not persisted — see `domain/metrics.py`.
+
+    Everything but `usage` counts from process start and is gone on restart. That is the
+    scope these questions are asked at: is the cache working, is the provider slow, is AIC
+    flaking, right now, on the display in front of me.
+    """
+
+    uptime_seconds: float
+    indexed_artworks: int
+    interpretation_cache: CacheStats = CacheStats()
+    provider: ProviderStats = ProviderStats()
+    aic: AicStats = AicStats()
+    usage: UsageStats
+
+
 class HealthResponse(BaseModel):
     status: str = "ok"
     ai: AiStatus = AiStatus()

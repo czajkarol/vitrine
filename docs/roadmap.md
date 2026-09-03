@@ -122,7 +122,10 @@ Per `CLAUDE.md`, ask Karol before starting it.
 
 ## M6 — Finish
 
-- [ ] `/api/stats` (cache hit ratio, provider latency, AIC error rate) — `GET /api/health` is done
+- [x] `/api/stats` (cache hit ratio, provider latency, AIC error rate) — `GET /api/health` is done.
+      Counters live in `domain/metrics.py`, in memory and from process start; the only figure
+      that survives a restart is today's AI spend, which is the only one anything enforces
+      against. Nothing in the frontend reads it
 - [ ] Structured logging, no secrets, request IDs
 - [ ] Playwright smoke tests: loads, advances, overlay opens, language switches, AI-disabled state
 - [x] GitHub Actions: ruff, mypy, pytest excluding live and e2e

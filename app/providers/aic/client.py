@@ -22,6 +22,7 @@ from app.domain.artwork import (
     ArtworkPage,
     iiif_url,
 )
+from app.domain.metrics import Tally
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,10 @@ class AicClient:
 
         self._settings = settings
         self._rng = rng or random.Random()
+        # One request in, one outcome counted, whatever the retries did on the way. What
+        # /api/stats reports is how often a caller asked AIC for something and did not
+        # get it — retries are this client's business, not the display's.
+        self.requests = Tally()
         self._limiter = RateLimiter(settings.aic_max_requests_per_minute)
         self._owns_client = client is None
         self._client = client or httpx.AsyncClient(
@@ -109,6 +114,15 @@ class AicClient:
 
     async def _get(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
         """GET with the throttle applied and retries on transient failures only."""
+        try:
+            payload = await self._get_uncounted(path, params)
+        except AicError:
+            self.requests.record(error=True)
+            raise
+        self.requests.record()
+        return payload
+
+    async def _get_uncounted(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
         last: Exception | None = None
         for attempt in range(1, MAX_ATTEMPTS + 1):
             await self._limiter.acquire()

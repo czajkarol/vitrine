@@ -5,6 +5,7 @@ Config is constructed here and injected downward. Nothing below reads the enviro
 
 import asyncio
 import logging
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -42,6 +43,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
         format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
     )
+    # Monotonic, so /api/stats reports how long this process has been up rather than
+    # something a clock change can make negative.
+    app.state.started_at = time.monotonic()
     app.state.aic_client = AicClient(settings)
     # Learned from the first AIC response; the image proxy reads it from here rather than
     # accepting a base URL from the caller.

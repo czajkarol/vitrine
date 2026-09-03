@@ -9,7 +9,7 @@ app/api/             FastAPI routers. HTTP shapes in, HTTP shapes out. No logic.
     │
 app/services/        Orchestration. Rotation, selection, interpretation, index building.
     │
-app/domain/          Models and pure logic: scoring, filtering, cache keys. No I/O.
+app/domain/          Models and pure logic: scoring, filtering, cache keys, counters. No I/O.
     │
 app/providers/       Outbound: AIC client, AI provider implementations.
 app/repositories/    SQLite persistence, and the OS keyring when there is one.

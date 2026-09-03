@@ -2,26 +2,33 @@
 
 import logging
 import re
+from time import monotonic
 from typing import Annotated, Final, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
 from pydantic import ValidationError
 
 from app.api.schemas import (
+    AicStats,
     AiKeyRequest,
     AiKeyResponse,
     AiStatus,
     ArtworkResponse,
+    CacheStats,
     FilterOption,
     FiltersResponse,
     HealthResponse,
     InterpretationResponse,
     PreferencesResponse,
+    ProviderStats,
+    StatsResponse,
+    UsageStats,
 )
 from app.core.config import Settings
 from app.domain.artwork import CACHED_IIIF_WIDTHS, PREFERRED_IIIF_WIDTH
 from app.providers.ai.base import AiError
 from app.providers.aic.client import AicClient, AicError, AicUnavailableError
+from app.repositories.ai_usage import AiUsageRepository, today
 from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.credentials import CredentialStoreError
 from app.repositories.preferences import PreferencesRepository
@@ -72,6 +79,10 @@ def get_index(request: Request) -> ArtworkIndexRepository:
     return ArtworkIndexRepository(request.app.state.database)
 
 
+def get_usage(request: Request) -> AiUsageRepository:
+    return AiUsageRepository(request.app.state.database)
+
+
 def get_ai_credentials(request: Request) -> AiCredentialService:
     service: AiCredentialService = request.app.state.ai_credentials
     return service
@@ -84,6 +95,7 @@ IndexDep = Annotated[ArtworkIndexRepository, Depends(get_index)]
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 InterpretationDep = Annotated[InterpretationService, Depends(get_interpretation)]
 AiCredentialsDep = Annotated[AiCredentialService, Depends(get_ai_credentials)]
+UsageDep = Annotated[AiUsageRepository, Depends(get_usage)]
 
 # Below this, a filter cannot sustain a rotation and is not offered at all.
 MIN_FILTER_COUNT: Final[int] = 40
@@ -336,6 +348,48 @@ def _key_response(status: AiKeyStatus) -> AiKeyResponse:
         source=status.source,
         key_hint=status.key_hint,
         storage=status.storage,
+    )
+
+
+@router.get("/stats", response_model=StatsResponse)
+async def stats(
+    request: Request,
+    interpretation: InterpretationDep,
+    client: ClientDep,
+    index: IndexDep,
+    usage: UsageDep,
+) -> StatsResponse:
+    """Operational numbers, for whoever is running this on a wall somewhere.
+
+    Deliberately separate from /api/health, which answers "can I use this?" and is read by
+    the frontend at boot. Nothing here is read by the frontend at all; it exists so that
+    "the interpretations feel slow" or "the pictures keep skipping" can be checked rather
+    than guessed at.
+    """
+    return StatsResponse(
+        uptime_seconds=monotonic() - request.app.state.started_at,
+        indexed_artworks=await index.count(),
+        interpretation_cache=CacheStats(
+            hits=interpretation.cache.hits,
+            misses=interpretation.cache.misses,
+            hit_ratio=round(interpretation.cache.hit_ratio, 4),
+        ),
+        provider=ProviderStats(
+            name=interpretation.provider_name,
+            model=interpretation.model,
+            calls=interpretation.calls.total,
+            errors=interpretation.calls.errors,
+            error_rate=round(interpretation.calls.error_rate, 4),
+            average_ms=round(interpretation.latency.average_ms, 1),
+            max_ms=round(interpretation.latency.max_ms, 1),
+            circuit_open=interpretation.circuit_open,
+        ),
+        aic=AicStats(
+            requests=client.requests.total,
+            errors=client.requests.errors,
+            error_rate=round(client.requests.error_rate, 4),
+        ),
+        usage=UsageStats(day=today(), providers=await usage.totals()),
     )
 
 

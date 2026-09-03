@@ -52,8 +52,11 @@ class AiUsageRepository:
     async def record(self, provider: str, usage: TokenUsage, day: str | None = None) -> None:
         await asyncio.to_thread(self.record_sync, provider, usage, day)
 
+    async def totals(self, day: str | None = None) -> dict[str, dict[str, int]]:
+        return await asyncio.to_thread(self.totals_sync, day)
+
     def totals_sync(self, day: str | None = None) -> dict[str, dict[str, int]]:
-        """Everything spent on one day, by provider. For /api/stats in M6."""
+        """Everything spent on one day, by provider. Read by /api/stats."""
         with self._db.connect() as connection:
             rows = connection.execute(
                 "SELECT provider, requests, tokens_in, tokens_out FROM ai_usage WHERE day = ?",

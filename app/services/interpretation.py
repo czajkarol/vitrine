@@ -10,6 +10,7 @@ items and land here too.
 
 import asyncio
 import logging
+import time
 
 from app.core.config import Settings
 from app.domain.artwork import Artwork
@@ -20,6 +21,7 @@ from app.domain.interpretation import (
     InterpretationCache,
     Language,
 )
+from app.domain.metrics import CacheTally, LatencySummary, Tally
 from app.domain.prompts import PROMPT_VERSION
 from app.providers.ai.base import (
     AiError,
@@ -80,6 +82,11 @@ class InterpretationService:
         # to both, which is the whole of `docs/ai-system.md`'s resolution rule.
         self._caches = (local_cache, shared_cache)
         self._usage = usage
+        # In memory and from process start — see `domain/metrics.py` for why that is the
+        # right scope. The daily spend, which must outlive a restart, is in `ai_usage`.
+        self.cache = CacheTally()
+        self.calls = Tally()
+        self.latency = LatencySummary()
         self._breaker = breaker or CircuitBreaker(
             threshold=settings.ai_circuit_breaker_threshold,
             cooldown_seconds=settings.ai_circuit_breaker_cooldown_seconds,
@@ -162,9 +169,11 @@ class InterpretationService:
             model=self._provider.model,
             prompt_version=PROMPT_VERSION,
         )
-        if (cached := await self._read_caches(key)) is not None:
-            # A cache hit costs nothing, so it is not counted and not capped. The budget
-            # exists to limit what we spend, not what we serve.
+        cached = await self._read_caches(key)
+        self.cache.record(hit=cached is not None)
+        if cached is not None:
+            # A cache hit costs nothing, so it is not capped. The budget exists to limit
+            # what we spend, not what we serve.
             return cached
 
         if not self._breaker.allows():
@@ -183,6 +192,7 @@ class InterpretationService:
             max_output_tokens=self._settings.ai_max_output_tokens,
         )
 
+        started = time.monotonic()
         try:
             async with asyncio.timeout(self._settings.ai_timeout_seconds):
                 result = await self._provider.interpret(request)
@@ -191,6 +201,9 @@ class InterpretationService:
             # rotates away, it is no longer wanted. Counted as a provider failure, because
             # from here that is what it is.
             self._record_failure()
+            # Counted, and its duration with it: a provider whose every call runs to the
+            # timeout is exactly what the latency figure is for.
+            self._record_call(started, error=True)
             raise ProviderUnavailableError(
                 f"{self._provider.name} timed out after {self._settings.ai_timeout_seconds}s"
             ) from exc
@@ -198,8 +211,10 @@ class InterpretationService:
             # Unreachable, refusing, or answering with something that will not validate —
             # a provider that has started returning prose is not healthy either.
             self._record_failure()
+            self._record_call(started, error=True)
             raise
 
+        self._record_call(started)
         self._breaker.record_success()
 
         # Recorded after the call returns, because what is being counted is what was
@@ -242,6 +257,11 @@ class InterpretationService:
                 await cache.put(key, value)
             except Exception:
                 logger.exception("The %s interpretation cache failed on write", cache.name)
+
+    def _record_call(self, started: float, *, error: bool = False) -> None:
+        """One provider call, however it ended, and how long it took."""
+        self.calls.record(error=error)
+        self.latency.record((time.monotonic() - started) * 1000)
 
     def _record_failure(self) -> None:
         """Count a failure, and log the transition when it is the one that opens."""
