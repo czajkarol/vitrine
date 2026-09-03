@@ -195,6 +195,106 @@ class TestCuratedSampling:
         assert repo.sample_sync(10, artwork_type="Sculpture") == []
 
 
+class TestTerms:
+    """Style and subject, which live in `artwork_terms` rather than in a column."""
+
+    def test_round_trip_keeps_both_vocabularies(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync(
+            [_artwork(1, style_titles=("Impressionism",), subject_titles=("landscape", "water"))]
+        )
+
+        stored = repo.get_sync(1)
+        assert stored is not None
+        assert stored.style_titles == ("Impressionism",)
+        assert sorted(stored.subject_titles) == ["landscape", "water"]
+
+    def test_a_recrawl_drops_a_term_the_museum_removed(self, database: Database):
+        """Delete-then-insert, not upsert. An upsert would leave the old value behind
+        forever, and a filter would keep offering something no longer true."""
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1, subject_titles=("landscape", "water"))])
+        repo.upsert_many_sync([_artwork(1, subject_titles=("landscape",))])
+
+        stored = repo.get_sync(1)
+        assert stored is not None
+        assert stored.subject_titles == ("landscape",)
+
+    def test_an_artwork_with_no_terms_is_fine(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1)])
+        stored = repo.get_sync(1)
+        assert stored is not None
+        assert stored.style_titles == ()
+        assert stored.subject_titles == ()
+
+    def test_sampling_filters_on_a_subject(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync(
+            [
+                _artwork(1, subject_titles=("landscape",)),
+                _artwork(2, subject_titles=("portraits",)),
+                _artwork(3, subject_titles=("landscape", "water")),
+            ]
+        )
+        found = repo.sample_sync(10, subject="landscape")
+        assert {artwork.id for artwork in found} == {1, 3}
+
+    def test_filters_combine_with_and(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync(
+            [
+                _artwork(1, style_titles=("Impressionism",), subject_titles=("landscape",)),
+                _artwork(2, style_titles=("Impressionism",), subject_titles=("portraits",)),
+                _artwork(3, style_titles=("Cubism",), subject_titles=("landscape",)),
+            ]
+        )
+        found = repo.sample_sync(10, style="Impressionism", subject="landscape")
+        assert {artwork.id for artwork in found} == {1}
+
+    def test_counts_are_biggest_first_and_can_be_capped(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync(
+            [_artwork(i, subject_titles=("landscape",)) for i in range(1, 4)]
+            + [_artwork(10, subject_titles=("water",))]
+        )
+        assert repo.term_counts_sync("subject") == {"landscape": 3, "water": 1}
+        assert repo.term_counts_sync("subject", limit=1) == {"landscape": 3}
+
+    def test_counts_keep_the_two_vocabularies_apart(self, database: Database):
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1, style_titles=("x",), subject_titles=("y",))])
+        assert repo.term_counts_sync("style") == {"x": 1}
+        assert repo.term_counts_sync("subject") == {"y": 1}
+
+    def test_an_unknown_kind_is_a_programming_error(self, database: Database):
+        with pytest.raises(ValueError):
+            ArtworkIndexRepository(database).term_counts_sync("colour")
+
+    def test_reading_a_batch_costs_one_extra_query_not_one_each(self, database: Database):
+        """The reason `_terms_for` exists. Asserted by counting statements, because the
+        alternative — an N+1 — is invisible until the index is large."""
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(i, subject_titles=("landscape",)) for i in range(1, 21)])
+
+        statements = 0
+
+        def count(_statement):
+            nonlocal statements
+            statements += 1
+
+        with database.connect() as connection:
+            connection.set_trace_callback(count)
+            rows = connection.execute("SELECT * FROM artwork_index ORDER BY id").fetchall()
+            from app.repositories.artwork_index import _terms_for
+
+            terms = _terms_for(connection, [row["id"] for row in rows])
+            connection.set_trace_callback(None)
+
+        assert len(terms) == 20
+        assert statements == 2, "one query for the rows, one for all of their terms"
+
+
 class TestScoringPass:
     def test_scores_are_written_and_counted(self, database: Database):
         repo = ArtworkIndexRepository(database)

@@ -206,6 +206,84 @@ class TestModesAndFilters:
         # A filter with three artworks behind it is worse than no filter.
         assert offered == {"Painting": MIN_FILTER_COUNT}
 
+    def test_offers_style_and_subject_alongside_type(self, client, database):
+        from app.api.routes import MAX_FILTER_OPTIONS, MIN_FILTER_COUNT
+        from app.repositories.artwork_index import ArtworkIndexRepository
+
+        # Enough of each to clear the threshold, and one thin subject that must not appear.
+        rows = [
+            _indexed(i, "Painting").model_copy(
+                update={
+                    "style_titles": ("Impressionism",),
+                    "subject_titles": ("landscape",) if i else ("rarity",),
+                }
+            )
+            for i in range(MIN_FILTER_COUNT + 1)
+        ]
+        ArtworkIndexRepository(database).upsert_many_sync(rows)
+
+        body = client.get("/api/filters").json()
+        assert [option["value"] for option in body["styles"]] == ["Impressionism"]
+        assert [option["value"] for option in body["subjects"]] == ["landscape"]
+        assert body["maximum_options"] == MAX_FILTER_OPTIONS
+
+    def test_caps_how_many_options_it_will_offer(self, client, database):
+        """Artwork type is a closed vocabulary of 45; subject runs to thousands, and a
+        list nobody can scroll to the end of is not a filter."""
+        from app.api.routes import MAX_FILTER_OPTIONS, MIN_FILTER_COUNT
+        from app.repositories.artwork_index import ArtworkIndexRepository
+
+        rows = []
+        for subject in range(MAX_FILTER_OPTIONS + 5):
+            rows += [
+                _indexed(subject * 1000 + i, "Painting").model_copy(
+                    update={"subject_titles": (f"subject-{subject:02d}",)}
+                )
+                for i in range(MIN_FILTER_COUNT)
+            ]
+        ArtworkIndexRepository(database).upsert_many_sync(rows)
+
+        body = client.get("/api/filters").json()
+        assert len(body["subjects"]) == MAX_FILTER_OPTIONS
+
+    def test_rotates_within_a_subject_filter(self, client, database):
+        from app.repositories.artwork_index import ArtworkIndexRepository
+        from app.repositories.preferences import PreferencesRepository
+        from app.services.selection import IIIF_BASE_KEY
+
+        PreferencesRepository(database).set_sync(IIIF_BASE_KEY, IIIF)
+        ArtworkIndexRepository(database).upsert_many_sync(
+            [
+                _indexed(1, "Painting").model_copy(update={"subject_titles": ("landscape",)}),
+                _indexed(2, "Painting").model_copy(update={"subject_titles": ("portraits",)}),
+            ]
+        )
+
+        body = client.get("/api/artwork/random?subject=landscape").json()
+        assert body["id"] == 1
+
+    @respx.mock
+    def test_a_subject_that_matches_nothing_does_not_fall_through_to_aic(
+        self, client, database, search_response
+    ):
+        """Same rule as the type filter: showing something the user filtered out is worse
+        than showing nothing, so this must not reach the network."""
+        from app.repositories.artwork_index import ArtworkIndexRepository
+        from app.repositories.preferences import PreferencesRepository
+        from app.services.selection import IIIF_BASE_KEY
+
+        route = respx.get(f"{BASE}/artworks/search").mock(
+            return_value=httpx.Response(200, json=search_response)
+        )
+        PreferencesRepository(database).set_sync(IIIF_BASE_KEY, IIIF)
+        ArtworkIndexRepository(database).upsert_many_sync(
+            [_indexed(1, "Painting").model_copy(update={"subject_titles": ("landscape",)})]
+        )
+
+        response = client.get("/api/artwork/random?subject=nothing-has-this")
+        assert response.status_code == 404
+        assert not route.called
+
     @respx.mock
     def test_a_filter_that_matches_nothing_does_not_fall_through_to_aic(
         self, client, database, search_response
@@ -363,6 +441,8 @@ class TestPreferences:
             "interval_seconds",
             "mode",
             "artwork_type",
+            "style",
+            "subject",
             "language",
             "ambient",
         }

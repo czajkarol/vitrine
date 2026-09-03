@@ -36,6 +36,17 @@ class SelectionQuery:
 
     curated: bool = False
     artwork_type: str | None = None
+    style: str | None = None
+    subject: str | None = None
+
+    @property
+    def is_filtered(self) -> bool:
+        """Whether anything narrows the corpus.
+
+        Curated is not in this list on purpose: it changes the ordering, not the set, so a
+        curated request can still be answered by a tier that cannot rank.
+        """
+        return any((self.artwork_type, self.style, self.subject))
 
 
 @dataclass(frozen=True)
@@ -71,7 +82,7 @@ class SelectionService:
         # A *filtered* request is answerable only from the index — AIC and the bundled set
         # cannot honour the filter, so silently ignoring it would be worse than failing.
         # Curated is not a filter and does not constrain: see `_from_index`.
-        constrained = query.artwork_type is not None
+        constrained = query.is_filtered
         if selection is None and not constrained:
             selection = await self._from_aic()
         if selection is None and not constrained:
@@ -87,7 +98,11 @@ class SelectionService:
 
     async def _from_index(self, query: SelectionQuery) -> Selection | None:
         candidates = await self._index.sample(
-            CANDIDATE_POOL, curated=query.curated, artwork_type=query.artwork_type
+            CANDIDATE_POOL,
+            curated=query.curated,
+            artwork_type=query.artwork_type,
+            style=query.style,
+            subject=query.subject,
         )
         if not candidates and query.curated:
             # Curated is a preference about *ordering*, not an exclusion. If nothing has
@@ -96,9 +111,13 @@ class SelectionService:
             # nothing. Better a rotation than a blank screen with a puzzling message.
             logger.info("Nothing scored yet; serving %s unranked", query)
             candidates = await self._index.sample(
-                CANDIDATE_POOL, curated=False, artwork_type=query.artwork_type
+                CANDIDATE_POOL,
+                curated=False,
+                artwork_type=query.artwork_type,
+                style=query.style,
+                subject=query.subject,
             )
-        if not candidates and query.artwork_type:
+        if not candidates and query.is_filtered:
             # A filter that matches nothing must not silently become "anything". Falling
             # through to AIC here would show a work the user explicitly filtered out.
             logger.info("No indexed artwork matches %s", query)

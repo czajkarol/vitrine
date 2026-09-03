@@ -101,9 +101,15 @@ is not; it is closer to a medium. Filter on `artwork_type_title`. The local inde
 holds it is named `artwork_type` for exactly this reason — an earlier name of `classification`
 invited the mistake.
 
-Style and subject filters need `style_titles` and `subject_titles` indexed per artwork, which
-means adding them to the crawl's `fields=` list and re-walking. Not done yet; the index currently
-carries artwork type only.
+Style and subject filters need `style_titles` and `subject_titles` indexed per artwork. Both are
+in the crawl's `fields=` list and in the index as of M3.5, stored in `artwork_terms` rather than
+as columns because they are multi-valued.
+
+Measured on one listing page of 100 records, 2026-09-03: **42 carried a style, 62 carried at
+least one subject**, the fattest record carried 17 subjects, and those 100 records alone held
+**152 distinct subjects**. Plan for the vocabulary being open-ended — artwork type is a closed
+list of 45 and can be offered whole, while style and subject have to be cut to the most populous
+few before they reach a settings panel.
 
 ### Confirmed present in search responses (2026-09-03)
 

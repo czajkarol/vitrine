@@ -75,10 +75,15 @@ collection.
 Do the schema and crawl changes first, then run **one** walk covering everything outstanding.
 Per `CLAUDE.md`, ask Karol before starting it.
 
-- [ ] Add `style_titles` and `subject_titles` to `ARTWORK_FIELDS` and the `artwork_index` schema
-- [ ] Decide how a multi-valued filter is stored — a join table, or JSON in a column
-- [ ] Extend `/api/filters` and the Explore panel to offer style and subject alongside type
-- [ ] One re-walk covering this and anything else pending, with approval
+- [x] Add `style_titles` and `subject_titles` to `ARTWORK_FIELDS` and the `artwork_index` schema
+- [x] Decide how a multi-valued filter is stored — a join table, `artwork_terms`. Reasoning in
+      migration 007: Explore asks "how many artworks have subject X" for every X on every panel
+      open, and JSON in a column cannot answer that without a full scan of the index
+- [x] Extend `/api/filters` and the Explore panel to offer style and subject alongside type —
+      capped at the 30 most populous values, because these vocabularies run to thousands where
+      artwork type is a closed list of 45
+- [ ] One re-walk covering this and anything else pending, with approval — approved and
+      **running**; see HANDOFF for how to check it and what is left afterwards
 - [ ] Commit
 
 ## M4 — Settings and i18n

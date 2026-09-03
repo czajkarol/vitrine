@@ -100,9 +100,15 @@ UsageDep = Annotated[AiUsageRepository, Depends(get_usage)]
 # Below this, a filter cannot sustain a rotation and is not offered at all.
 MIN_FILTER_COUNT: Final[int] = 40
 
+# And above this many options, a list stops being a menu. Applies to style and subject,
+# whose vocabularies run to thousands of values; the 45 artwork types are all offered.
+MAX_FILTER_OPTIONS: Final[int] = 30
+
 INTERVAL_KEY: Final[str] = "interval_seconds"
 MODE_KEY: Final[str] = "mode"
 ARTWORK_TYPE_KEY: Final[str] = "artwork_type"
+STYLE_KEY: Final[str] = "style"
+SUBJECT_KEY: Final[str] = "subject"
 LANGUAGE_KEY: Final[str] = "language"
 AMBIENT_KEY: Final[str] = "ambient"
 
@@ -113,13 +119,17 @@ async def random_artwork(
     selection: SelectionDep,
     mode: Annotated[Literal["random", "curated"], Query()] = "random",
     artwork_type: Annotated[str | None, Query(max_length=100)] = None,
+    style: Annotated[str | None, Query(max_length=100)] = None,
+    subject: Annotated[str | None, Query(max_length=100)] = None,
 ) -> ArtworkResponse:
     """One random public-domain artwork with a usable image.
 
     The service decides where it comes from — local index first, then AIC, then the
     bundled set (ADR-0003). This route only shapes the answer.
     """
-    query = SelectionQuery(curated=mode == "curated", artwork_type=artwork_type)
+    query = SelectionQuery(
+        curated=mode == "curated", artwork_type=artwork_type, style=style, subject=subject
+    )
     try:
         result = await selection.next_artwork(query)
     except AicUnavailableError as exc:  # pragma: no cover — the service absorbs these
@@ -130,7 +140,7 @@ async def random_artwork(
         raise HTTPException(status_code=502, detail="aic_error") from exc
 
     if result is None:
-        if query.artwork_type:
+        if query.is_filtered:
             # A filter that matches nothing is a different situation from the API being
             # down, and the display says something different about it.
             raise HTTPException(status_code=404, detail="no_matching_artwork")
@@ -185,18 +195,30 @@ async def image_proxy(
 
 @router.get("/filters", response_model=FiltersResponse)
 async def read_filters(index: IndexDep) -> FiltersResponse:
-    """The Explore vocabulary, built from the index rather than a hardcoded list."""
-    counts = await index.artwork_type_counts()
+    """The Explore vocabulary, built from the index rather than a hardcoded list.
+
+    Three vocabularies now. Artwork type is closed and small, so all of it is offered;
+    style and subject are open and large, so they are cut to the most populous
+    `MAX_FILTER_OPTIONS` as well as to what clears `MIN_FILTER_COUNT`.
+    """
+    return FiltersResponse(
+        artwork_types=_options(await index.artwork_type_counts()),
+        styles=_options(await index.term_counts("style"), limit=MAX_FILTER_OPTIONS),
+        subjects=_options(await index.term_counts("subject"), limit=MAX_FILTER_OPTIONS),
+        minimum_count=MIN_FILTER_COUNT,
+        maximum_options=MAX_FILTER_OPTIONS,
+        indexed_total=await index.count(),
+    )
+
+
+def _options(counts: dict[str, int], limit: int | None = None) -> list[FilterOption]:
+    """Counts to offerable options: drop the thin ones, keep the order, cap the length."""
     options = [
         FilterOption(value=value, count=count)
         for value, count in counts.items()
         if count >= MIN_FILTER_COUNT
     ]
-    return FiltersResponse(
-        artwork_types=options,
-        minimum_count=MIN_FILTER_COUNT,
-        indexed_total=await index.count(),
-    )
+    return options[:limit] if limit is not None else options
 
 
 @router.get("/preferences", response_model=PreferencesResponse)
@@ -215,6 +237,8 @@ async def read_preferences(
         fields["mode"] = stored_mode
     # An empty string means "no filter"; storing None is not possible in this table.
     fields["artwork_type"] = stored_type or None
+    fields["style"] = await preferences.get(STYLE_KEY) or None
+    fields["subject"] = await preferences.get(SUBJECT_KEY) or None
     # Nothing saved yet means the deployment's own default, not the schema's — this is
     # what makes DEFAULT_LANGUAGE in .env do anything.
     fields["language"] = await preferences.get(LANGUAGE_KEY) or settings.default_language
@@ -245,6 +269,8 @@ async def write_preferences(
     await preferences.set(INTERVAL_KEY, str(body.interval_seconds))
     await preferences.set(MODE_KEY, body.mode)
     await preferences.set(ARTWORK_TYPE_KEY, body.artwork_type or "")
+    await preferences.set(STYLE_KEY, body.style or "")
+    await preferences.set(SUBJECT_KEY, body.subject or "")
     await preferences.set(LANGUAGE_KEY, body.language)
     await preferences.set(AMBIENT_KEY, "1" if body.ambient else "0")
     return body

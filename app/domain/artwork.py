@@ -74,6 +74,16 @@ class Artwork(BaseModel):
     thumbnail: Thumbnail | None = None
     color: Color | None = None
 
+    style_titles: tuple[str, ...] = ()
+    """What movement or period the museum places the work in — "Impressionism",
+    "nineteenth century". Present on roughly 42% of the collection, measured on a listing
+    page of 100."""
+
+    subject_titles: tuple[str, ...] = ()
+    """What the work is *of* — "landscape", "portraits", "animals". Present on roughly
+    62%, and up to seventeen on a single record. AIC returns `[]` rather than `null` for
+    both of these, so they are tuples with an empty default rather than optionals."""
+
     @property
     def is_displayable(self) -> bool:
         """Whether this work may be put on screen.

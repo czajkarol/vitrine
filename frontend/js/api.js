@@ -5,10 +5,12 @@
  * @returns {Promise<object>} the artwork payload
  * @throws {Error} with a `code` property keyed to a message the UI can translate
  */
-export async function fetchRandomArtwork({ mode, artworkType } = {}) {
+export async function fetchRandomArtwork({ mode, artworkType, style, subject } = {}) {
   const params = new URLSearchParams();
   if (mode && mode !== 'random') params.set('mode', mode);
   if (artworkType) params.set('artwork_type', artworkType);
+  if (style) params.set('style', style);
+  if (subject) params.set('subject', subject);
   const query = params.toString();
 
   let response;

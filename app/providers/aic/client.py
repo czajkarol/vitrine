@@ -47,6 +47,9 @@ ARTWORK_FIELDS: Final[tuple[str, ...]] = (
     "place_of_origin",
     "artwork_type_title",
     "main_reference_number",
+    # M3.5. Multi-valued and often empty; AIC returns [] rather than null for both.
+    "style_titles",
+    "subject_titles",
 )
 
 # /artworks/search refuses anything past page * limit == 1000.

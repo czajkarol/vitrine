@@ -60,7 +60,11 @@
   "ambient_label": "Keep the screen awake",
 
   "artwork_type_legend": "Artwork type",
+  "style_legend": "Style",
+  "subject_legend": "Subject",
   "filter_any": "Any type",
+  "filter_any_style": "Any style",
+  "filter_any_subject": "Any subject",
   "filter_option": "{value} ({count})",
   "filters_summary": "{total} artworks indexed.",
   "filters_no_index": "No local index yet — run scripts/build_index.py to enable filters.",

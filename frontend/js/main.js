@@ -71,7 +71,7 @@ let aiEnabled = false;
 let interpretationRequest = null;
 
 // What the display is currently asking for. Persisted, so it survives a reload.
-const query = { mode: 'random', artworkType: null };
+const query = { mode: 'random', artworkType: null, style: null, subject: null };
 
 // Set when the criteria change while the panel is open, so closing it shows the result
 // straight away instead of leaving the user to wait out the rest of the interval.
@@ -214,6 +214,10 @@ const panel = createPanel(
     ambientGroup: document.getElementById('panel-ambient-group'),
     intervalList: document.getElementById('panel-intervals'),
     typeList: document.getElementById('panel-types'),
+    styleList: document.getElementById('panel-styles'),
+    styleGroup: document.getElementById('panel-style-group'),
+    subjectList: document.getElementById('panel-subjects'),
+    subjectGroup: document.getElementById('panel-subject-group'),
     summary: document.getElementById('panel-summary'),
     aiProviderInputs: [...document.querySelectorAll('input[name="ai-provider"]')],
     aiKeyInput: document.getElementById('panel-ai-key'),
@@ -240,8 +244,10 @@ const panel = createPanel(
       onQueryChanged();
       flashStatus(t(`mode_${mode}`));
     },
-    onFilterChange: (artworkType) => {
+    onFilterChange: ({ artworkType, style, subject }) => {
       query.artworkType = artworkType;
+      query.style = style;
+      query.subject = subject;
       onQueryChanged();
     },
     onIntervalChange: (seconds) => {
@@ -278,6 +284,8 @@ function persist() {
     interval_seconds: rotation.getIntervalSeconds(),
     mode: query.mode,
     artwork_type: query.artworkType,
+    style: query.style,
+    subject: query.subject,
     language: getLanguage(),
     ambient: ambient.isEnabled(),
   });
@@ -370,6 +378,8 @@ async function boot() {
   }
   if (saved?.mode) query.mode = saved.mode;
   if (saved?.artwork_type) query.artworkType = saved.artwork_type;
+  if (saved?.style) query.style = saved.style;
+  if (saved?.subject) query.subject = saved.subject;
 
   if (ambientSupported()) {
     // No user gesture is needed for a wake lock, only a visible document, so a saved
@@ -382,6 +392,8 @@ async function boot() {
   panel.sync({
     mode: query.mode,
     artworkType: query.artworkType,
+    style: query.style,
+    subject: query.subject,
     language: getLanguage(),
     ambient: ambient.isEnabled(),
     intervalSeconds: rotation.getIntervalSeconds(),

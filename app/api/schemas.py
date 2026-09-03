@@ -92,6 +92,11 @@ class PreferencesResponse(BaseModel):
     interval_seconds: Literal[30, 60, 300, 900, 1800] = 300
     mode: Literal["random", "curated"] = "random"
     artwork_type: str | None = Field(default=None, max_length=100)
+    # The two multi-valued filters, added in M3.5. Each holds one chosen value, not a
+    # list: the panel offers radio buttons, because "landscape AND portraits" narrows to
+    # almost nothing and reads as a bug rather than as a filter.
+    style: str | None = Field(default=None, max_length=100)
+    subject: str | None = Field(default=None, max_length=100)
     # Only the languages frontend/locales/ actually has strings for. The default is
     # overridden by `default_language` when nothing has been saved yet.
     language: Literal["en", "pl"] = "en"
@@ -116,7 +121,15 @@ class FiltersResponse(BaseModel):
     """
 
     artwork_types: list[FilterOption] = []
+
+    styles: list[FilterOption] = []
+    subjects: list[FilterOption] = []
+    """Where the 45 artwork types are a closed vocabulary, these two run to thousands of
+    values, so they are also capped at the most populous few — `maximum_options`. A list
+    nobody can scroll to the end of is not a filter either."""
+
     minimum_count: int
+    maximum_options: int
     indexed_total: int
 
 

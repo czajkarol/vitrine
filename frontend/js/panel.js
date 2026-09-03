@@ -9,8 +9,16 @@ import { INTERVAL_SECONDS } from './rotation.js';
 
 export function createPanel(elements, handlers) {
   const { panel, modeInputs, languageInputs, ambientInput, ambientGroup, intervalList,
-    typeList, summary, aiProviderInputs, aiKeyInput, aiSaveButton, aiClearButton,
-    aiStatusLine, aiStorageLine } = elements;
+    typeList, styleList, styleGroup, subjectList, subjectGroup, summary, aiProviderInputs,
+    aiKeyInput, aiSaveButton, aiClearButton, aiStatusLine, aiStorageLine } = elements;
+
+  // The three filter vocabularies, in the order the panel shows them. Each names the
+  // radio group in the markup, the field it sets, and where its options are rendered.
+  const FILTERS = [
+    { group: 'artwork-type', field: 'artworkType', any: 'filter_any' },
+    { group: 'style', field: 'style', any: 'filter_any_style' },
+    { group: 'subject', field: 'subject', any: 'filter_any_subject' },
+  ];
 
   let open = false;
   let loaded = false;
@@ -29,6 +37,8 @@ export function createPanel(elements, handlers) {
   let current = {
     mode: 'random',
     artworkType: null,
+    style: null,
+    subject: null,
     language: 'en',
     ambient: false,
     intervalSeconds: 300,
@@ -41,10 +51,11 @@ export function createPanel(elements, handlers) {
     for (const input of intervalList.querySelectorAll('input')) {
       input.checked = Number(input.value) === current.intervalSeconds;
     }
-    const target = [...typeList.querySelectorAll('input')].find(
-      (input) => input.value === (current.artworkType ?? ''),
-    );
-    if (target) target.checked = true;
+    for (const filter of FILTERS) {
+      const inputs = [...panel.querySelectorAll(`input[name="${filter.group}"]`)];
+      const target = inputs.find((input) => input.value === (current[filter.field] ?? ''));
+      if (target) target.checked = true;
+    }
   }
 
   async function loadFilters() {
@@ -74,13 +85,22 @@ export function createPanel(elements, handlers) {
     }
   }
 
-  /** Build the type list from `filters`. Idempotent, so a relabel is just another call. */
+  /**
+   * Build the three filter lists from `filters`. Idempotent, so a relabel is just another
+   * call.
+   *
+   * Style and subject came with M3.5 and behave slightly differently from artwork type:
+   * their vocabularies run to thousands of values, so the server sends only the most
+   * populous few, and where the index has none of them the whole group is hidden rather
+   * than shown empty.
+   */
   function renderFilters() {
-    typeList.textContent = '';
-
     if (!filters || filters.artwork_types.length === 0) {
       // No index yet, or nothing with enough behind it. Say so rather than showing an
       // empty box the user cannot interpret.
+      typeList.textContent = '';
+      styleGroup.hidden = true;
+      subjectGroup.hidden = true;
       summary.textContent = filters?.indexed_total
         ? t('filters_too_thin', { minimum: filters.minimum_count })
         : t('filters_no_index');
@@ -88,12 +108,26 @@ export function createPanel(elements, handlers) {
     }
 
     summary.textContent = t('filters_summary', { total: filters.indexed_total });
-    typeList.appendChild(buildOption(t('filter_any'), '', true));
-    for (const option of filters.artwork_types) {
-      // The type names themselves are AIC's vocabulary and arrive in English. They are
-      // data, not interface text, so they are not translated.
+    renderFilterList(typeList, 'artwork-type', filters.artwork_types);
+    renderFilterList(styleList, 'style', filters.styles ?? []);
+    renderFilterList(subjectList, 'subject', filters.subjects ?? []);
+    styleGroup.hidden = (filters.styles ?? []).length === 0;
+    subjectGroup.hidden = (filters.subjects ?? []).length === 0;
+  }
+
+  /** One list of radios: an "any" entry, then the options the server thought worth it. */
+  function renderFilterList(list, group, options) {
+    list.textContent = '';
+    if (options.length === 0) return;
+    // Each list says what it is letting through — "Any subject" under Subject, not the
+    // artwork type's wording repeated three times.
+    const anyKey = FILTERS.find((filter) => filter.group === group)?.any ?? 'filter_any';
+    list.appendChild(buildOption(t(anyKey), '', true, group));
+    for (const option of options) {
+      // The values themselves are AIC's vocabulary and arrive in English. They are data,
+      // not interface text, so they are not translated.
       const label = t('filter_option', { value: option.value, count: option.count });
-      typeList.appendChild(buildOption(label, option.value, false));
+      list.appendChild(buildOption(label, option.value, false, group));
     }
   }
 
@@ -106,10 +140,15 @@ export function createPanel(elements, handlers) {
     input.name = group;
     input.value = value;
     input.defaultChecked = checked;
-    if (group === 'artwork-type') {
+    const filter = FILTERS.find((candidate) => candidate.group === group);
+    if (filter) {
       input.addEventListener('change', () => {
-        current = { ...current, artworkType: value || null };
-        handlers.onFilterChange(current.artworkType);
+        current = { ...current, [filter.field]: value || null };
+        handlers.onFilterChange({
+          artworkType: current.artworkType,
+          style: current.style,
+          subject: current.subject,
+        });
       });
     }
 

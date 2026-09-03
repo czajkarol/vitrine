@@ -84,6 +84,19 @@
       <div id="panel-types" class="panel-options"></div>
     </fieldset>
 
+    <!-- Style and subject. Both lists are built by panel.js from /api/filters, and both
+         are hidden outright when the index has nothing to offer for them — an empty
+         group invites the reader to wonder what they did wrong. -->
+    <fieldset class="panel-group" id="panel-style-group">
+      <legend data-i18n="style_legend">Style</legend>
+      <div id="panel-styles" class="panel-options"></div>
+    </fieldset>
+
+    <fieldset class="panel-group" id="panel-subject-group">
+      <legend data-i18n="subject_legend">Subject</legend>
+      <div id="panel-subjects" class="panel-options"></div>
+    </fieldset>
+
     <!-- Removed outright where the Screen Wake Lock API is missing, rather than shown
          disabled: an inert toggle invites the user to wonder what they did wrong. -->
     <fieldset class="panel-group" id="panel-ambient-group">

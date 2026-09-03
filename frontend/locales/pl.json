@@ -60,7 +60,11 @@
   "ambient_label": "Nie wygaszaj ekranu",
 
   "artwork_type_legend": "Typ dzieła",
+  "style_legend": "Styl",
+  "subject_legend": "Temat",
   "filter_any": "Dowolny typ",
+  "filter_any_style": "Dowolny styl",
+  "filter_any_subject": "Dowolny temat",
   "filter_option": "{value} ({count})",
   "filters_summary": "Dzieł w indeksie: {total}.",
   "filters_no_index": "Brak lokalnego indeksu. Filtry wymagają zbudowania indeksu.",

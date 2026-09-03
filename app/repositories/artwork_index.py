@@ -13,6 +13,11 @@ from app.repositories.database import Database
 # rotation does not repeat the same twenty masterpieces all evening.
 CURATED_POOL: Final[int] = 500
 
+TERM_KINDS: Final[tuple[str, ...]] = ("style", "subject")
+"""The two multi-valued vocabularies, stored in `artwork_terms`. Kept as data rather than
+as two near-identical code paths: they are queried identically and differ only in which
+AIC field they came from."""
+
 _COLUMNS = """
     id, image_id, title, artist, date_display, medium_display, credit_line,
     place_of_origin, department_title, artwork_type, main_reference_number,
@@ -85,8 +90,16 @@ def _to_row(artwork: Artwork) -> dict[str, object]:
     }
 
 
-def _to_artwork(row: sqlite3.Row) -> Artwork:
-    """Rebuild the domain model. The index stores a subset, so this is lossy by design."""
+def _to_artwork(
+    row: sqlite3.Row, terms: dict[int, tuple[tuple[str, ...], tuple[str, ...]]] | None = None
+) -> Artwork:
+    """Rebuild the domain model. The index stores a subset, so this is lossy by design.
+
+    `terms` is the batched style/subject lookup from `_terms_for`, keyed by artwork id.
+    Passing None means the caller does not need them and they come back empty — which is
+    safe only because writing terms is a separate statement from writing the row, so a
+    model read back without them cannot wipe them on the way in again.
+    """
     thumbnail = Thumbnail(
         lqip=row["lqip"],
         width=row["width"],
@@ -98,6 +111,7 @@ def _to_artwork(row: sqlite3.Row) -> Artwork:
         if row["color_h"] is not None
         else None
     )
+    styles, subjects = (terms or {}).get(row["id"], ((), ()))
     return Artwork(
         id=row["id"],
         title=row["title"],
@@ -116,7 +130,39 @@ def _to_artwork(row: sqlite3.Row) -> Artwork:
         is_boosted=bool(row["is_boosted"]),
         thumbnail=thumbnail,
         color=colour,
+        style_titles=styles,
+        subject_titles=subjects,
     )
+
+
+def _terms_for(
+    connection: sqlite3.Connection, artwork_ids: Sequence[int]
+) -> dict[int, tuple[tuple[str, ...], tuple[str, ...]]]:
+    """Style and subject for a batch of artworks, in one query rather than one each.
+
+    Every read path goes through here, so a sample of two hundred rows costs two queries
+    in total instead of two hundred and one.
+    """
+    if not artwork_ids:
+        return {}
+    placeholders = ",".join("?" for _ in artwork_ids)
+    rows = connection.execute(
+        f"SELECT artwork_id, kind, value FROM artwork_terms "
+        f"WHERE artwork_id IN ({placeholders}) ORDER BY value",
+        list(artwork_ids),
+    ).fetchall()
+
+    collected: dict[int, tuple[list[str], list[str]]] = {}
+    for row in rows:
+        styles, subjects = collected.setdefault(row["artwork_id"], ([], []))
+        (styles if row["kind"] == "style" else subjects).append(row["value"])
+    return {key: (tuple(styles), tuple(subjects)) for key, (styles, subjects) in collected.items()}
+
+
+def _to_artworks(connection: sqlite3.Connection, rows: Sequence[sqlite3.Row]) -> list[Artwork]:
+    """Rows to domain models, with their terms attached."""
+    terms = _terms_for(connection, [row["id"] for row in rows])
+    return [_to_artwork(row, terms) for row in rows]
 
 
 class ArtworkIndexRepository:
@@ -132,7 +178,33 @@ class ArtworkIndexRepository:
         rows = [_to_row(artwork) for artwork in artworks]
         with self._db.connect() as connection:
             connection.executemany(_UPSERT, rows)
+            self._replace_terms(connection, artworks)
         return len(rows)
+
+    @staticmethod
+    def _replace_terms(connection: sqlite3.Connection, artworks: Sequence[Artwork]) -> None:
+        """Rewrite each artwork's style and subject rows.
+
+        Delete-then-insert rather than an upsert, because a term can be *removed* upstream
+        and an upsert would leave the old one behind forever. The whole set for an artwork
+        is small — seventeen subjects on the fattest record measured — so replacing it is
+        cheaper than working out the difference.
+        """
+        ids = [(artwork.id,) for artwork in artworks]
+        connection.executemany("DELETE FROM artwork_terms WHERE artwork_id = ?", ids)
+        connection.executemany(
+            "INSERT OR IGNORE INTO artwork_terms (artwork_id, kind, value) VALUES (?, ?, ?)",
+            [
+                (artwork.id, kind, value)
+                for artwork in artworks
+                for kind, values in (
+                    ("style", artwork.style_titles),
+                    ("subject", artwork.subject_titles),
+                )
+                for value in values
+                if value.strip()
+            ],
+        )
 
     async def upsert_many(self, artworks: Sequence[Artwork]) -> int:
         return await asyncio.to_thread(self.upsert_many_sync, artworks)
@@ -148,7 +220,12 @@ class ArtworkIndexRepository:
         return await asyncio.to_thread(self.count_sync)
 
     def sample_sync(
-        self, limit: int, curated: bool = False, artwork_type: str | None = None
+        self,
+        limit: int,
+        curated: bool = False,
+        artwork_type: str | None = None,
+        style: str | None = None,
+        subject: str | None = None,
     ) -> list[Artwork]:
         """A pool of candidates.
 
@@ -158,12 +235,24 @@ class ArtworkIndexRepository:
         Curated mode draws from the highest-scoring rows instead of the whole index. Rows
         scored NULL are excluded there rather than sorted to one end, because an unscored
         row is unranked, not bad — it just has not been through a scoring pass yet.
+
+        The three filters combine with AND. Style and subject go through `artwork_terms`,
+        so a work needs a matching row there rather than a matching column.
         """
         where: list[str] = []
         params: list[object] = []
         if artwork_type:
             where.append("artwork_type = ?")
             params.append(artwork_type)
+        for kind, value in (("style", style), ("subject", subject)):
+            if not value:
+                continue
+            # IN over the (kind, value) index, rather than a correlated EXISTS: this way
+            # the term index picks the ids and the primary key does the rest.
+            where.append(
+                "id IN (SELECT artwork_id FROM artwork_terms WHERE kind = ? AND value = ?)"
+            )
+            params.extend([kind, value])
         if curated:
             where.append("score IS NOT NULL")
         clause = f"WHERE {' AND '.join(where)}" if where else ""
@@ -184,12 +273,19 @@ class ArtworkIndexRepository:
 
         with self._db.connect() as connection:
             rows = connection.execute(sql, params).fetchall()
-        return [_to_artwork(row) for row in rows]
+            return _to_artworks(connection, rows)
 
     async def sample(
-        self, limit: int, curated: bool = False, artwork_type: str | None = None
+        self,
+        limit: int,
+        curated: bool = False,
+        artwork_type: str | None = None,
+        style: str | None = None,
+        subject: str | None = None,
     ) -> list[Artwork]:
-        return await asyncio.to_thread(self.sample_sync, limit, curated, artwork_type)
+        return await asyncio.to_thread(
+            self.sample_sync, limit, curated, artwork_type, style, subject
+        )
 
     def artwork_type_counts_sync(self) -> dict[str, int]:
         """How many indexed artworks sit behind each artwork type.
@@ -207,6 +303,31 @@ class ArtworkIndexRepository:
     async def artwork_type_counts(self) -> dict[str, int]:
         return await asyncio.to_thread(self.artwork_type_counts_sync)
 
+    def term_counts_sync(self, kind: str, limit: int | None = None) -> dict[str, int]:
+        """How many indexed artworks carry each style, or each subject.
+
+        The same question `artwork_type_counts` answers, against the other table. It takes
+        a limit because these vocabularies are large where the artwork types are not:
+        one listing page of a hundred records carried 152 distinct subjects, so the whole
+        index has thousands and a settings panel cannot offer them all.
+        """
+        if kind not in TERM_KINDS:
+            raise ValueError(f"unknown term kind {kind!r}")
+        sql = (
+            "SELECT value, COUNT(*) AS n FROM artwork_terms WHERE kind = ? "
+            "GROUP BY value ORDER BY n DESC, value"
+        )
+        params: list[object] = [kind]
+        if limit is not None:
+            sql += " LIMIT ?"
+            params.append(limit)
+        with self._db.connect() as connection:
+            rows = connection.execute(sql, params).fetchall()
+        return {row["value"]: int(row["n"]) for row in rows}
+
+    async def term_counts(self, kind: str, limit: int | None = None) -> dict[str, int]:
+        return await asyncio.to_thread(self.term_counts_sync, kind, limit)
+
     # --- scoring ------------------------------------------------------------------
 
     def iter_for_scoring_sync(self, batch: int = 1000) -> Iterator[list[Artwork]]:
@@ -218,9 +339,10 @@ class ArtworkIndexRepository:
                     f"SELECT {_COLUMNS} FROM artwork_index ORDER BY id LIMIT ? OFFSET ?",
                     (batch, offset),
                 ).fetchall()
-            if not rows:
-                return
-            yield [_to_artwork(row) for row in rows]
+                if not rows:
+                    return
+                batch_of_artworks = _to_artworks(connection, rows)
+            yield batch_of_artworks
             offset += len(rows)
 
     def update_scores_sync(self, scores: dict[int, float]) -> int:
@@ -251,7 +373,7 @@ class ArtworkIndexRepository:
                 f"SELECT {_COLUMNS} FROM artwork_index WHERE id = ?",
                 (artwork_id,),
             ).fetchone()
-        return _to_artwork(row) if row else None
+            return _to_artworks(connection, [row])[0] if row else None
 
     async def get(self, artwork_id: int) -> Artwork | None:
         return await asyncio.to_thread(self.get_sync, artwork_id)

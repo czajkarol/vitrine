@@ -120,8 +120,15 @@ Filter on `artwork_type_title`, the vocabulary behind `/artwork-types`. Do **not
 AIC's `classification_title`, which sounds like the same thing and is not — it is closer to a
 medium (`oil on canvas`). See the table in `docs/aic-api.md`.
 
-Style and subject filters (`style_titles`, `subject_titles`) are confirmed to exist but are not
-indexed yet; adding them means extending the crawl's `fields=` and re-walking.
+Style and subject (`style_titles`, `subject_titles`) are filters too, added in M3.5. They differ
+from artwork type in one way that shows in the UI: type is a closed vocabulary of 45 values and
+all of it can be offered, while style and subject run to thousands, so only the most populous
+thirty are — on top of the same "enough behind it" rule. A group with nothing to offer is hidden
+rather than shown empty.
+
+The three combine with AND, and each takes one value rather than several. "Landscape **and**
+portraits" narrows to almost nothing and reads as a bug rather than as a filter, so the panel
+offers radio buttons and not checkboxes.
 
 A filtered request is answerable only from the local index. AIC and the bundled set cannot
 honour the filter, so a filter matching nothing returns nothing rather than quietly falling
