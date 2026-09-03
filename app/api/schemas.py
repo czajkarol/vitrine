@@ -87,7 +87,9 @@ class PreferencesResponse(BaseModel):
     those are not the browser's to write.
     """
 
-    interval_minutes: Literal[1, 5, 15, 30] = 5
+    # Seconds, not minutes: the menu has a 30-second rung and the unit has to hold the
+    # shortest one it offers. 30s / 1m / 5m / 15m / 30m.
+    interval_seconds: Literal[30, 60, 300, 900, 1800] = 300
     mode: Literal["random", "curated"] = "random"
     artwork_type: str | None = Field(default=None, max_length=100)
     # Only the languages frontend/locales/ actually has strings for. The default is

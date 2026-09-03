@@ -11,7 +11,12 @@
   "attribution_with_description": "Cyfrowa reprodukcja dzięki uprzejmości Art Institute of Chicago. Opis: Art Institute of Chicago, CC BY 4.0.",
   "overlay_pinned": "Szczegóły przypięte",
   "overlay_unpinned": "Szczegóły odpięte",
-  "interval_set": "Co {minutes} min",
+  "interval_set_minutes": "Co {minutes} min",
+  "interval_set_seconds": "Co {seconds} s",
+
+  "interval_legend": "Rotacja",
+  "interval_option_seconds": "{seconds} s",
+  "interval_option_minutes": "{minutes} min",
 
   "settings_title": "Ustawienia",
   "panel_hint": "Esc — zamknij ustawienia. Rotacja jest wstrzymana.",

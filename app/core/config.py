@@ -49,7 +49,9 @@ class Settings(BaseSettings):
     # Literal so a value we cannot translate fails at startup, here, rather than at every
     # page load where the only sane recovery is to discard the user's other preferences.
     default_language: Literal["en", "pl"] = "en"
-    default_interval_minutes: int = 5
+    # Seconds, and one of the values on the menu — same reasoning as default_language:
+    # a value the UI cannot select would be discarded on every page load.
+    default_interval_seconds: Literal[30, 60, 300, 900, 1800] = 300
 
 
 @lru_cache(maxsize=1)

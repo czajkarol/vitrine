@@ -5,10 +5,11 @@
 
 import { fetchFilters } from './api.js';
 import { t } from './i18n.js';
+import { INTERVAL_SECONDS } from './rotation.js';
 
 export function createPanel(elements, handlers) {
-  const { panel, modeInputs, languageInputs, ambientInput, ambientGroup, typeList, summary } =
-    elements;
+  const { panel, modeInputs, languageInputs, ambientInput, ambientGroup, intervalList,
+    typeList, summary } = elements;
 
   let open = false;
   let loaded = false;
@@ -18,12 +19,21 @@ export function createPanel(elements, handlers) {
   // The panel's idea of the current settings, kept because the filter list is built
   // lazily on first open — long after preferences were restored at boot. Without this the
   // radio would read "Any type" while the rotation was actually filtered.
-  let current = { mode: 'random', artworkType: null, language: 'en', ambient: false };
+  let current = {
+    mode: 'random',
+    artworkType: null,
+    language: 'en',
+    ambient: false,
+    intervalSeconds: 300,
+  };
 
   function applySelection() {
     for (const input of modeInputs) input.checked = input.value === current.mode;
     for (const input of languageInputs) input.checked = input.value === current.language;
     ambientInput.checked = current.ambient;
+    for (const input of intervalList.querySelectorAll('input')) {
+      input.checked = Number(input.value) === current.intervalSeconds;
+    }
     const target = [...typeList.querySelectorAll('input')].find(
       (input) => input.value === (current.artworkType ?? ''),
     );
@@ -35,6 +45,26 @@ export function createPanel(elements, handlers) {
     loaded = true;
     filters = await fetchFilters();
     renderFilters();
+  }
+
+  /** How long a rung reads as: under a minute in seconds, otherwise in minutes. */
+  function intervalLabel(seconds) {
+    return seconds < 60
+      ? t('interval_option_seconds', { seconds })
+      : t('interval_option_minutes', { minutes: seconds / 60 });
+  }
+
+  /** The rotation menu, built from rotation.js so the list has one definition. */
+  function renderIntervals() {
+    intervalList.textContent = '';
+    for (const seconds of INTERVAL_SECONDS) {
+      const option = buildOption(intervalLabel(seconds), String(seconds), false, 'interval');
+      option.querySelector('input').addEventListener('change', () => {
+        current = { ...current, intervalSeconds: seconds };
+        handlers.onIntervalChange(seconds);
+      });
+      intervalList.appendChild(option);
+    }
   }
 
   /** Build the type list from `filters`. Idempotent, so a relabel is just another call. */
@@ -60,19 +90,21 @@ export function createPanel(elements, handlers) {
     }
   }
 
-  function buildOption(label, value, checked) {
+  function buildOption(label, value, checked, group = 'artwork-type') {
     const wrapper = document.createElement('label');
     wrapper.className = 'panel-option';
 
     const input = document.createElement('input');
     input.type = 'radio';
-    input.name = 'artwork-type';
+    input.name = group;
     input.value = value;
     input.defaultChecked = checked;
-    input.addEventListener('change', () => {
-      current = { ...current, artworkType: value || null };
-      handlers.onFilterChange(current.artworkType);
-    });
+    if (group === 'artwork-type') {
+      input.addEventListener('change', () => {
+        current = { ...current, artworkType: value || null };
+        handlers.onFilterChange(current.artworkType);
+      });
+    }
 
     const text = document.createElement('span');
     text.textContent = label;
@@ -94,6 +126,8 @@ export function createPanel(elements, handlers) {
       handlers.onLanguageChange(current.language);
     });
   }
+
+  renderIntervals();
 
   ambientInput.addEventListener('change', () => {
     current = { ...current, ambient: ambientInput.checked };
@@ -142,8 +176,8 @@ export function createPanel(elements, handlers) {
      * by i18n.applyTo(); this covers the list built from /api/filters.
      */
     retranslate() {
-      if (!loaded) return;
-      renderFilters();
+      renderIntervals();
+      if (loaded) renderFilters();
       applySelection();
     },
   };

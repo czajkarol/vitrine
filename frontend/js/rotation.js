@@ -1,12 +1,14 @@
 // The rotation clock. Owns *when* the next artwork appears, never *what* it is —
 // choosing and loading is injected as `prepare`, painting as `present`.
 
-export const INTERVAL_MINUTES = [1, 5, 15, 30];
-export const DEFAULT_INTERVAL_MINUTES = 5;
+// Seconds, because the shortest rung is half a minute. 30s / 1m / 5m / 15m / 30m.
+export const INTERVAL_SECONDS = [30, 60, 300, 900, 1800];
+export const DEFAULT_INTERVAL_SECONDS = 300;
 
 // How far ahead of the deadline the next artwork is fetched and decoded, so the swap
-// itself is instant. Capped at a third of the interval so the 1-minute setting still
-// spends most of its time showing a picture rather than preparing the next one.
+// itself is instant. Capped at a third of the interval so the shortest setting still
+// spends most of its time showing a picture rather than preparing the next one — at 30
+// seconds that is a 10-second lead, which a cached IIIF image and a local index clear.
 const PRELOAD_LEAD_MS = 30_000;
 
 // After a failed attempt, come back well before the next scheduled slot. The error the
@@ -15,7 +17,7 @@ const PRELOAD_LEAD_MS = 30_000;
 // an API that is already unhappy.
 const RETRY_DELAY_MS = 20_000;
 
-const MINUTE_MS = 60_000;
+const SECOND_MS = 1000;
 
 /**
  * @param {object} deps
@@ -24,7 +26,7 @@ const MINUTE_MS = 60_000;
  * @param {(error: Error) => void} deps.onError
  */
 export function createRotation({ prepare, present, onError }) {
-  let intervalMs = DEFAULT_INTERVAL_MINUTES * MINUTE_MS;
+  let intervalMs = DEFAULT_INTERVAL_SECONDS * SECOND_MS;
   // Absolute wall-clock time, not a countdown. Browsers throttle timers in hidden tabs
   // to roughly once a minute, so a timer that "should" have fired may not have. Keeping
   // the deadline as a timestamp lets visibilitychange work out the truth from the clock
@@ -116,16 +118,16 @@ export function createRotation({ prepare, present, onError }) {
       return advance();
     },
 
-    getIntervalMinutes() {
-      return intervalMs / MINUTE_MS;
+    getIntervalSeconds() {
+      return intervalMs / SECOND_MS;
     },
 
     /** Change the interval and restart the clock from now. */
-    setIntervalMinutes(minutes) {
-      if (!INTERVAL_MINUTES.includes(minutes)) {
-        throw new Error(`unsupported interval: ${minutes}`);
+    setIntervalSeconds(seconds) {
+      if (!INTERVAL_SECONDS.includes(seconds)) {
+        throw new Error(`unsupported interval: ${seconds}`);
       }
-      intervalMs = minutes * MINUTE_MS;
+      intervalMs = seconds * SECOND_MS;
       deadline = Date.now() + intervalMs;
       arm();
     },

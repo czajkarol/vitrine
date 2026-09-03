@@ -1,6 +1,7 @@
 // Keyboard map from docs/product-spec.md. Inert while focus is in a text field.
 
-const INTERVAL_KEYS = { 1: 1, 2: 5, 3: 15, 4: 30 };
+// Keys 1-5, shortest first, so the row reads as a scale. Values are seconds.
+const INTERVAL_KEYS = { 1: 30, 2: 60, 3: 300, 4: 900, 5: 1800 };
 
 function isTyping(target) {
   if (!(target instanceof HTMLElement)) return false;
@@ -18,10 +19,10 @@ export function bindShortcuts(handlers) {
     // Never shadow a browser or OS shortcut. Ctrl+F is find, not fullscreen.
     if (event.ctrlKey || event.metaKey || event.altKey) return;
 
-    const interval = INTERVAL_KEYS[event.key];
-    if (interval !== undefined) {
+    const intervalSeconds = INTERVAL_KEYS[event.key];
+    if (intervalSeconds !== undefined) {
       event.preventDefault();
-      handlers.onInterval(interval);
+      handlers.onInterval(intervalSeconds);
       return;
     }
 

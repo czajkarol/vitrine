@@ -7,13 +7,13 @@ import { chooseWidth, loadImage, present } from './display.js';
 import * as fullscreen from './fullscreen.js';
 import { getLanguage, onLanguageChange, setLanguage, t } from './i18n.js';
 import { createOverlay } from './overlay.js';
-import { DEFAULT_INTERVAL_MINUTES, createRotation } from './rotation.js';
+import { DEFAULT_INTERVAL_SECONDS, createRotation } from './rotation.js';
 import { bindShortcuts } from './shortcuts.js';
 import {
   getState,
   setArtwork,
   setError,
-  setIntervalMinutes,
+  setIntervalSeconds,
   setLoading,
   setOverlayPinned,
 } from './state.js';
@@ -136,6 +136,7 @@ const panel = createPanel(
     languageInputs: [...document.querySelectorAll('input[name="language"]')],
     ambientInput: document.getElementById('panel-ambient'),
     ambientGroup: document.getElementById('panel-ambient-group'),
+    intervalList: document.getElementById('panel-intervals'),
     typeList: document.getElementById('panel-types'),
     summary: document.getElementById('panel-summary'),
   },
@@ -161,6 +162,13 @@ const panel = createPanel(
       query.artworkType = artworkType;
       onQueryChanged();
     },
+    onIntervalChange: (seconds) => {
+      applyInterval(seconds);
+      // applyInterval re-arms the clock, and the panel is open — hold it again, or the
+      // picture starts changing underneath someone reading the settings. Closing the
+      // panel starts the new interval from then.
+      rotation.pause();
+    },
     onAmbientChange: (on) => {
       void ambient.setEnabled(on);
       persist();
@@ -177,7 +185,7 @@ const panel = createPanel(
 
 function persist() {
   void savePreferences({
-    interval_minutes: rotation.getIntervalMinutes(),
+    interval_seconds: rotation.getIntervalSeconds(),
     mode: query.mode,
     artwork_type: query.artworkType,
     language: getLanguage(),
@@ -204,11 +212,9 @@ bindShortcuts({
     setOverlayPinned(pinned);
     flashStatus(t(pinned ? 'overlay_pinned' : 'overlay_unpinned'));
   },
-  onInterval: (minutes) => {
-    rotation.setIntervalMinutes(minutes);
-    setIntervalMinutes(minutes);
-    persist();
-    flashStatus(t('interval_set', { minutes }));
+  onInterval: (seconds) => {
+    applyInterval(seconds);
+    panel.sync({ intervalSeconds: seconds });
   },
   onSettings: () => void panel.show(),
   onDismissOverlay: () => {
@@ -220,6 +226,20 @@ bindShortcuts({
   onCloseSettings: () => panel.hide(),
   isOverlayVisible: () => overlay.isVisible(),
 });
+
+/** Set the rotation interval, save it, and say so. Shared by the keys and the panel. */
+function applyInterval(seconds) {
+  rotation.setIntervalSeconds(seconds);
+  setIntervalSeconds(seconds);
+  persist();
+  // Under a minute reads as seconds; the rest read as minutes. "Every 0.5 min" is not
+  // something anyone says.
+  flashStatus(
+    seconds < 60
+      ? t('interval_set_seconds', { seconds })
+      : t('interval_set_minutes', { minutes: seconds / 60 }),
+  );
+}
 
 /**
  * Retranslate the text this module and the panel own. Markup with a `data-i18n` key is
@@ -237,7 +257,7 @@ onLanguageChange(retranslate);
 
 /** Restore saved settings, then put the first artwork up. */
 async function boot() {
-  setIntervalMinutes(DEFAULT_INTERVAL_MINUTES);
+  setIntervalSeconds(DEFAULT_INTERVAL_SECONDS);
 
   const saved = await fetchPreferences();
   // Before anything paints. Both calls are same-origin and quick, and starting in
@@ -245,9 +265,9 @@ async function boot() {
   // point is that nothing moves unless it means to.
   await setLanguage(saved?.language);
   showStatus('loading');
-  if (saved?.interval_minutes) {
-    rotation.setIntervalMinutes(saved.interval_minutes);
-    setIntervalMinutes(saved.interval_minutes);
+  if (saved?.interval_seconds) {
+    rotation.setIntervalSeconds(saved.interval_seconds);
+    setIntervalSeconds(saved.interval_seconds);
   }
   if (saved?.mode) query.mode = saved.mode;
   if (saved?.artwork_type) query.artworkType = saved.artwork_type;
@@ -265,6 +285,7 @@ async function boot() {
     artworkType: query.artworkType,
     language: getLanguage(),
     ambient: ambient.isEnabled(),
+    intervalSeconds: rotation.getIntervalSeconds(),
   });
 
   await rotation.start();

@@ -11,7 +11,12 @@
   "attribution_with_description": "Digital image courtesy of the Art Institute of Chicago. Description: Art Institute of Chicago, CC BY 4.0.",
   "overlay_pinned": "Details pinned",
   "overlay_unpinned": "Details unpinned",
-  "interval_set": "Every {minutes} min",
+  "interval_set_minutes": "Every {minutes} min",
+  "interval_set_seconds": "Every {seconds} sec",
+
+  "interval_legend": "Rotation",
+  "interval_option_seconds": "{seconds} sec",
+  "interval_option_minutes": "{minutes} min",
 
   "settings_title": "Settings",
   "panel_hint": "Esc to close. Rotation is paused while this is open.",

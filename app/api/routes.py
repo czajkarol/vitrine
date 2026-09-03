@@ -62,7 +62,7 @@ SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 # Below this, a filter cannot sustain a rotation and is not offered at all.
 MIN_FILTER_COUNT: Final[int] = 40
 
-INTERVAL_KEY: Final[str] = "interval_minutes"
+INTERVAL_KEY: Final[str] = "interval_seconds"
 MODE_KEY: Final[str] = "mode"
 ARTWORK_TYPE_KEY: Final[str] = "artwork_type"
 LANGUAGE_KEY: Final[str] = "language"
@@ -170,7 +170,9 @@ async def read_preferences(
     stored_type = await preferences.get(ARTWORK_TYPE_KEY)
     fields: dict[str, object] = {}
     if stored_interval is not None and stored_interval.isdigit():
-        fields["interval_minutes"] = int(stored_interval)
+        fields["interval_seconds"] = int(stored_interval)
+    else:
+        fields["interval_seconds"] = settings.default_interval_seconds
     if (stored_mode := await preferences.get(MODE_KEY)) is not None:
         fields["mode"] = stored_mode
     # An empty string means "no filter"; storing None is not possible in this table.
@@ -191,7 +193,10 @@ async def read_preferences(
         # The configured language survives the reset: it is validated at startup, so it
         # cannot be the unusable value, and falling back to English would be a second
         # surprise on top of the first.
-        return PreferencesResponse(language=settings.default_language)
+        return PreferencesResponse(
+            language=settings.default_language,
+            interval_seconds=settings.default_interval_seconds,
+        )
 
 
 @router.put("/preferences", response_model=PreferencesResponse)
@@ -199,7 +204,7 @@ async def write_preferences(
     body: PreferencesResponse, preferences: PreferencesDep
 ) -> PreferencesResponse:
     """Persist the user's settings. Pydantic rejects an interval off the menu."""
-    await preferences.set(INTERVAL_KEY, str(body.interval_minutes))
+    await preferences.set(INTERVAL_KEY, str(body.interval_seconds))
     await preferences.set(MODE_KEY, body.mode)
     await preferences.set(ARTWORK_TYPE_KEY, body.artwork_type or "")
     await preferences.set(LANGUAGE_KEY, body.language)

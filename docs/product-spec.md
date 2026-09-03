@@ -62,7 +62,10 @@ plus a population count (`docs/aic-api.md`). It is `null` on works without an im
 
 ## Rotation
 
-- Intervals: 1, 5, 15, 30 minutes. Default 5.
+- Intervals: 30 seconds, 1, 5, 15, 30 minutes. Default 5 minutes.
+- The interval is stored and passed around in **seconds**, because the shortest rung is not a
+  whole number of minutes. `interval_seconds` on the preferences API, `INTERVAL_SECONDS` in
+  `rotation.js`, one list in each.
 - The *next* artwork is chosen and its image preloaded well before the current interval expires.
 - Manual advance resets the timer.
 - Never reload the page. Swap artwork state only.
@@ -78,7 +81,7 @@ plus a population count (`docs/aic-api.md`). It is `null` on works without an im
 Space      next artwork
 F          toggle fullscreen
 I          toggle metadata overlay
-1 2 3 4    set interval to 1 / 5 / 15 / 30 minutes
+1 2 3 4 5  set interval to 30 sec / 1 / 5 / 15 / 30 min
 S          settings
 Esc        close settings if open, else close overlay if open, else exit fullscreen
 ```
@@ -169,6 +172,9 @@ display feature and the README describes it as one.
 
 A small panel, not a page. Interval, language, mode, filters, AI on/off, AI provider, metadata
 visibility, ambient mode. Persisted locally. Opening settings pauses rotation; closing resumes.
+
+Changing the interval while the panel is open must not restart the clock under it — set the new
+interval, keep the clock held, and let closing the panel start it.
 
 API keys entered here are write-only in the UI — once saved, show `sk-…abcd`, never the value.
 

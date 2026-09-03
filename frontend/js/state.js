@@ -8,7 +8,7 @@ const state = {
   artwork: null,
   loading: false,
   error: null,
-  intervalMinutes: 5,
+  intervalSeconds: 300,
   overlayPinned: false,
 };
 
@@ -29,8 +29,8 @@ export function setError(error) {
   state.error = error;
 }
 
-export function setIntervalMinutes(minutes) {
-  state.intervalMinutes = minutes;
+export function setIntervalSeconds(seconds) {
+  state.intervalSeconds = seconds;
 }
 
 export function setOverlayPinned(pinned) {

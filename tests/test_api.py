@@ -249,11 +249,11 @@ class TestModesAndFilters:
 class TestPreferences:
     def test_defaults_before_anything_is_saved(self, client):
         body = client.get("/api/preferences").json()
-        assert body["interval_minutes"] == 5
+        assert body["interval_seconds"] == 300
 
     def test_saves_and_reads_back(self, client):
         saved = {
-            "interval_minutes": 15,
+            "interval_seconds": 900,
             "mode": "curated",
             "artwork_type": "Painting",
             "language": "pl",
@@ -261,7 +261,7 @@ class TestPreferences:
         assert client.put("/api/preferences", json=saved).status_code == 200
 
         body = client.get("/api/preferences").json()
-        assert body["interval_minutes"] == 15
+        assert body["interval_seconds"] == 900
         assert body["mode"] == "curated"
         assert body["artwork_type"] == "Painting"
         assert body["language"] == "pl"
@@ -289,6 +289,28 @@ class TestPreferences:
         # frontend/locales/ has en and pl. Anything else would render as bare keys.
         assert client.put("/api/preferences", json={"language": "de"}).status_code == 422
 
+    def test_a_stored_interval_in_the_old_minute_unit_is_migrated(self, settings):
+        from app.repositories.database import Database
+        from app.repositories.preferences import PreferencesRepository
+
+        database = Database(settings.database_path)
+        database.migrate()
+        prefs = PreferencesRepository(database)
+
+        # Put the database back in the state a pre-M5 install was in: the old key, in
+        # minutes, and migration 003 not yet recorded as applied.
+        prefs.set_sync("interval_minutes", "15")
+        with database.connect() as connection:
+            connection.execute("DELETE FROM preferences WHERE key = 'interval_seconds'")
+            connection.execute(
+                "DELETE FROM schema_migrations WHERE name = '003_interval_in_seconds.sql'"
+            )
+
+        database.migrate()
+
+        assert prefs.get_sync("interval_seconds") == "900"
+        assert prefs.get_sync("interval_minutes") is None
+
     def test_language_defaults_to_the_configured_one(self, settings, monkeypatch):
         # DEFAULT_LANGUAGE in .env is what a fresh install starts in, so it has to reach
         # the browser rather than being shadowed by the schema default.
@@ -300,29 +322,35 @@ class TestPreferences:
             assert c.get("/api/preferences").json()["language"] == "pl"
 
     def test_clearing_the_filter_reads_back_as_none(self, client):
-        client.put("/api/preferences", json={"interval_minutes": 5, "artwork_type": "Painting"})
-        client.put("/api/preferences", json={"interval_minutes": 5, "artwork_type": None})
+        client.put("/api/preferences", json={"interval_seconds": 300, "artwork_type": "Painting"})
+        client.put("/api/preferences", json={"interval_seconds": 300, "artwork_type": None})
         # Stored as an empty string, because the table cannot hold NULL — but the API
         # must not leak that.
         assert client.get("/api/preferences").json()["artwork_type"] is None
 
     def test_rejects_an_unknown_mode(self, client):
         assert (
-            client.put("/api/preferences", json={"interval_minutes": 5, "mode": "wat"}).status_code
+            client.put(
+                "/api/preferences", json={"interval_seconds": 300, "mode": "wat"}
+            ).status_code
             == 422
         )
 
     def test_rejects_an_interval_off_the_menu(self, client):
-        # 1/5/15/30 only, per docs/product-spec.md.
-        assert client.put("/api/preferences", json={"interval_minutes": 7}).status_code == 422
+        # 30s / 1m / 5m / 15m / 30m only, per docs/product-spec.md.
+        assert client.put("/api/preferences", json={"interval_seconds": 45}).status_code == 422
+
+    def test_accepts_the_thirty_second_rung(self, client):
+        assert client.put("/api/preferences", json={"interval_seconds": 30}).status_code == 200
+        assert client.get("/api/preferences").json()["interval_seconds"] == 30
 
     def test_a_stored_value_we_no_longer_support_falls_back_to_the_default(self, client, settings):
         from app.repositories.database import Database
         from app.repositories.preferences import PreferencesRepository
 
-        PreferencesRepository(Database(settings.database_path)).set_sync("interval_minutes", "99")
+        PreferencesRepository(Database(settings.database_path)).set_sync("interval_seconds", "99")
         # An interval retired from the menu must not become a 500 on every page load.
-        assert client.get("/api/preferences").json()["interval_minutes"] == 5
+        assert client.get("/api/preferences").json()["interval_seconds"] == 300
 
     def test_does_not_expose_what_the_app_learned_for_itself(self, client, settings):
         from app.repositories.database import Database
@@ -332,7 +360,7 @@ class TestPreferences:
         # The preferences table also holds internal state — the IIIF base, the crawler's
         # progress. The browser sees only the settings that are its own to change.
         assert set(client.get("/api/preferences").json()) == {
-            "interval_minutes",
+            "interval_seconds",
             "mode",
             "artwork_type",
             "language",
