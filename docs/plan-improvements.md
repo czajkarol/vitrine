@@ -94,15 +94,18 @@ Split the voice in two:
 
 - **Museum text** — title, artist, date, medium, description — in a serif. Self-host one OFL
   family in `frontend/fonts/` as `woff2`, `font-display: swap`, with a real serif fallback stack.
-  Recommend **Source Serif 4** (regular + semibold, ~40KB each): it holds up at 14–16px where
-  Garamond-style faces do not. No CDN — the app must work with no network, and ADR-0005's
+  **EB Garamond** (regular + semibold, ~45KB each), chosen by the owner over the Source Serif 4
+  recommendation. It is the more museum-like face and the harder one to set: Garamond-style
+  designs run light on screen, so the type scale below is a requirement of the choice rather
+  than a polish pass. No CDN — the app must work with no network, and ADR-0005's
   "the source in the browser is the source in the repository" applies to fonts too.
   `.gitattributes` already treats `woff2` as binary.
 - **Interface text** — settings panel, status pill, AI section labels — stays `system-ui`. It
   should look like an interface, because it is one.
 
-Also raise the type scale: title to ~1.75rem with tighter tracking, description to 1rem with
-`line-height: 1.6`, and widen `.overlay-panel` from `62ch` to about `68ch` to match.
+Also raise the type scale, further than a sans would have needed: title to ~1.75rem with tighter
+tracking, description to ~1.0625rem with `line-height: 1.6`, and widen `.overlay-panel` from
+`62ch` to about `68ch` to match. Garamond's small x-height is why the last two are not optional.
 
 Nothing here needs a build step and nothing needs an ADR. Note the font choice and its licence
 in `docs/product-spec.md`.
@@ -235,7 +238,9 @@ Rules for the map, written down because the next person will have to extend it:
   Silence is how a vocabulary rots.
 - **Raw data is never destroyed.** `artwork_terms` and `artwork_index.artwork_type` keep AIC's
   own values forever. The facet layer is derived and rebuildable.
-- Aim for roughly 25–35 facets per group. More than that is a list nobody reads.
+- Aim for roughly 50–60 facets per group — see decision 7. Merge the unambiguous
+  duplicates and drop the non-subjects; where a fold is a judgement call, leave the values
+  apart. A shorter list would read better and would be making choices on the viewer's behalf.
 
 **Storage** — migration 008:
 
@@ -572,19 +577,35 @@ says not to add one to "be clean", and none of this needs one.
 3. **Personalisation — a separate "For you" mode.** Curated is not touched.
 4. **Additional sources — research and an ADR only.** Nothing built.
 
+## Decisions taken (owner, 2026-09-03, at the top of M8)
+
+5. **Font — EB Garamond.** Not the recommendation, which was Source Serif 4. The consequence
+   was flagged when it was asked and is now a constraint on 1.2 rather than a surprise:
+   EB Garamond runs light on screen, so the type scale has to go further than "raise the title".
+   The description needs roughly 1.0625–1.125rem and a heavier weight than the face's regular
+   before it holds at overlay size. Check it against a bright artwork, not a dark one.
+6. **Rate limits — as proposed.** Burst 10, refill 1 per 3s, rolling ceiling 400/hour, tunable
+   from `Settings`. See Phase 2.
+7. **Facet cleanup — broad, roughly 50–60 per group, not 25–35.** Merge only the unambiguous
+   synonyms (`portrait`/`portraits`, `19th century`/`nineteenth century`, `moche`/`mochica`) and
+   drop only what is not a subject at all (provenance: `Collected by Hugh Edwards`,
+   `lundberg collection`). Where a fold is a judgement call rather than an obvious duplicate —
+   `andes` against `andean` against `south american`, say — **leave them apart**. The rejected
+   alternative was a "more" control over the raw values behind a canonical top 30; it was
+   rejected because it means two tiers in the panel and two code paths, canonical and raw, for
+   one question. This rewrites the "aim for roughly 25–35 facets per group" line in Phase 3.2.
+
+## Assumed, not ruled — proceeding, and easy to reverse
+
+1. **"the owner" as the neutral name.** Applied in M7 throughout `CLAUDE.md`, `QUESTIONS.md` and
+   `docs/roadmap.md`. Say if you would rather it read "User", or your GitHub handle; it is one
+   substitution.
+2. **The `AIC_USER_AGENT` default is a placeholder**, not a generic project address, and the app
+   warns at startup while it is still in place. Applied in M7. The reasoning: a generic address
+   would silence the warning without giving AIC anyone they could actually reach.
+
 ## Still needs a ruling
 
-1. **"the owner" as the neutral name.** Used throughout this plan in place of a personal name.
-   Say if you would rather it read "User", or your GitHub handle.
-2. **The `AIC_USER_AGENT` default.** Phase 0.1 replaces the committed personal address with a
-   placeholder, which means a fresh clone sends a header AIC would consider unhelpful until
-   `.env` is filled in, and gets a startup warning. The alternative is a generic project address.
-3. **Font choice.** Source Serif 4 is the recommendation; EB Garamond, Spectral and Cormorant are
-   the alternatives. ~80KB of `woff2` enters the repository either way.
-4. **Rate-limit numbers** — burst 10 / 1 per 3s / 400 per hour. Proposed, not measured against
-   how you actually use it.
-5. **How aggressive the facet cleanup should be.** 25–35 facets per group means a great many of
-   AIC's 92 styles and 216 subjects stop being individually selectable. Say if you want the long
-   tail kept behind a "more" control rather than folded away.
-6. **The two extra personalisation ideas** — hide, and "more like this". Neither is in the
-   roadmap until you say so.
+1. **The two extra personalisation ideas** — hide, and "more like this". `X` to hide is in the
+   roadmap as part of M11 and is being built; **"more like this" is not**, and stays a proposal
+   until you say otherwise.
