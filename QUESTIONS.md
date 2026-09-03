@@ -1,9 +1,13 @@
 # Decisions
 
-Karol ruled on all twelve open questions on 2026-09-03. They are settled; this is the record of
-what was decided and why, so nobody relitigates them.
+The owner ruled on all twelve open questions on 2026-09-03. They are settled; this is the record
+of what was decided and why, so nobody relitigates them.
 
 All twelve are now closed: **#5** was confirmed by hand on 2026-09-03.
+
+Two entries have since been reopened deliberately and amended in place, with the date and the
+reason — **#2** and **#3**, both on 2026-09-03 as part of M7. An amendment is how a ruling
+changes here. Contradicting one in the code while leaving this file saying the opposite is not.
 
 ---
 
@@ -21,9 +25,9 @@ A permanent hairline credit was the alternative and is explicitly rejected.
 
 ---
 
-## 2. `S` for settings — **Karol said leave it unbound; the premise has since changed**
+## 2. `S` for settings — **bound, and from M8 it toggles**
 
-Karol's ruling:
+The original ruling:
 
 > Leave it unbound until M4. There is no point pretending the settings panel exists before it
 > does.
@@ -34,16 +38,33 @@ did not exist. M3 then built a real settings panel to hold the Explore filters, 
 So `S` is not pretending — and unbinding it now would leave **no way to reach Explore filters or
 the mode switch at all**, since the panel has no other entry point. Left bound for that reason.
 
-**Karol: say the word and I will unbind it**, but M3's filter UI then needs a different way in.
+**Amended 2026-09-03 (M7).** Closed. `S` stays bound, and M8 makes it *toggle* rather than only
+open. The reason is not preference: in fullscreen the browser owns `Esc` and uses it to leave
+fullscreen, so with the panel open there was no keyboard way to close the panel without also
+dropping out of fullscreen — which is the one state this app is meant to sit in. A key that
+opens but cannot close is a dead end wherever `Esc` is spoken for.
 
 ---
 
-## 3. Five-line description clamp — **keep**
+## 3. Five-line description clamp — **kept as the resting state; expansion added in M8**
 
 Descriptions clamp to 5 lines with an ellipsis, panel capped at 62 characters wide.
 
 > Keep 5 lines + ellipsis. Do not add scrolling or a "more" affordance. This is an ambient
 > display, not a dashboard. We can revisit it later if real usage shows a problem.
+
+**Amended 2026-09-03 (M7).** The owner has asked for the expand affordance, taking up the
+"revisit it later" the original ruling left open. This is a reversal of the second sentence
+only, and the reasoning behind the first survives it intact:
+
+- The five-line clamp **stays as the resting state**. Nothing changes about what an untouched
+  display shows.
+- Expansion is opt-in per artwork, behind a small `i` button that appears only when the text is
+  actually clamped, and it collapses on rotation, on `Esc`, and when the overlay fades. An
+  expanded essay is never what an unattended display settles on, which is what "not a dashboard"
+  was protecting.
+
+Design in `docs/plan-improvements.md` Phase 1.3; built in M8.
 
 ---
 
@@ -111,7 +132,7 @@ come from AIC at display time. So it covers "no local index" and "the AIC API is
 
 ## 8. Sustained external traffic — **new standing rule, now in `CLAUDE.md`**
 
-I ran a 22-minute, 1,328-request crawl after saying I would ask first. Karol's rule:
+I ran a 22-minute, 1,328-request crawl after saying I would ask first. The owner's rule:
 
 > For sustained automated traffic to an external service, ask me first if the operation is
 > expected to run for several minutes or generate a substantial number of requests, even when it
@@ -144,6 +165,10 @@ to exist (`docs/aic-api.md`) but are not indexed.
 
 Recorded as its own roadmap item so it is picked up deliberately, alongside whatever else needs a
 walk, rather than triggering a crawl on its own.
+
+Done, 2026-09-03, exactly that way: M3.5. The ruling is unchanged; this note is here only so the
+first sentence above is not read as the current state. Style and subject are indexed and
+filterable, and the walk that added them was approved first.
 
 ---
 

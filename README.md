@@ -22,14 +22,19 @@ Then open <http://127.0.0.1:8000>. Press `F` for fullscreen and leave it.
 
 The index step is optional but wanted: without it the app asks AIC for each artwork and falls
 back to a bundled set of thirty when the API is unreachable. With it, selection is a local
-SQLite query. A full walk of the collection is ~1,328 requests over about 22 minutes at AIC's
-own etiquette of one request per second, and it is resumable:
+SQLite query. A full walk of the collection is 1,328 requests at AIC's own etiquette of one
+request per second — 22 minutes of request time, about 30 minutes measured end to end — and it
+is resumable:
 
 ```bash
-uv run python scripts/build_index.py             # everything, ~22 min
+uv run python scripts/build_index.py             # everything, ~30 min
 uv run python scripts/build_index.py --score-only # rescore what is already indexed
 uv run python scripts/build_index.py --explain 27992
 ```
+
+A full walk is the one operation that needs the owner's say-so before it starts. It is not
+about AIC's rate limit, which it stays well inside; it is about half an hour of automated
+traffic to someone else's service.
 
 ## Keyboard
 
@@ -46,13 +51,15 @@ Esc        close settings, else close the overlay, else leave fullscreen
 
 ![The settings panel](docs/screenshots/settings.jpg)
 
-Mode, rotation interval, artwork type, ambient mode, language, and the AI key. Opening the panel
-pauses the rotation; closing it starts the clock again. Everything is saved locally and survives
-a reload.
+Mode, rotation interval, artwork type, style, subject, ambient mode, language, and the AI key.
+Opening the panel pauses the rotation; closing it starts the clock again. Everything is saved
+locally and survives a reload.
 
-**Explore and Curated.** Explore filters by artwork type, offering only the types the index can
-actually sustain — a filter with four artworks behind it is worse than no filter, so it is not
-shown. Curated ranks by a transparent weighted score over six signals: AIC's own `is_boosted`
+**Explore and Curated.** Explore filters by artwork type, style and subject, offering only the
+values the index can actually sustain — a filter with four artworks behind it is worse than no
+filter, so it is not shown. Artwork type is a closed list of 45; style and subject run to
+thousands, so those two are capped at the 30 most populous values that clear the bar. Curated
+ranks by a transparent weighted score over six signals: AIC's own `is_boosted`
 curatorial flag, weighted highest because it is the only one carrying a human judgement about
 the work; resolution; aspect ratio; how complete the caption will be; whether the museum wrote a
 visual description; and whether the object is the kind of thing that fills a frame — a painting
@@ -152,9 +159,9 @@ so the failed round trip is paid once rather than every rotation.
 ## Testing
 
 ```bash
-uv run pytest                 # 334 tests: unit, contract, integration. No network
-uv run pytest -m live         # the real AIC API, and a real AI provider if a key is set
-uv run pytest -m e2e          # five Playwright flows; it starts its own server
+uv run pytest                 # 349 tests: unit, contract, integration. No network
+uv run pytest -m live         # 9, against the real AIC API and a real AI provider if keyed
+uv run pytest -m e2e          # 5 Playwright flows; it starts its own server
 uv run ruff check . && uv run ruff format --check . && uv run mypy app
 ```
 
@@ -181,9 +188,10 @@ lists the failure paths that each have a named test — a 500 that succeeds on r
 
 - **The index goes stale.** AIC can unpublish or replace any image at any time, so it is treated
   as a cache: a dead image at display time skips to the next artwork rather than stopping.
-- **Style and subject filters are not built.** They need a full re-crawl and are batched with
-  other indexing work rather than triggering a 22-minute walk on their own — M3.5 in
-  `docs/roadmap.md`.
+- **The filter vocabulary is the museum's, not ours.** Style and subject come straight from
+  AIC's cataloguing, so `portrait` and `portraits` are separate options and a provenance term
+  like `Collected by Hugh Edwards` shows up as a subject. A canonical facet layer over the raw
+  terms is M10 in `docs/roadmap.md`.
 - **Interpretations do not stream.** The panel waits for the whole answer. SSE is described in
   `docs/ai-system.md` as a refinement, not a foundation.
 - **No shared cache.** Deliberately an interface and nothing else

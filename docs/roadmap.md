@@ -72,8 +72,9 @@ Split out of M3 deliberately. `style_titles` and `subject_titles` are confirmed 
 responses (`docs/aic-api.md`) but are not in the index, and adding them means re-walking the
 collection.
 
-Do the schema and crawl changes first, then run **one** walk covering everything outstanding.
-Per `CLAUDE.md`, ask Karol before starting it.
+The schema and crawl changes went first, then **one** walk covering everything outstanding.
+Per `CLAUDE.md` that walk needed the owner's approval before it started, and it got it —
+see the last item below. Nothing here is outstanding.
 
 - [x] Add `style_titles` and `subject_titles` to `ARTWORK_FIELDS` and the `artwork_index` schema
 - [x] Decide how a multi-valued filter is stored — a join table, `artwork_terms`. Reasoning in
@@ -82,7 +83,7 @@ Per `CLAUDE.md`, ask Karol before starting it.
 - [x] Extend `/api/filters` and the Explore panel to offer style and subject alongside type —
       capped at the 30 most populous values, because these vocabularies run to thousands where
       artwork type is a closed list of 45
-- [x] One re-walk covering this and anything else pending, with approval — Karol approved it
+- [x] One re-walk covering this and anything else pending, with approval — the owner approved it
       on 2026-09-03. All 1,328 pages, 132,741 records, 57,607 indexed, 84,190 term rows, in
       30 minutes. 92 styles and 216 subjects clear the 40-artwork bar, which is why the
       30-option cap exists
@@ -117,7 +118,7 @@ Per `CLAUDE.md`, ask Karol before starting it.
       reopens immediately, and an open circuit still serves the cache
 - [x] Generation on demand only — never on rotation. Tied to pinning the overlay with `I`,
       not to the overlay's own flash on every artwork change
-- [x] One real provider — Anthropic, Karol's choice. Live tests are `-m live` and skip
+- [x] One real provider — Anthropic, the owner's choice. Live tests are `-m live` and skip
       themselves without a key
 - [x] A second real provider, to prove the abstraction — OpenAI. `base.py` did not have
       to change; the shared HTTP plumbing moved to `providers/ai/http.py`
@@ -152,20 +153,24 @@ Per `CLAUDE.md`, ask Karol before starting it.
 
 ## M7 — Truth-up
 
-Documentation and naming only, no behaviour change. Details in `docs/plan-improvements.md`
-Phase 0. Do this first: every later milestone edits these files.
+Documentation and naming only, with the one exception noted below. Details in
+`docs/plan-improvements.md` Phase 0. Do this first: every later milestone edits these files.
 
-- [ ] Replace the personal name with "the owner" in `CLAUDE.md`, `HANDOFF.md`, `QUESTIONS.md`
-      and this file
-- [ ] Placeholder contact address in `app/core/config.py`, `tests/conftest.py`,
-      `docs/aic-api.md`, plus a startup warning when it is still the default
-- [ ] Reconcile `README.md` (style/subject *are* built), `HANDOFF.md` (it contradicts itself
+- [x] Replace the personal name with "the owner" in `CLAUDE.md`, `HANDOFF.md`, `QUESTIONS.md`
+      and this file — `HANDOFF.md` had none left
+- [x] Placeholder contact address in `app/core/config.py`, `tests/conftest.py`,
+      `docs/aic-api.md`, plus a startup warning when it is still the default — the one
+      behaviour change in M7, and the reason it is worth it: with no `.env` the app now sends
+      a header AIC would consider unhelpful, so it has to say so somewhere a person will look
+- [x] Reconcile `README.md` (style/subject *are* built), `HANDOFF.md` (it contradicts itself
       about M3.5), `docs/architecture.md` (`classification` was renamed; `artwork_terms` and
-      `credentials` are missing) and the test count both files quote
-- [ ] Drop the unused `ai` extra from `pyproject.toml` and the orphan keys from `.env.example`
-- [ ] Amend `QUESTIONS.md` #2 (`S` stays bound and now toggles) and #3 (the description
-      clamp gains an expand affordance) with dated notes rather than silent contradiction
-- [ ] Commit
+      `credentials` are missing) and the test count both files quote — 349, not 334, and
+      `HANDOFF.md` had already been rewritten
+- [x] Drop the unused `ai` extra from `pyproject.toml` and the orphan keys from `.env.example`
+- [x] Amend `QUESTIONS.md` #2 (`S` stays bound and now toggles) and #3 (the description
+      clamp gains an expand affordance) with dated notes rather than silent contradiction —
+      and a status note on #10, whose ruling stands but whose opening sentence had gone stale
+- [x] Commit
 
 ## M8 — The display
 

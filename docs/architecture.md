@@ -95,16 +95,34 @@ One SQLite file, `data/vitrine.db`. Tables:
 
 ```
 artwork_index        id, image_id, title, artist, date_display, medium_display,
-                     credit_line, place_of_origin, department_title, classification,
+                     credit_line, place_of_origin, department_title, artwork_type,
                      main_reference_number, description, width, height, is_boosted,
                      has_alt_text, alt_text, lqip, color_h, color_s, color_l,
                      score, indexed_at
+artwork_terms        artwork_id, kind ('style' | 'subject'), value    — PK all three
 history              artwork_id, shown_at
 interpretations      cache_key PK, artwork_id, language, provider, model,
                      prompt_version, payload_json, created_at
 preferences          key, value
 ai_usage             day, provider, requests, tokens_in, tokens_out
+credentials          provider PK, api_key, updated_at
 ```
+
+Two of those need a sentence each.
+
+`artwork_type` is AIC's `artwork_type_title` — "Painting", "Coin" — and is the thing Explore
+filters on and Curated scores. It was called `classification` until migration 002, which is a
+name AIC also uses for something else entirely: `classification_title` on a Seurat reads "oil on
+canvas". Renamed so nobody reaches for the wrong one.
+
+`artwork_terms` holds style and subject, one row per value rather than a JSON array on
+`artwork_index`, because Explore's real question is "how many artworks have subject X, for every
+X" every time the panel opens. Against a join table that is an index lookup; against JSON it is a
+full scan of 57,000 rows. Migration 007 has the working.
+
+`credentials` is the fallback tier for a bring-your-own API key, used only when the OS keyring is
+unavailable, and it is unencrypted. It is the reason `data/vitrine.db` can never be published:
+the same file holds a rebuildable cache and a secret.
 
 Enable WAL mode. Wrap access in repository classes; no raw SQL outside `repositories/`.
 Migrations: a plain numbered-SQL-files runner is enough. Do not add Alembic for this.
@@ -148,7 +166,8 @@ frontend/
         main.js         wiring, and the only place the pieces below know about each other
         display.js      the transition pipeline — the one genuinely tricky file
         rotation.js     timer, visibility handling, preload scheduling
-        overlay.js      metadata + AI panel
+        overlay.js      metadata, and the container the AI section renders into
+        interpretation.js  the AI request, its states, and the labelled section itself
         panel.js        settings — named for what it is, not for what it holds
         i18n.js         locale loading, {placeholder} substitution, data-i18n in markup
         ambient.js      the Screen Wake Lock, and re-taking it when the tab comes back

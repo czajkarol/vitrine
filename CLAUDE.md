@@ -98,7 +98,8 @@ genuinely changes what the app *is*, or **sustained automated traffic to an exte
 Anything else, decide and note the decision in the commit message. If a decision is architectural
 and would be expensive to reverse, write an ADR.
 
-On that last one, Karol's rule, and the threshold is volume and duration rather than permission:
+On that last one, the owner's rule, and the threshold is volume and duration rather than
+permission:
 
 > For sustained automated traffic to an external service, ask first if the operation is expected
 > to run for several minutes or generate a substantial number of requests, even when it stays
