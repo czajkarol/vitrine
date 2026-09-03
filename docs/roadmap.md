@@ -70,8 +70,7 @@ This is the milestone that makes the rest possible. See ADR-0003.
 
 Split out of M3 deliberately. `style_titles` and `subject_titles` are confirmed present on AIC
 responses (`docs/aic-api.md`) but are not in the index, and adding them means re-walking the
-collection. Karol's ruling was to want them but not to spend a second 22-minute crawl on them
-alone — so this waits until there is other indexing work to batch the walk with.
+collection.
 
 Do the schema and crawl changes first, then run **one** walk covering everything outstanding.
 Per `CLAUDE.md`, ask Karol before starting it.
@@ -96,8 +95,9 @@ Per `CLAUDE.md`, ask Karol before starting it.
 
 ## M5 — AI
 
-- [ ] `Interpretation` model and JSON-only prompt
-- [ ] `InterpretationProvider` protocol + `MockProvider`
+- [x] `Interpretation` model and JSON-only prompt — instruction and data kept apart,
+      grounded in `thumbnail.alt_text`
+- [x] `InterpretationProvider` protocol + `MockProvider`
 - [ ] Full feature wired end to end against the mock
 - [ ] SQLite interpretation cache with the composite key
 - [ ] `NullSharedCache` and the three-tier resolution chain

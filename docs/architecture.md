@@ -41,7 +41,8 @@ class ArtworkSource(Protocol):
 
 class InterpretationProvider(Protocol):
     name: str
-    async def interpret(self, req: InterpretationRequest) -> Interpretation: ...
+    model: str
+    async def interpret(self, req: InterpretationRequest) -> InterpretationResult: ...
 
 class InterpretationCache(Protocol):
     async def get(self, key: CacheKey) -> Interpretation | None: ...
@@ -50,6 +51,13 @@ class InterpretationCache(Protocol):
 
 `InterpretationCache` has two implementations from day one: `SqliteCache` and `NullSharedCache`.
 The second exists so the resolution chain is real code rather than a promise. See ADR-0004.
+
+`interpret` returns an `InterpretationResult` — the interpretation plus the token usage the
+provider reported — rather than a bare `Interpretation`, which is what this file said first.
+It has to: the daily budget is enforced against `ai_usage`, and a provider that reports nothing
+leaves that table empty and the cap unenforceable. `model` is on the Protocol for the same kind
+of reason: it is part of the cache key, because the same provider on a different model does not
+produce interchangeable text.
 
 ---
 
