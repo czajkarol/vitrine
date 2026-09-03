@@ -16,6 +16,10 @@
   "settings_title": "Settings",
   "panel_hint": "Esc to close. Rotation is paused while this is open.",
 
+  "language_legend": "Language",
+  "language_en": "English",
+  "language_pl": "Polski",
+
   "mode_legend": "Mode",
   "mode_random": "Random",
   "mode_curated": "Curated",

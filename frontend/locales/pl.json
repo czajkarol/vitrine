@@ -16,6 +16,10 @@
   "settings_title": "Ustawienia",
   "panel_hint": "Esc — zamknij ustawienia. Rotacja jest wstrzymana.",
 
+  "language_legend": "Język",
+  "language_en": "English",
+  "language_pl": "Polski",
+
   "mode_legend": "Tryb",
   "mode_random": "Losowy",
   "mode_curated": "Wyselekcjonowany",

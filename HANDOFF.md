@@ -7,7 +7,8 @@ State of vitrine as of 2026-09-03. Written for whoever (or whatever) picks this 
 ## Where the project actually is
 
 M0, M1 and M2 are complete and committed. M3 is complete apart from one scoped-down item.
-`docs/roadmap.md` is accurate — it was reconciled against the code, not against intentions.
+M4 is in progress: i18n has landed, ambient mode has not. `docs/roadmap.md` is accurate — it
+was reconciled against the code, not against intentions, and is ticked as work lands.
 
 The app works end to end: it serves an artwork from a local SQLite index in ~19ms with no
 network call, rotates on a timer, has a keyboard map, a metadata overlay, a settings panel with
@@ -35,22 +36,33 @@ uv run python scripts/build_index.py --explain <artwork_id>
 
 ## What to do next
 
-**M4 — Settings and i18n** is the next milestone to work on. Note that **M3.5 sits above it
-in the roadmap and is deliberately parked**: style and subject filters need a full re-crawl,
-and Karol ruled they wait to be batched with other indexing work rather than triggering a
-22-minute walk on their own. Do not start there just because it comes first in the file.
+**M4 — Settings and i18n** is in progress. What is left of it is **ambient mode**: hold a
+Screen Wake Lock while the display is running, re-acquire it on `visibilitychange` because
+browsers drop it when the tab hides, and hide the toggle rather than erroring where the API
+is missing (`docs/product-spec.md`, Ambient mode).
 
-M4's groundwork is already there:
+Note that **M3.5 sits above M4 in the roadmap and is deliberately parked**: style and subject
+filters need a full re-crawl, and Karol ruled they wait to be batched with other indexing work
+rather than triggering a 22-minute walk on their own. Do not start there just because it comes
+first in the file.
 
-- The settings panel exists (`frontend/js/panel.js`), opens on `S`, closes on `Esc`, and pauses
-  rotation while open. M4 adds language, ambient mode, and the AI toggles to it.
-- Preferences persist through `GET`/`PUT /api/preferences`, a typed schema in
-  `app/api/schemas.py`. Adding a preference means adding a field there and a key in
-  `app/api/routes.py`. Interval, mode and artwork type are already wired.
-- Every user-visible string is already keyed in one table, `MESSAGES` in `frontend/js/main.js`,
-  including error messages. M4 moves that table to `frontend/locales/en.json` and `pl.json`.
-  Nothing is hardcoded in markup except the panel's own labels in `index.html`, which need
-  extracting.
+What M4 has already put in place, and what you would extend:
+
+- **Strings.** `frontend/locales/en.json` and `pl.json`, loaded by `frontend/js/i18n.js`.
+  `t('key', { placeholder })` for text built in JS; `data-i18n="key"` in markup, which
+  `applyTo()` fills in. A new string means a key in *both* files — they are checked against
+  each other by eye, so keep them in the same order.
+- **Number-shaped strings.** Polish inflects a counted noun three ways and there is no plural
+  machinery. Phrase around it (`Dzieł w indeksie: {total}.`), do not add a plural library.
+  Numbers substituted into a template are formatted for the active locale automatically.
+- **Live retranslation.** `onLanguageChange()` in `i18n.js` notifies; `retranslate()` in
+  `main.js` redraws the caption, the filter list and any status message currently on screen.
+  Anything new that renders text from data has to be added there — markup with a key does not.
+- **Preferences.** `GET`/`PUT /api/preferences`, a typed schema in `app/api/schemas.py`.
+  A new preference means a field there and a key constant in `app/api/routes.py`. Interval,
+  mode, artwork type and language are wired; ambient mode is the next one.
+- **The panel** (`frontend/js/panel.js`) opens on `S`, closes on `Esc`, and pauses rotation
+  while open. It holds mode, Explore filters and language. Ambient and the AI toggles join it.
 
 ## Things that will bite you if you do not know them
 

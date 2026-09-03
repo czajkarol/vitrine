@@ -59,6 +59,20 @@
       <div id="panel-types" class="panel-options"></div>
     </fieldset>
 
+    <fieldset class="panel-group">
+      <legend data-i18n="language_legend">Language</legend>
+      <label class="panel-option">
+        <input type="radio" name="language" value="en" checked>
+        <!-- Language names stay in their own language in both locales: someone looking for
+             Polish is looking for the word "Polski". -->
+        <span data-i18n="language_en">English</span>
+      </label>
+      <label class="panel-option">
+        <input type="radio" name="language" value="pl">
+        <span data-i18n="language_pl">Polski</span>
+      </label>
+    </fieldset>
+
     <p class="panel-hint" data-i18n="panel_hint">Esc to close. Rotation is paused while this is open.</p>
   </aside>
 

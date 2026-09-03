@@ -130,6 +130,7 @@ const panel = createPanel(
   {
     panel: document.getElementById('panel'),
     modeInputs: [...document.querySelectorAll('input[name="mode"]')],
+    languageInputs: [...document.querySelectorAll('input[name="language"]')],
     typeList: document.getElementById('panel-types'),
     summary: document.getElementById('panel-summary'),
   },
@@ -154,6 +155,13 @@ const panel = createPanel(
     onFilterChange: (artworkType) => {
       query.artworkType = artworkType;
       onQueryChanged();
+    },
+    onLanguageChange: async (code) => {
+      await setLanguage(code);
+      // A locale that would not load leaves the old one in effect, so the radio has to
+      // be told what actually happened rather than being trusted to be right.
+      panel.sync({ language: getLanguage() });
+      persist();
     },
   },
 );
@@ -233,7 +241,7 @@ async function boot() {
   }
   if (saved?.mode) query.mode = saved.mode;
   if (saved?.artwork_type) query.artworkType = saved.artwork_type;
-  panel.sync({ mode: query.mode, artworkType: query.artworkType });
+  panel.sync({ mode: query.mode, artworkType: query.artworkType, language: getLanguage() });
 
   await rotation.start();
 }

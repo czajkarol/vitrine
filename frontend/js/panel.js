@@ -7,7 +7,7 @@ import { fetchFilters } from './api.js';
 import { t } from './i18n.js';
 
 export function createPanel(elements, handlers) {
-  const { panel, modeInputs, typeList, summary } = elements;
+  const { panel, modeInputs, languageInputs, typeList, summary } = elements;
 
   let open = false;
   let loaded = false;
@@ -17,10 +17,11 @@ export function createPanel(elements, handlers) {
   // The panel's idea of the current settings, kept because the filter list is built
   // lazily on first open — long after preferences were restored at boot. Without this the
   // radio would read "Any type" while the rotation was actually filtered.
-  let current = { mode: 'random', artworkType: null };
+  let current = { mode: 'random', artworkType: null, language: 'en' };
 
   function applySelection() {
     for (const input of modeInputs) input.checked = input.value === current.mode;
+    for (const input of languageInputs) input.checked = input.value === current.language;
     const target = [...typeList.querySelectorAll('input')].find(
       (input) => input.value === (current.artworkType ?? ''),
     );
@@ -82,6 +83,13 @@ export function createPanel(elements, handlers) {
     input.addEventListener('change', () => {
       current = { ...current, mode: input.value };
       handlers.onModeChange(current.mode);
+    });
+  }
+
+  for (const input of languageInputs) {
+    input.addEventListener('change', () => {
+      current = { ...current, language: input.value };
+      handlers.onLanguageChange(current.language);
     });
   }
 

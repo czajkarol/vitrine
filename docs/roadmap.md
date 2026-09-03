@@ -88,7 +88,8 @@ Per `CLAUDE.md`, ask Karol before starting it.
       to live and to bind `S`. M4 adds language, ambient mode and the AI toggles to it
 - [x] `i18n.js` + `en.json` + `pl.json`, every string keyed including errors — the panel's
       own labels are keyed in markup with `data-i18n`, and `language` joins the preferences
-- [ ] Language switch without reload
+- [x] Language switch without reload — radios in the panel; the caption, the filter list
+      and any status message on screen are retranslated in place
 - [ ] Ambient mode via Screen Wake Lock, re-acquired on `visibilitychange`
 - [ ] Commit
 
