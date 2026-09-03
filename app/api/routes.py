@@ -25,6 +25,7 @@ from app.repositories.preferences import PreferencesRepository
 from app.services.interpretation import (
     ArtworkNotFoundError,
     BudgetExhaustedError,
+    CircuitOpenError,
     InterpretationService,
 )
 from app.services.selection import SelectionQuery, SelectionService
@@ -256,6 +257,11 @@ async def read_interpretation(
         # something different about that than about a provider being down.
         logger.info("Interpretation refused: %s", exc)
         raise HTTPException(status_code=503, detail="ai_budget_exhausted") from exc
+    except CircuitOpenError as exc:
+        # Already logged when it opened. Repeating it on every refusal would bury the
+        # transition that actually matters.
+        logger.debug("Interpretation refused: %s", exc)
+        raise HTTPException(status_code=503, detail="ai_unavailable") from exc
     except AiError as exc:
         logger.warning("Interpretation failed for artwork %s: %s", artwork_id, exc)
         raise HTTPException(status_code=503, detail="ai_unavailable") from exc
@@ -285,5 +291,6 @@ async def health(interpretation: InterpretationDep) -> HealthResponse:
             enabled=interpretation.enabled,
             provider=interpretation.provider_name,
             model=interpretation.model,
+            circuit_open=interpretation.circuit_open,
         )
     )

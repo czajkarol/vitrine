@@ -13,6 +13,7 @@ import logging
 
 from app.core.config import Settings
 from app.domain.artwork import Artwork
+from app.domain.circuit_breaker import CircuitBreaker, CircuitState
 from app.domain.interpretation import (
     CacheKey,
     Interpretation,
@@ -21,6 +22,7 @@ from app.domain.interpretation import (
 )
 from app.domain.prompts import PROMPT_VERSION
 from app.providers.ai.base import (
+    AiError,
     InterpretationProvider,
     InterpretationRequest,
     ProviderUnavailableError,
@@ -35,6 +37,14 @@ logger = logging.getLogger(__name__)
 
 class ArtworkNotFoundError(LookupError):
     """No tier could produce metadata for that id, so there is nothing to interpret."""
+
+
+class CircuitOpenError(RuntimeError):
+    """The provider has failed too many times in a row, so we have stopped asking.
+
+    Deliberately not an error from `providers/ai/`: this is our decision about a provider,
+    not something the provider did on this call.
+    """
 
 
 class BudgetExhaustedError(RuntimeError):
@@ -59,6 +69,7 @@ class InterpretationService:
         local_cache: InterpretationCache,
         shared_cache: InterpretationCache,
         usage: AiUsageRepository,
+        breaker: CircuitBreaker | None = None,
     ) -> None:
         self._provider = provider
         self._index = index
@@ -69,11 +80,20 @@ class InterpretationService:
         # to both, which is the whole of `docs/ai-system.md`'s resolution rule.
         self._caches = (local_cache, shared_cache)
         self._usage = usage
+        self._breaker = breaker or CircuitBreaker(
+            threshold=settings.ai_circuit_breaker_threshold,
+            cooldown_seconds=settings.ai_circuit_breaker_cooldown_seconds,
+        )
 
     @property
     def enabled(self) -> bool:
         """Whether there is a provider at all. False is an ordinary state."""
         return self._provider is not None
+
+    @property
+    def circuit_open(self) -> bool:
+        """Whether calls are currently being refused. Surfaced on /api/health."""
+        return self._breaker.state is CircuitState.OPEN
 
     @property
     def provider_name(self) -> str | None:
@@ -134,6 +154,13 @@ class InterpretationService:
             # exists to limit what we spend, not what we serve.
             return cached
 
+        if not self._breaker.allows():
+            # Cache only from here, and the lookup above has already tried it.
+            raise CircuitOpenError(
+                f"{self._provider.name} is failing; retrying in "
+                f"{self._breaker.seconds_until_retry():.0f}s"
+            )
+
         await self._check_budget()
 
         artwork = await self.find_artwork(artwork_id)
@@ -148,11 +175,19 @@ class InterpretationService:
                 result = await self._provider.interpret(request)
         except TimeoutError as exc:
             # Short by design: if the interpretation is not ready before the artwork
-            # rotates away, it is no longer wanted. Reported as unavailability so the
-            # circuit breaker will count it alongside the other ways a provider fails.
+            # rotates away, it is no longer wanted. Counted as a provider failure, because
+            # from here that is what it is.
+            self._record_failure()
             raise ProviderUnavailableError(
                 f"{self._provider.name} timed out after {self._settings.ai_timeout_seconds}s"
             ) from exc
+        except AiError:
+            # Unreachable, refusing, or answering with something that will not validate —
+            # a provider that has started returning prose is not healthy either.
+            self._record_failure()
+            raise
+
+        self._breaker.record_success()
 
         # Recorded after the call returns, because what is being counted is what was
         # actually spent. A request that failed cost the provider nothing to answer, and
@@ -194,3 +229,15 @@ class InterpretationService:
                 await cache.put(key, value)
             except Exception:
                 logger.exception("The %s interpretation cache failed on write", cache.name)
+
+    def _record_failure(self) -> None:
+        """Count a failure, and log the transition when it is the one that opens."""
+        was_open = self._breaker.state is CircuitState.OPEN
+        self._breaker.record_failure()
+        if not was_open and self._breaker.state is CircuitState.OPEN:
+            logger.warning(
+                "AI circuit opened after %d consecutive failures; not calling %s for %.0fs",
+                self._breaker.consecutive_failures,
+                self.provider_name,
+                self._breaker.seconds_until_retry(),
+            )

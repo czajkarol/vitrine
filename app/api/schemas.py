@@ -145,6 +145,9 @@ class AiStatus(BaseModel):
     enabled: bool = False
     provider: str | None = None
     model: str | None = None
+    circuit_open: bool = False
+    """True while the provider is being left alone after repeated failures. `enabled` still
+    reports what is configured; this reports whether it is currently being called."""
 
 
 class HealthResponse(BaseModel):

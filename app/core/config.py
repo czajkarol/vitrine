@@ -76,6 +76,12 @@ class Settings(BaseSettings):
     2,880 calls a day. Generation is on demand, which is the real defence — this is the
     backstop for when that assumption stops holding. Zero disables AI outright."""
 
+    ai_circuit_breaker_threshold: int = Field(default=5, ge=0)
+    """Consecutive provider failures before calls stop being attempted at all. Zero
+    disables the breaker."""
+
+    ai_circuit_breaker_cooldown_seconds: float = Field(default=300.0, ge=0)
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

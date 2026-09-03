@@ -380,6 +380,7 @@ class TestHealth:
             "enabled": False,
             "provider": None,
             "model": None,
+            "circuit_open": False,
         }
 
 

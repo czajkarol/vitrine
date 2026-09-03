@@ -13,7 +13,11 @@ from app.core.config import Settings
 from app.domain.artwork import Artwork
 from app.domain.interpretation import CacheKey
 from app.main import create_app
-from app.providers.ai.base import ProviderUnavailableError, TokenUsage
+from app.providers.ai.base import (
+    InvalidResponseError,
+    ProviderUnavailableError,
+    TokenUsage,
+)
 from app.providers.ai.mock import MockProvider
 from app.providers.aic.client import AicClient
 from app.repositories.ai_usage import AiUsageRepository
@@ -24,6 +28,7 @@ from app.services.fallback import FallbackSet
 from app.services.interpretation import (
     ArtworkNotFoundError,
     BudgetExhaustedError,
+    CircuitOpenError,
     InterpretationService,
 )
 
@@ -197,6 +202,7 @@ class TestInterpretationEndpoint:
             "enabled": True,
             "provider": "mock",
             "model": "mock-1",
+            "circuit_open": False,
         }
 
 
@@ -371,3 +377,73 @@ class TestTheBudget:
             assert response.status_code == 503
             # The display says something different about a decision than about a fault.
             assert response.json()["detail"] == "ai_budget_exhausted"
+
+
+class TestTheCircuitBreaker:
+    async def test_stops_calling_a_provider_that_keeps_failing(self, settings):
+        wired = settings.model_copy(update={"ai_circuit_breaker_threshold": 2})
+        provider = MockProvider(fail_with=ProviderUnavailableError("down"))
+        service = _service(wired, provider=provider, artworks=(INDEXED,))
+
+        for _ in range(2):
+            with pytest.raises(ProviderUnavailableError):
+                await service.interpret(27992, "en")
+
+        with pytest.raises(CircuitOpenError):
+            await service.interpret(27992, "en")
+        # The third request never reached the provider, which is the entire point: each
+        # attempt would otherwise cost a timeout the viewer waits through.
+        assert provider.calls == 2
+        assert service.circuit_open is True
+
+    async def test_an_unparseable_response_counts_as_a_failure(self, settings):
+        wired = settings.model_copy(update={"ai_circuit_breaker_threshold": 1})
+        provider = MockProvider(fail_with=InvalidResponseError("prose, not JSON"))
+        service = _service(wired, provider=provider, artworks=(INDEXED,))
+
+        with pytest.raises(InvalidResponseError):
+            await service.interpret(27992, "en")
+        # A provider that has started returning prose where JSON was asked for is not
+        # healthy, and retrying it every time costs money for nothing.
+        assert service.circuit_open is True
+
+    async def test_a_spent_budget_does_not_open_the_circuit(self, settings):
+        wired = settings.model_copy(
+            update={"ai_daily_request_limit": 0, "ai_circuit_breaker_threshold": 1}
+        )
+        service = _service(wired, artworks=(INDEXED,))
+
+        with pytest.raises(BudgetExhaustedError):
+            await service.interpret(27992, "en")
+        # The provider did nothing wrong. Refusing to spend is our decision, not its fault.
+        assert service.circuit_open is False
+
+    async def test_the_cache_still_answers_while_the_circuit_is_open(self, settings):
+        wired = settings.model_copy(update={"ai_circuit_breaker_threshold": 1})
+        service = _service(wired, artworks=(INDEXED, OTHER))
+        await service.interpret(27992, "en")
+
+        service._provider = MockProvider(fail_with=ProviderUnavailableError("down"))
+        with pytest.raises(ProviderUnavailableError):
+            await service.interpret(OTHER.id, "en")
+        assert service.circuit_open is True
+
+        # "Answer from cache only" is the whole instruction in docs/ai-system.md — an open
+        # circuit must not take away what has already been paid for.
+        assert await service.interpret(27992, "en") is not None
+
+    def test_health_reports_an_open_circuit(self, ai_settings):
+        wired = ai_settings.model_copy(update={"ai_circuit_breaker_threshold": 1})
+        with TestClient(create_app(wired)) as client:
+            client.app.state.interpretation._provider = MockProvider(
+                fail_with=ProviderUnavailableError("down")
+            )
+            index = ArtworkIndexRepository(Database(wired.database_path))
+            index.upsert_many_sync([INDEXED])
+
+            assert client.get("/api/interpretation/27992").status_code == 503
+            ai = client.get("/api/health").json()["ai"]
+            # Still "enabled" — that says what is configured. `circuit_open` says whether
+            # it is currently being called.
+            assert ai["enabled"] is True
+            assert ai["circuit_open"] is True

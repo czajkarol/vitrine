@@ -106,7 +106,8 @@ Per `CLAUDE.md`, ask Karol before starting it.
       skipped, never propagated
 - [x] Budget guard: token cap, daily request cap, `ai_usage` tracking — checked before the
       call, and a cache hit is never counted against it
-- [ ] Circuit breaker with cooling period
+- [x] Circuit breaker with cooling period — a failed trial call after the cooldown
+      reopens immediately, and an open circuit still serves the cache
 - [x] Generation on demand only — never on rotation. Tied to pinning the overlay with `I`,
       not to the overlay's own flash on every artwork change
 - [ ] One real provider
