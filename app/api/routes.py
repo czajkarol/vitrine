@@ -5,10 +5,13 @@ import re
 from typing import Annotated, Final
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
+from pydantic import ValidationError
 
-from app.api.schemas import ArtworkResponse
+from app.api.schemas import ArtworkResponse, PreferencesResponse
 from app.domain.artwork import CACHED_IIIF_WIDTHS, PREFERRED_IIIF_WIDTH
 from app.providers.aic.client import AicClient, AicError, AicUnavailableError
+from app.repositories.preferences import PreferencesRepository
+from app.services.selection import SelectionService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
@@ -25,28 +28,45 @@ def get_client(request: Request) -> AicClient:
     return client
 
 
+def get_selection(request: Request) -> SelectionService:
+    service: SelectionService = request.app.state.selection
+    return service
+
+
+def get_preferences(request: Request) -> PreferencesRepository:
+    return PreferencesRepository(request.app.state.database)
+
+
 ClientDep = Annotated[AicClient, Depends(get_client)]
+SelectionDep = Annotated[SelectionService, Depends(get_selection)]
+PreferencesDep = Annotated[PreferencesRepository, Depends(get_preferences)]
+
+INTERVAL_KEY: Final[str] = "interval_minutes"
 
 
 @router.get("/artwork/random", response_model=ArtworkResponse)
-async def random_artwork(request: Request, client: ClientDep) -> ArtworkResponse:
-    """One random public-domain artwork with a usable image."""
+async def random_artwork(request: Request, selection: SelectionDep) -> ArtworkResponse:
+    """One random public-domain artwork with a usable image.
+
+    The service decides where it comes from — local index first, then AIC, then the
+    bundled set (ADR-0003). This route only shapes the answer.
+    """
     try:
-        result = await client.random_displayable()
-    except AicUnavailableError as exc:
+        result = await selection.next_artwork()
+    except AicUnavailableError as exc:  # pragma: no cover — the service absorbs these
         logger.warning("AIC unavailable serving /artwork/random: %s", exc)
         raise HTTPException(status_code=503, detail="aic_unavailable") from exc
-    except AicError as exc:
+    except AicError as exc:  # pragma: no cover — the service absorbs these
         logger.error("AIC error serving /artwork/random: %s", exc)
         raise HTTPException(status_code=502, detail="aic_error") from exc
 
     if result is None:
-        raise HTTPException(status_code=404, detail="no_displayable_artwork")
+        # Every tier came up empty: no index, no network, no bundled set.
+        raise HTTPException(status_code=503, detail="aic_unavailable")
 
-    artwork, iiif_base = result
     # Remembered so the image proxy never has to guess a IIIF base or hardcode one.
-    request.app.state.iiif_base = iiif_base
-    return ArtworkResponse.from_domain(artwork, iiif_base)
+    request.app.state.iiif_base = result.iiif_base
+    return ArtworkResponse.from_domain(result.artwork, result.iiif_base, source=result.source)
 
 
 @router.get("/image/{image_id}")
@@ -88,6 +108,30 @@ async def image_proxy(
         # Immutable for a given id and width; caching spares AIC the repeat fetch.
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+
+@router.get("/preferences", response_model=PreferencesResponse)
+async def read_preferences(preferences: PreferencesDep) -> PreferencesResponse:
+    """Whatever has been saved, with the defaults filling the gaps."""
+    stored = await preferences.get(INTERVAL_KEY)
+    if stored is None or not stored.isdigit():
+        return PreferencesResponse()
+    try:
+        return PreferencesResponse(interval_minutes=int(stored))
+    except ValidationError:
+        # A value we no longer support — an interval removed from the menu, say. The
+        # default is a better answer than a 500.
+        logger.warning("Discarding unusable stored interval %r", stored)
+        return PreferencesResponse()
+
+
+@router.put("/preferences", response_model=PreferencesResponse)
+async def write_preferences(
+    body: PreferencesResponse, preferences: PreferencesDep
+) -> PreferencesResponse:
+    """Persist the user's settings. Pydantic rejects an interval off the menu."""
+    await preferences.set(INTERVAL_KEY, str(body.interval_minutes))
+    return body
 
 
 @router.get("/health")

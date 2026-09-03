@@ -30,6 +30,30 @@ export function proxiedImageUrl(imageId, width) {
   return `/api/image/${encodeURIComponent(imageId)}?w=${width}`;
 }
 
+/** Read saved preferences. Failure is not fatal — the defaults still work. */
+export async function fetchPreferences() {
+  try {
+    const response = await fetch('/api/preferences', { headers: { Accept: 'application/json' } });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+/** Persist preferences. Fire-and-forget: a failed save must not interrupt the display. */
+export async function savePreferences(preferences) {
+  try {
+    await fetch('/api/preferences', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(preferences),
+    });
+  } catch (error) {
+    console.warn('Could not save preferences.', error);
+  }
+}
+
 function withCode(error, code, cause) {
   error.code = code;
   if (cause) error.cause = cause;

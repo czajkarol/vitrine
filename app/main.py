@@ -3,6 +3,7 @@
 Config is constructed here and injected downward. Nothing below reads the environment.
 """
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -14,6 +15,12 @@ from fastapi.staticfiles import StaticFiles
 from app.api.routes import router
 from app.core.config import Settings, get_settings
 from app.providers.aic.client import AicClient
+from app.repositories.artwork_index import ArtworkIndexRepository
+from app.repositories.database import Database
+from app.repositories.history import HistoryRepository
+from app.repositories.preferences import PreferencesRepository
+from app.services.fallback import FallbackSet
+from app.services.selection import IIIF_BASE_KEY, SelectionService
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -29,6 +36,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Learned from the first AIC response; the image proxy reads it from here rather than
     # accepting a base URL from the caller.
     app.state.iiif_base = None
+
+    database = Database(settings.database_path)
+    # Cheap when there is nothing to do, and it means a fresh clone boots into a working
+    # database rather than erroring on the first query.
+    await asyncio.to_thread(database.migrate)
+    app.state.database = database
+
+    preferences = PreferencesRepository(database)
+    app.state.selection = SelectionService(
+        index=ArtworkIndexRepository(database),
+        history=HistoryRepository(database),
+        preferences=preferences,
+        fallback=FallbackSet.load(),
+        client=app.state.aic_client,
+    )
+    # Seed the proxy's base from whatever we already know, so an index-only start can
+    # still serve images without waiting for a live AIC response.
+    app.state.iiif_base = await preferences.get(IIIF_BASE_KEY)
+
     try:
         yield
     finally:

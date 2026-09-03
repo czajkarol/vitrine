@@ -164,6 +164,20 @@ class AicClient:
         )
         return self._parse_page(payload)
 
+    async def list_artworks(self, page: int = 1, limit: int = MAX_LIMIT) -> ArtworkPage:
+        """Walk the collection through the plain listing endpoint.
+
+        Unlike `/artworks/search` this is not capped, so it is the only way to enumerate
+        all 132,740 records — which is what `scripts/build_index.py` needs and what
+        ADR-0003 depends on. It does not accept a public-domain filter, so eligibility is
+        decided locally from the fields that come back.
+        """
+        payload = await self._get(
+            "/artworks",
+            {"limit": min(limit, MAX_LIMIT), "page": page, "fields": ",".join(ARTWORK_FIELDS)},
+        )
+        return self._parse_page(payload)
+
     async def get(self, artwork_id: int) -> Artwork | None:
         """Fetch one artwork. Returns None when AIC does not have it."""
         try:
@@ -239,7 +253,14 @@ class AicClient:
         artworks = tuple(
             self._parse_artwork(r) for r in records if isinstance(r, dict) and "id" in r
         )
-        return ArtworkPage(artworks=artworks, iiif_base=iiif_base)
+        pagination = payload.get("pagination") or {}
+        return ArtworkPage(
+            artworks=artworks,
+            iiif_base=iiif_base,
+            total=pagination.get("total"),
+            total_pages=pagination.get("total_pages"),
+            current_page=pagination.get("current_page"),
+        )
 
 
 __all__ = [

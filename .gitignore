@@ -7,7 +7,10 @@
 *.key
 
 # --- Runtime data -------------------------------------------------------------
-data/
+# Anchored to the repository root. A bare `data/` also matches app/data/, which holds the
+# bundled fallback set that has to ship — without the slash a fresh clone has no offline
+# story and nothing says so.
+/data/
 *.db
 *.db-wal
 *.db-shm

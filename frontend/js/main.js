@@ -1,6 +1,6 @@
 // Entry point: wiring. The pieces it joins each own one concern.
 
-import { fetchRandomArtwork } from './api.js';
+import { fetchPreferences, fetchRandomArtwork, savePreferences } from './api.js';
 import { chooseWidth, loadImage, present } from './display.js';
 import * as fullscreen from './fullscreen.js';
 import { createOverlay } from './overlay.js';
@@ -136,6 +136,7 @@ bindShortcuts({
   onInterval: (minutes) => {
     rotation.setIntervalMinutes(minutes);
     setIntervalMinutes(minutes);
+    void savePreferences({ interval_minutes: minutes });
     flashStatus(MESSAGES.interval_set(minutes));
   },
   onDismissOverlay: () => {
@@ -149,6 +150,18 @@ bindShortcuts({
   isOverlayVisible: () => overlay.isVisible(),
 });
 
-setIntervalMinutes(DEFAULT_INTERVAL_MINUTES);
-showStatus('loading');
-void rotation.start();
+/** Restore saved settings, then put the first artwork up. */
+async function boot() {
+  setIntervalMinutes(DEFAULT_INTERVAL_MINUTES);
+  showStatus('loading');
+
+  const saved = await fetchPreferences();
+  if (saved?.interval_minutes) {
+    rotation.setIntervalMinutes(saved.interval_minutes);
+    setIntervalMinutes(saved.interval_minutes);
+  }
+
+  await rotation.start();
+}
+
+void boot();

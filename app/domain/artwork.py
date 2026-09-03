@@ -94,6 +94,13 @@ class ArtworkPage(BaseModel):
     artworks: tuple[Artwork, ...] = ()
     iiif_base: str
 
+    total: int | None = None
+    """How many records match in total. Present on listing responses; the crawler uses it
+    to know when it has reached the end."""
+
+    total_pages: int | None = None
+    current_page: int | None = None
+
     def displayable(self) -> tuple[Artwork, ...]:
         """The subset that passes the public-domain and image checks."""
         return tuple(a for a in self.artworks if a.is_displayable)

@@ -1,5 +1,7 @@
 """HTTP response shapes. Serialisation only — no logic lives here."""
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 from app.domain.artwork import Artwork
@@ -35,8 +37,14 @@ class ArtworkResponse(BaseModel):
     color: dict[str, float] | None
     is_boosted: bool
 
+    source: str = "aic"
+    """Which tier produced this: index, aic, or fallback. The display shows a quiet
+    offline indicator when it is not the live API."""
+
     @classmethod
-    def from_domain(cls, artwork: Artwork, iiif_base: str) -> "ArtworkResponse":
+    def from_domain(
+        cls, artwork: Artwork, iiif_base: str, source: str = "aic"
+    ) -> "ArtworkResponse":
         if artwork.image_id is None:  # pragma: no cover — guarded by is_displayable
             raise ValueError("artwork has no image_id and should not have been selected")
         thumbnail = artwork.thumbnail
@@ -60,6 +68,7 @@ class ArtworkResponse(BaseModel):
             source_height=thumbnail.height if thumbnail else None,
             color=({"h": colour.h, "s": colour.s, "l": colour.l} if colour is not None else None),
             is_boosted=artwork.is_boosted,
+            source=source,
         )
 
 
@@ -68,3 +77,14 @@ class ErrorResponse(BaseModel):
 
     code: str
     detail: str
+
+
+class PreferencesResponse(BaseModel):
+    """The preferences the user can actually set.
+
+    A typed shape rather than a free key/value passthrough: the `preferences` table also
+    holds things the app learned for itself — the IIIF base, the crawler's progress — and
+    those are not the browser's to write.
+    """
+
+    interval_minutes: Literal[1, 5, 15, 30] = 5

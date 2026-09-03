@@ -56,13 +56,19 @@ The second exists so the resolution chain is real code rather than a promise. Se
 ## Data flow: showing an artwork
 
 ```
-GET /api/artwork/next?mode=curated&filters=…
-    → RotationService
-        → ArtworkIndexRepository.sample(filters, history)     [SQLite, no network]
-        → AicClient.get(id)                                    [network, for fresh detail]
+GET /api/artwork/random
+    → SelectionService
+        → ArtworkIndexRepository.sample(pool)                 [SQLite, no network]
+        → domain.selection.choose_next(candidates, history)   [pure]
         → HistoryRepository.push(id)
-    → ArtworkResponse { id, title, artist, iiif_base, image_id, lqip, alt_text, dimensions }
+    → ArtworkResponse { id, title, artist, iiif_base, image_id, lqip, alt_text, …, source }
 ```
+
+Three tiers, in order: the local index, then AIC, then the bundled fallback set. `source` on
+the response says which one answered, so the UI can show a quiet offline indicator.
+
+The index carries no IIIF base — that is a property of AIC's deployment, not of an artwork —
+so the last one AIC reported is kept in `preferences` and reused. It is never hardcoded.
 
 The frontend builds the IIIF URL itself from `iiif_base` and `image_id`, because only the browser
 knows the viewport width and pixel ratio. The backend does not guess a width.
@@ -77,8 +83,10 @@ Selection reads from SQLite, not from AIC. That is the whole point of the index 
 One SQLite file, `data/vitrine.db`. Tables:
 
 ```
-artwork_index        id, image_id, title, artist, date_display, classification,
-                     style_ids, width, height, is_boosted, has_alt_text, lqip,
+artwork_index        id, image_id, title, artist, date_display, medium_display,
+                     credit_line, place_of_origin, department_title, classification,
+                     main_reference_number, description, width, height, is_boosted,
+                     has_alt_text, alt_text, lqip, color_h, color_s, color_l,
                      score, indexed_at
 history              artwork_id, shown_at
 interpretations      cache_key PK, artwork_id, language, provider, model,
@@ -90,13 +98,25 @@ ai_usage             day, provider, requests, tokens_in, tokens_out
 Enable WAL mode. Wrap access in repository classes; no raw SQL outside `repositories/`.
 Migrations: a plain numbered-SQL-files runner is enough. Do not add Alembic for this.
 
+`sqlite3` is synchronous and there is no async driver here on purpose. Repositories expose
+a `*_sync` method and an `async` wrapper that pushes it onto a worker thread, so the request
+path never blocks. Connections are opened per operation rather than shared, because a
+`sqlite3` connection cannot be moved between threads.
+
+`preferences` holds two kinds of thing: what the user chose, and what the app learned for
+itself — the IIIF base AIC reported, and how far the crawler got. Only the first kind is
+exposed over HTTP, through a typed schema rather than a key/value passthrough.
+
 ---
 
 ## The index
 
 `scripts/build_index.py` is the reason the app works. It populates `artwork_index` by walking
-AIC — respecting the 1 req/s scraping etiquette — or by reading a downloaded data dump, filtering
-to public-domain works with usable images, scoring them, and writing rows.
+`/artworks` — the plain listing endpoint, which is uncapped — at AIC's requested 1 req/s,
+filtering to public-domain works with usable images, scoring them, and writing rows.
+
+The nightly data dumps are not needed: the listing endpoint paginates the whole collection in
+about 22 minutes. ADR-0003 assumed otherwise; see its postscript and `docs/aic-api.md`.
 
 It is a script, run manually or on a schedule, never on the request path. The app degrades to
 direct AIC queries if the index is empty, but that path is the fallback, not the design.

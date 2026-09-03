@@ -43,15 +43,16 @@ The goal is one real artwork on screen, fetched over the network, in a browser. 
 
 This is the milestone that makes the rest possible. See ADR-0003.
 
-- [ ] SQLite setup, WAL mode, migration runner
-- [ ] `artwork_index` schema and repository
-- [ ] `scripts/build_index.py` — resumable, idempotent, 1 req/s, `--limit` flag
-- [ ] Public-domain and image-quality filtering at index time
-- [ ] Random sampling from the index, with the history penalty
-- [ ] `history` table, last ~50 IDs
-- [ ] Preferences persistence
-- [ ] Bundled fallback set of ~30 artworks for the no-network case
-- [ ] Commit
+- [x] SQLite setup, WAL mode, migration runner
+- [x] `artwork_index` schema and repository
+- [x] `scripts/build_index.py` — resumable, idempotent, 1 req/s, `--limit` flag
+- [x] Public-domain and image-quality filtering at index time
+- [x] Random sampling from the index, with the history penalty
+- [x] `history` table, last ~50 IDs
+- [x] Preferences persistence — the rotation interval survives a reload; M4's panel adds the rest
+- [x] Bundled fallback set of ~30 artworks for the no-network case — metadata only, so it
+      covers "the API is down", not "no internet at all"
+- [x] Commit
 
 ## M3 — Modes
 

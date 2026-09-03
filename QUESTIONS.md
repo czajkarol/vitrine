@@ -73,7 +73,39 @@ I lean towards capping, but it is a visible-quality decision, so it is yours.
 
 ---
 
-## 7. Fallback set / offline story is still M2
+## 7. The bundled fallback set holds metadata, not images — *decided*
 
-Nothing to decide, just so it is not a surprise: with no network there is currently no picture.
-The bundled ~30-artwork fallback is an M2 item and I will do it there.
+Done in M2. `app/data/fallback_artworks.json` carries 30 real AIC records, all `is_boosted`
+(their own essentials list — Van Gogh's *Bedroom*, Caillebotte, Seurat).
+
+**What it does not do:** the images still come from AIC at display time. So it covers "no local
+index yet" and "the AIC API is down", but not "no internet at all". Bundling 30 images would
+add tens of megabytes and make the repository a partial mirror of the collection, which
+ADR-0007 exists partly to avoid.
+
+**Tell me if** you want true offline, and I will bundle downscaled images (say 400px) as a
+separate opt-in asset step.
+
+---
+
+## 8. The index is only partially built — *needs a decision from you*
+
+I built 1,353 rows (about 2,300 records walked) to prove the crawler works. The full walk is
+132,740 records at AIC's requested 1 req/s, so roughly **22 minutes**, and I did not want to
+run a 22-minute crawl against their API unattended without you saying so.
+
+    uv run python scripts/build_index.py
+
+It is resumable, so it can be stopped and restarted freely.
+
+**Ask:** happy for me to run the full walk next session? Curated mode (M3) wants the whole
+corpus to rank.
+
+---
+
+## 9. `.gitignore` had `data/`, which also hid `app/data/` — *fixed, flagging*
+
+The bundled fallback set lives in `app/data/`, and a bare `data/` pattern matches a directory
+of that name at any depth. The set would have been silently left out of every commit, so a
+fresh clone would have had no offline story and nothing to indicate why. Changed to `/data/`,
+anchored to the repository root. The runtime database is still ignored.
