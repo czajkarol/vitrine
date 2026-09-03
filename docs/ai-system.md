@@ -72,16 +72,31 @@ take the app down.
 
 ```
 providers/ai/
-    base.py       the Protocol and shared request/response models
+    base.py       the Protocol, the errors, and parse_interpretation()
+    http.py       the POST, the timeout and the error map both real providers share
     mock.py       deterministic, used by the entire test suite
-    openai.py
-    anthropic.py
-    gemini.py
+    factory.py    the only place a configured name becomes a class
+    anthropic.py  built first
+    openai.py     built second, to test the abstraction
+    gemini.py     not built
 ```
 
 Build `base.py` and `mock.py` first, wire the whole feature end to end against the mock, and
 only then add one real provider. Adding the second real provider is what proves the abstraction
 holds — if it requires changing `base.py`, the abstraction was wrong and now is the time to know.
+
+**Outcome, recorded because it was the point of the exercise.** OpenAI arrived second and
+`base.py` did not change. The two vendors disagree about nearly everything on the wire — the
+system prompt is a field at Anthropic and a message at OpenAI; the output cap is `max_tokens`
+against `max_completion_tokens`; token counts come back as `input_tokens`/`output_tokens`
+against `prompt_tokens`/`completion_tokens`; JSON is an instruction at one and a request
+parameter at the other — and all of it stayed inside the two provider modules.
+
+What the second provider *did* change was `http.py`, which did not exist before it: both were
+about to duplicate a client, a POST, an error map and a redaction rule. That is shared
+implementation, not a shared interface, so it sits beside the providers rather than in
+`base.py`. A provider that needs a different transport — a vendor SDK, a streaming socket —
+implements the Protocol without it and nothing else has to know.
 
 No test in the default suite may hit a paid API. Real providers are exercised only under
 `-m live`, which is excluded from CI.

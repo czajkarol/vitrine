@@ -14,6 +14,7 @@ from app.core.config import Settings
 from app.providers.ai.anthropic import AnthropicProvider
 from app.providers.ai.base import InterpretationProvider
 from app.providers.ai.mock import MOCK_MODEL, MockProvider
+from app.providers.ai.openai import OpenAiProvider
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,12 @@ def create_provider(settings: Settings) -> InterpretationProvider | None:
             logger.warning("AI_PROVIDER is anthropic but ANTHROPIC_API_KEY is not set.")
             return None
         return AnthropicProvider(settings, settings.anthropic_api_key.get_secret_value())
+
+    if settings.ai_provider == "openai":
+        if settings.openai_api_key is None:
+            logger.warning("AI_PROVIDER is openai but OPENAI_API_KEY is not set.")
+            return None
+        return OpenAiProvider(settings, settings.openai_api_key.get_secret_value())
 
     # Unreachable while `ai_provider` is a Literal of what exists, which is the point of
     # typing it that way: a name nobody implemented fails at startup, not at the first

@@ -14,19 +14,16 @@ input and output token counts, so `ai_usage` records what was spent instead of a
 import logging
 from typing import Any, Final
 
-import httpx
-
 from app.core.config import Settings
-from app.core.redaction import redact
 from app.domain.prompts import build_prompt
 from app.providers.ai.base import (
     InterpretationRequest,
     InterpretationResult,
     InvalidResponseError,
-    ProviderUnavailableError,
     TokenUsage,
     parse_interpretation,
 )
+from app.providers.ai.http import ProviderHttp
 
 logger = logging.getLogger(__name__)
 
@@ -42,20 +39,17 @@ class AnthropicProvider:
     def __init__(self, settings: Settings, api_key: str, model: str | None = None) -> None:
         self.name = ANTHROPIC_NAME
         self.model = model or settings.ai_model or DEFAULT_MODEL
-        self._api_key = api_key
-        self._client = httpx.AsyncClient(
-            timeout=settings.ai_timeout_seconds,
-            headers={
-                # The key lives here and in no other structure. It is never logged, never
-                # returned from an endpoint, and never part of an error message.
-                "x-api-key": api_key,
-                "anthropic-version": API_VERSION,
-                "content-type": "application/json",
-            },
+        self._http = ProviderHttp(
+            name=self.name,
+            api_key=api_key,
+            timeout_seconds=settings.ai_timeout_seconds,
+            # The key lives here and in no other structure. It is never logged, never
+            # returned from an endpoint, and never part of an error message.
+            headers={"x-api-key": api_key, "anthropic-version": API_VERSION},
         )
 
     async def aclose(self) -> None:
-        await self._client.aclose()
+        await self._http.aclose()
 
     async def interpret(self, request: InterpretationRequest) -> InterpretationResult:
         prompt = build_prompt(request.artwork, request.language)
@@ -66,23 +60,7 @@ class AnthropicProvider:
             "messages": [{"role": "user", "content": prompt.content}],
         }
 
-        try:
-            response = await self._client.post(API_URL, json=payload)
-        except httpx.TimeoutException as exc:
-            raise ProviderUnavailableError(f"anthropic timed out: {exc}") from exc
-        except httpx.HTTPError as exc:
-            raise ProviderUnavailableError(f"anthropic unreachable: {exc}") from exc
-
-        if response.status_code >= 400:
-            # Includes an invalid key, which is not transient — but it fails the same way,
-            # and the circuit breaker stopping after five identical 401s is the right
-            # outcome anyway. The key is named only as its last four characters.
-            raise ProviderUnavailableError(
-                f"anthropic returned {response.status_code} for key {redact(self._api_key)}: "
-                f"{_error_message(response)}"
-            )
-
-        body = response.json()
+        body = await self._http.post_json(API_URL, payload)
         return InterpretationResult(
             interpretation=parse_interpretation(_text_of(body), request.language),
             usage=_usage_of(body),
@@ -118,12 +96,3 @@ def _usage_of(body: dict[str, Any]) -> TokenUsage:
         input_tokens=int(usage.get("input_tokens", 0)),
         output_tokens=int(usage.get("output_tokens", 0)),
     )
-
-
-def _error_message(response: httpx.Response) -> str:
-    """The provider's own explanation, if it gave one worth repeating."""
-    try:
-        error = response.json().get("error", {})
-        return str(error.get("message", ""))[:200]
-    except ValueError:
-        return response.text[:200]

@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     # every field here has a default that means "off".
     ai_enabled: bool = False
 
-    ai_provider: Literal["", "mock", "anthropic"] = ""
+    ai_provider: Literal["", "mock", "anthropic", "openai"] = ""
     """Only what is actually implemented. A vendor joins this list in the commit that
     builds it — a name accepted here but unbuilt would fail at the first request instead
     of at startup."""
@@ -85,6 +85,8 @@ class Settings(BaseSettings):
     anthropic_api_key: SecretStr | None = None
     """A SecretStr so that printing the settings object, which happens in tracebacks and
     debuggers, cannot print the key. Reading it takes a deliberate `.get_secret_value()`."""
+
+    openai_api_key: SecretStr | None = None
 
 
 @lru_cache(maxsize=1)

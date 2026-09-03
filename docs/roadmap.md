@@ -112,7 +112,8 @@ Per `CLAUDE.md`, ask Karol before starting it.
       not to the overlay's own flash on every artwork change
 - [x] One real provider — Anthropic, Karol's choice. Live tests are `-m live` and skip
       themselves without a key
-- [ ] A second real provider, to prove the abstraction
+- [x] A second real provider, to prove the abstraction — OpenAI. `base.py` did not have
+      to change; the shared HTTP plumbing moved to `providers/ai/http.py`
 - [ ] BYO key handling with keyring preference and redaction everywhere
 - [ ] Commit
 
