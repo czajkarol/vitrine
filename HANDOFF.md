@@ -72,18 +72,34 @@ the file named, but they are the ones that cost real time.
 8. **Tests must set `database_path`.** The `settings` fixture in `tests/conftest.py` points at
    a tmp file. Without it the suite reads and writes the developer's real index.
 
-## Open questions for Karol
+## Decisions already made
 
-`QUESTIONS.md` holds twelve items — decisions taken with reasoning, and a few genuinely needing
-Karol's call. The ones that affect what to build next:
+`QUESTIONS.md` is a settled record, not a list of open items — Karol ruled on all twelve on
+2026-09-03. Read it before changing anything it covers, so a decision does not get relitigated.
 
-- **#5** Fullscreen (`F`) is written but never verified: `requestFullscreen()` needs a real user
-  gesture, which browser automation cannot supply. Someone should press the key once.
-- **#6** Image width is pinned to 1686 on a 1920px viewport, ~1MB per artwork through the proxy
-  where 843 (~250KB) would do. A visible-quality call.
-- **#10** Explore filters cover artwork type only. Style and subject need `style_titles` and
-  `subject_titles` added to the crawl's `fields=` and a re-walk.
-- **#11** The Curated scoring weights are one person's judgement. `--explain` prints the working.
+The ones that constrain future work:
+
+- **#8 is a standing rule, now in `CLAUDE.md`.** Ask before sustained automated traffic to an
+  external service — anything running several minutes or making a substantial number of
+  requests, even inside documented limits. A full `build_index.py` walk needs approval. A few
+  calls to verify a field does not.
+- **#10** Style and subject filters are wanted, but not at the cost of a crawl on their own.
+  They have their own milestone, M3.5, to be batched with other indexing work.
+- **#11** The scoring weights are accepted as heuristics, explicitly not as claims about art.
+  Keep them easy to tune; keep the comments honest about being judgement calls.
+- **#6** 1686 stays the top image width. `chooseWidth()` was checked and does scale with
+  viewport x DPR; 1686 is simply the largest rung.
+- **#3** The 5-line description clamp stays. No scrolling, no "more" affordance — it is an
+  ambient display, not a dashboard.
+
+Two loose ends:
+
+- **#5 fullscreen** is the one genuinely unresolved item. `F` cannot be verified from
+  automation because `requestFullscreen()` needs a real user gesture. Karol is testing by hand.
+- **#2 `S`** — Karol answered "leave it unbound until M4", but that answer was given against a
+  question written in M1, before the settings panel existed. It exists now and `S` is its only
+  entry point, so unbinding it would strand the Explore filters. Left bound, flagged in
+  `QUESTIONS.md` #2, awaiting his word.
 
 ## Conventions worth matching
 

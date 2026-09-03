@@ -61,11 +61,26 @@ This is the milestone that makes the rest possible. See ADR-0003.
 - [x] `--explain` flag printing a score breakdown
 - [x] Curated mode wired to the index — curated ranks, it does not exclude: with nothing
       scored yet it serves unranked rather than showing a blank screen
-- [ ] Filter vocabulary built from `/artwork-types` and `/category-terms` at index time —
-      artwork types done, with real counts. `style_titles` and `subject_titles` are verified
-      to exist (`docs/aic-api.md`) but need adding to the crawl and a re-walk
+- [x] Filter vocabulary built from `/artwork-types` at index time, with real counts —
+      style and subject moved to their own step below, see `QUESTIONS.md` #10
 - [x] Explore mode UI, showing match counts, hiding filters with too few results
 - [x] Commit
+
+## M3.5 — Style and subject filters
+
+Split out of M3 deliberately. `style_titles` and `subject_titles` are confirmed present on AIC
+responses (`docs/aic-api.md`) but are not in the index, and adding them means re-walking the
+collection. Karol's ruling was to want them but not to spend a second 22-minute crawl on them
+alone — so this waits until there is other indexing work to batch the walk with.
+
+Do the schema and crawl changes first, then run **one** walk covering everything outstanding.
+Per `CLAUDE.md`, ask Karol before starting it.
+
+- [ ] Add `style_titles` and `subject_titles` to `ARTWORK_FIELDS` and the `artwork_index` schema
+- [ ] Decide how a multi-valued filter is stored — a join table, or JSON in a column
+- [ ] Extend `/api/filters` and the Explore panel to offer style and subject alongside type
+- [ ] One re-walk covering this and anything else pending, with approval
+- [ ] Commit
 
 ## M4 — Settings and i18n
 

@@ -93,9 +93,20 @@ Do not read these upfront. Read the one that matches the task, when the task com
 
 Work autonomously through `docs/roadmap.md`. Pick the next unchecked item, build it, tick it off.
 
-Ask only for: credentials or external accounts, an irreversible action, or a product decision that
-genuinely changes what the app *is*. Anything else, decide and note the decision in the commit
-message. If a decision is architectural and would be expensive to reverse, write an ADR.
+Ask only for: credentials or external accounts, an irreversible action, a product decision that
+genuinely changes what the app *is*, or **sustained automated traffic to an external service**.
+Anything else, decide and note the decision in the commit message. If a decision is architectural
+and would be expensive to reverse, write an ADR.
+
+On that last one, Karol's rule, and the threshold is volume and duration rather than permission:
+
+> For sustained automated traffic to an external service, ask first if the operation is expected
+> to run for several minutes or generate a substantial number of requests, even when it stays
+> within the documented API limits. Short, low-volume requests within documented limits can be
+> performed autonomously.
+
+So a handful of calls to check a field is yours to make. A full `scripts/build_index.py` walk —
+1,328 requests over 22 minutes — is not, even though it sits inside AIC's own 1 req/s etiquette.
 
 Build vertically. A working thin path through every layer beats a complete layer with nothing on
 top of it. If there is no picture on screen yet, the next task is the one that puts a picture on

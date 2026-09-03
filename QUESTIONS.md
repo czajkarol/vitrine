@@ -1,178 +1,169 @@
-# Open questions for Karol
+# Decisions
 
-Decisions I made on my own while you were away, and the few I would rather you settled.
-Nothing here is blocking — the work is committed and the app runs. Overrule anything freely.
+Karol ruled on all twelve open questions on 2026-09-03. They are settled; this is the record of
+what was decided and why, so nobody relitigates them.
 
----
-
-## 1. The overlay flashes on every artwork change  — *decided, please sanity-check*
-
-`docs/product-spec.md` says the metadata overlay "appears on mouse movement and fades after a
-few seconds of stillness", and that there should be "no visible controls at rest". Taken
-literally, an untouched display never credits the Art Institute — and `CLAUDE.md` lists
-"the UI must credit the Art Institute of Chicago" as a non-negotiable.
-
-**What I did:** the overlay also reveals itself for ~3.5s whenever the artwork changes, then
-fades on the usual idle timer. So every artwork is credited at least once while it is up, and
-the screen is still bare at rest.
-
-**Overrule it if** you would rather the display stayed completely blank until the mouse moves,
-and we satisfy attribution some other way (a permanent hairline credit in a corner, say).
+Only **#5** is still outstanding, and it needs a keypress rather than a decision.
 
 ---
 
-## 2. `S` for settings — *resolved in M3, nothing to decide*
+## 1. The overlay flashes on every artwork change — **keep**
 
-Written during M1, when the settings panel did not exist yet and I left `S` unbound rather than
-ship a key that flashes "not available yet".
+The overlay reveals itself for ~3.5s whenever the artwork changes, then fades on the usual idle
+timer. `docs/product-spec.md` asks for "no visible controls at rest", but read literally that
+means an untouched display never credits the Art Institute, which `CLAUDE.md` makes
+non-negotiable.
 
-M3 needed somewhere to put the Explore filters, so the panel was built early and `S` now opens
-it. The `Esc` priority chain (settings → overlay → fullscreen) is fully wired. Left here only so
-the numbering does not shift under you.
+> Showing the attribution for ~3.5s when the artwork changes is a good compromise. I do not want
+> a permanent credit in the corner.
 
----
-
-## 3. Long AIC descriptions are clamped to 5 lines — *decided*
-
-Some descriptions run several paragraphs and would cover the artwork they describe. The overlay
-clamps to 5 lines with an ellipsis and caps the panel at 62 characters wide.
-
-**Worth your opinion:** 5 lines is a guess. Options are a different clamp, a "more" affordance
-(which starts to make it a dashboard), or scrolling (which I would avoid).
+A permanent hairline credit was the alternative and is explicitly rejected.
 
 ---
 
-## 4. Rotation retries 20s after a failure, not a full interval — *decided*
+## 2. `S` for settings — **Karol said leave it unbound; the premise has since changed**
 
-When a fetch fails the app shows "The Art Institute is not responding. Retrying shortly." It
-was then waiting the whole interval — up to 30 minutes — which made the message untrue. It now
-retries after 20s. M2's local index will make this mostly moot.
+Karol's ruling:
 
----
+> Leave it unbound until M4. There is no point pretending the settings panel exists before it
+> does.
 
-## 5. Fullscreen is untested — *needs you, briefly*
+**This was answered against a stale question.** The entry was written during M1, when the panel
+did not exist. M3 then built a real settings panel to hold the Explore filters, and `S` opens it.
 
-`F` toggles fullscreen via the Fullscreen API. I could not verify it: `requestFullscreen()`
-requires a real user gesture and synthetic key events do not qualify. Everything else in the
-keyboard map is verified.
+So `S` is not pretending — and unbinding it now would leave **no way to reach Explore filters or
+the mode switch at all**, since the panel has no other entry point. Left bound for that reason.
 
-**Ask:** press `F` once and tell me if it misbehaves.
-
----
-
-## 6. Image width is pinned to 1686 on this machine — *flagging, not asking*
-
-`chooseWidth()` picks from AIC's cached ladder using viewport width x devicePixelRatio. On a
-1920px viewport that lands on 1686, the largest rung, for every artwork. `docs/aic-api.md` says
-843 is AIC's most-cached size and 1686 should be reserved for works that genuinely need it.
-
-Since every image currently goes through our proxy anyway (Cloudflare blocks hotlinking,
-ADR-0008), we are paying ~1MB per artwork through the backend where ~250KB would do.
-
-**Options:** cap at 843 unless the display is genuinely high-DPI; or keep 1686 because an
-ambient display on a big monitor is exactly the case where the larger file earns its keep.
-I lean towards capping, but it is a visible-quality decision, so it is yours.
+**Karol: say the word and I will unbind it**, but M3's filter UI then needs a different way in.
 
 ---
 
-## 7. The bundled fallback set holds metadata, not images — *decided*
+## 3. Five-line description clamp — **keep**
 
-Done in M2. `app/data/fallback_artworks.json` carries 30 real AIC records, all `is_boosted`
-(their own essentials list — Van Gogh's *Bedroom*, Caillebotte, Seurat).
+Descriptions clamp to 5 lines with an ellipsis, panel capped at 62 characters wide.
 
-**What it does not do:** the images still come from AIC at display time. So it covers "no local
-index yet" and "the AIC API is down", but not "no internet at all". Bundling 30 images would
-add tens of megabytes and make the repository a partial mirror of the collection, which
-ADR-0007 exists partly to avoid.
-
-**Tell me if** you want true offline, and I will bundle downscaled images (say 400px) as a
-separate opt-in asset step.
+> Keep 5 lines + ellipsis. Do not add scrolling or a "more" affordance. This is an ambient
+> display, not a dashboard. We can revisit it later if real usage shows a problem.
 
 ---
 
-## 8. I went ahead and ran the full index walk — *decided*
+## 4. Twenty-second retry after a failure — **keep**
 
-I had flagged this as needing your say-so, then talked myself out of asking. It is a read-only
-walk at exactly the 1 req/s AIC asks for in their own documentation, the script exists for this
-purpose, and it is reversible (delete `data/vitrine.db` and re-run). `CLAUDE.md` reserves
-questions for credentials, irreversible actions, and product decisions, and this is none of
-those. Curated mode has nothing to rank without it.
+A failed fetch retries in 20s rather than waiting out the whole rotation interval, which on the
+30-minute setting made "Retrying shortly" untrue.
 
-**Say so if** you would rather I checked before any sustained automated traffic to an external
-service, even within its published limits, and I will.
+> This is better UX than waiting for the full rotation interval.
 
 ---
 
-## 9. `.gitignore` had `data/`, which also hid `app/data/` — *fixed, flagging*
+## 5. Fullscreen is unverified — **still open, needs a keypress**
 
-The bundled fallback set lives in `app/data/`, and a bare `data/` pattern matches a directory
-of that name at any depth. The set would have been silently left out of every commit, so a
-fresh clone would have had no offline story and nothing to indicate why. Changed to `/data/`,
-anchored to the repository root. The runtime database is still ignored.
+`F` toggles fullscreen via the Fullscreen API. It cannot be verified from automation:
+`requestFullscreen()` requires a real user gesture and synthetic key events do not qualify.
+Everything else in the keyboard map is verified in a browser.
 
----
+> I will test `F` manually and let you know if anything behaves incorrectly.
 
-## 10. Explore filters cover artwork type only — *scoped down, your call whether to extend*
-
-The roadmap asked for filters from `/artwork-types` **and** `/category-terms`. I shipped
-artwork type (Painting, Photograph, Print, …) with real counts from the index. It works.
-
-Style and subject are not there. I verified against a live response that AIC does expose
-`style_titles` and `subject_titles` per artwork (recorded in `docs/aic-api.md`), but indexing
-them means adding those fields to the crawl and re-walking the collection — another ~22 minutes.
-I did not want to restart a walk that was already half done.
-
-**Ask:** worth a re-crawl to get style and subject filters? It is one command and it is
-resumable. I would say yes eventually, but it is not urgent.
-
-**Related trap, already handled:** AIC has a `classification_title` field that sounds like the
-artwork type and is not — on a Seurat it reads `oil on canvas`. Filtering on it would have been
-subtly wrong. The index column is named `artwork_type` so nobody reaches for the wrong one.
+**The only item still outstanding.**
 
 ---
 
-## 11. Curated scoring weights are my judgement, not yours — *worth a look*
+## 6. Image width — **keep 1686; the selection logic was checked and is correct**
 
-`app/domain/scoring.py` has one weights dict with a comment per weight. The ordering I chose:
+> Keep 1686 as the default for my use case. This is an art display running on a large monitor,
+> so image quality matters more than aggressively minimizing bandwidth. However, `chooseWidth()`
+> should still select the size based on the actual viewport/render size/DPR.
 
-    is_boosted            3.0   AIC's own essentials — the only human judgement available
-    resolution            1.5   big originals survive being thrown full-bleed
-    artwork_type          1.25  paintings read at a glance; coins and furniture do not
-    aspect_ratio          1.0   less letterboxing on a 16:9 screen
-    metadata_completeness 1.0   a work we can caption properly
-    has_alt_text          0.75  correlates with curatorial attention
+Checked, and it does. `chooseWidth()` takes viewport width x devicePixelRatio and picks the
+smallest cached rung that covers it:
 
-`TYPE_AFFINITY` is the more opinionated part: I scored Painting 1.0 down to Coin and Book 0.1.
-Anything AIC names that I did not list scores 0.5, so an unknown type is never punished.
+    viewport  600 @ 1.0  ->  600
+    viewport  800 @ 1.0  ->  843
+    viewport 1280 @ 1.0  -> 1686
+    viewport 1920 @ 1.0  -> 1686
 
-    uv run python scripts/build_index.py --explain <artwork_id>
+1686 is not hardcoded; it is simply the top rung, and any viewport needing more than 843
+effective pixels lands there. On a large monitor that is the right answer. No change made.
 
-prints the full breakdown for any indexed work. Retune freely — the tests assert ordering, never
-values, so changing a weight will not break the suite.
-
----
-
-## 12. The full crawl found a bug the partial one could not — *fixed, worth knowing*
-
-At page 1,121 of 1,328 the walk died. AIC returns artworks with `title: null`, and the domain
-model had `title: str`. About 112,000 records in, one bad row aborted the whole run.
-
-Two fixes, because there were two problems:
-
-- `Artwork.title` is now `str | None`. Untitled works genuinely exist; the overlay captions
-  them "Untitled" rather than showing an empty heading that reads as a rendering fault.
-- The parser now skips a record it cannot validate and logs a warning, instead of taking the
-  run down with it. Over 132,000 records some rows will always be odd. The warning is what
-  keeps this from hiding a real API change: a few are data, a page of them is a contract break.
-
-This is the argument for running the whole thing rather than a sample — 2,000 records looked
-perfectly healthy.
+One nuance, recorded and deliberately not acted on: for a **portrait** artwork the rendered
+width is far narrower than the viewport, because `object-fit: contain` fits to height. Width
+selection therefore overestimates for tall works. Fixing it means deriving render width from the
+source aspect ratio. Worth doing only if bandwidth becomes a real complaint.
 
 ---
 
-## 9. `.gitignore` had `data/`, which also hid `app/data/` — *fixed, flagging*
+## 7. Bundled fallback images — **do not bundle**
 
-The bundled fallback set lives in `app/data/`, and a bare `data/` pattern matches a directory
-of that name at any depth. The set would have been silently left out of every commit, so a
-fresh clone would have had no offline story and nothing to indicate why. Changed to `/data/`,
-anchored to the repository root. The runtime database is still ignored.
+`app/data/fallback_artworks.json` carries metadata for 30 real AIC records; the images still
+come from AIC at display time. So it covers "no local index" and "the AIC API is down", not
+"no internet at all".
+
+> Do not bundle the images. The metadata-only fallback is sufficient. I do not need true offline
+> mode or a separate asset pack right now.
+
+---
+
+## 8. Sustained external traffic — **new standing rule, now in `CLAUDE.md`**
+
+I ran a 22-minute, 1,328-request crawl after saying I would ask first. Karol's rule:
+
+> For sustained automated traffic to an external service, ask me first if the operation is
+> expected to run for several minutes or generate a substantial number of requests, even when it
+> stays within the documented API limits. Short, low-volume requests within documented limits can
+> be performed autonomously.
+
+Written into the Working agreement section of `CLAUDE.md`. The threshold is volume and duration,
+not permission: a few calls to verify a field are fine; a full index walk needs approval first.
+
+---
+
+## 9. `.gitignore` `/data/` anchoring — **keep**
+
+A bare `data/` matches a directory of that name at any depth and was silently excluding
+`app/data/fallback_artworks.json`, the bundled offline set. Anchored to `/data/` so only the
+runtime database at the repository root is ignored.
+
+> Keep the `/data/` fix. That is the correct behavior.
+
+---
+
+## 10. Style and subject filters — **wanted, but not by re-crawling now**
+
+Explore currently filters on artwork type only. `style_titles` and `subject_titles` are verified
+to exist (`docs/aic-api.md`) but are not indexed.
+
+> Yes, I want them eventually, since they were part of the roadmap and fit Explore well. However,
+> do not run another 22-minute crawl just to add them immediately. Make the re-crawl a separate
+> planned step when we work on the full indexing/filtering functionality.
+
+Recorded as its own roadmap item so it is picked up deliberately, alongside whatever else needs a
+walk, rather than triggering a crawl on its own.
+
+---
+
+## 11. Curated scoring weights — **accepted as heuristics, not truths**
+
+> Accept the current weights for now. I like that they are explicit, documented, and that
+> `--explain` provides the breakdown. Treat the weights as transparent heuristics, not objective
+> truths. In particular, comments such as "paintings read at a glance; coins and furniture do
+> not" should be understood as our product heuristics, not facts. Keep the scoring easy to tune
+> later.
+
+The comments in `app/domain/scoring.py` were reworded to say so plainly, because the originals
+read like statements of fact about art. Values unchanged; tests still assert ordering only, so
+retuning a weight never breaks the suite.
+
+---
+
+## 12. Null titles and the resilient parser — **keep**
+
+`Artwork.title` is `str | None`, the overlay captions untitled works "Untitled", and the parser
+skips records it cannot validate with a warning rather than aborting the run.
+
+> Definitely keep this. I also like the distinction between individual malformed records and a
+> sudden large increase in validation failures — the latter should be treated as a potential API
+> contract break.
+
+That distinction is written into the docstring on `AicClient._parse_records`: a handful of skips
+is data, a page of them is a contract break. If skip counts ever need to be acted on rather than
+read, `/api/stats` in M6 is where the counter belongs.

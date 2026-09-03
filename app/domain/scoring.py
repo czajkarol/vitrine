@@ -4,6 +4,12 @@ Transparent weighted signals over the local index. No machine learning — the t
 whether you can say in one sentence why artwork A outranked artwork B
 (`docs/product-spec.md`). Every signal comes from a real AIC field.
 
+**These weights are product heuristics, not claims about art.** They encode what tends to
+look good full-bleed on an unattended screen, which is a judgement about this display and
+not a ranking of artistic worth. Nothing here should be read as saying a coin matters less
+than a painting; it says a coin photographed against a neutral background makes weaker
+wallpaper. Retune freely — the tests assert ordering, never values.
+
 Pure: given an artwork and a viewport ratio, the score is deterministic. No I/O, no clock.
 """
 
@@ -16,8 +22,9 @@ from app.domain.indexing import source_longest_side
 # One dict, one comment per weight. Weights are relative; only their ratios matter, and
 # the tests assert ordering rather than values so these can be retuned freely.
 WEIGHTS: Final[dict[str, float]] = {
-    # AIC's own curators flagged these as essentials. The single strongest signal we have,
-    # because it is the only one that encodes a human judgement about the work itself.
+    # AIC's own curators flagged these as essentials. Weighted highest because it is the
+    # only signal here carrying a human judgement about the work rather than an inference
+    # from its metadata.
     "is_boosted": 3.0,
     # Bigger originals survive being thrown full-bleed at a large monitor. Below the
     # display width the image server upscales and it shows.
@@ -31,13 +38,15 @@ WEIGHTS: Final[dict[str, float]] = {
     # Someone at the museum wrote a visual description of this object. It correlates with
     # curatorial attention, and it is what grounds the AI prompt in M5.
     "has_alt_text": 0.75,
-    # Paintings and prints read at a glance. Furniture, coins and documents photograph as
-    # objects on a background and make poor wallpaper.
+    # Our judgement about what suits a full-bleed ambient display: paintings and prints
+    # fill a frame, where furniture, coins and documents are photographed as objects on a
+    # neutral background. A preference about presentation, not about merit.
     "artwork_type": 1.25,
 }
 
-# Types that display well full-bleed, and what each is worth. Everything unlisted scores
-# in the middle: unknown is not the same as bad.
+# How well each type tends to fill a screen, on our reading. Hand-assigned and openly
+# arguable — the numbers are a starting point to tune, not a measurement. Everything
+# unlisted scores in the middle, because unknown is not the same as bad.
 TYPE_AFFINITY: Final[dict[str, float]] = {
     "Painting": 1.0,
     "Drawing and Watercolor": 0.9,
