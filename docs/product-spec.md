@@ -1,6 +1,6 @@
 # Product specification
 
-Vitrine is closer to a screensaver than to a web app. One artwork, dark background, no chrome
+vitrine is closer to a screensaver than to a web app. One artwork, dark background, no chrome
 unless asked for. It is meant to run for hours on a second monitor and be glanced at.
 
 If a feature would make it feel more like a dashboard, it does not belong.

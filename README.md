@@ -1,4 +1,4 @@
-# Vitrine
+# vitrine
 
 An ambient digital-art display. One public-domain artwork from the Art Institute of Chicago at
 a time, full-bleed on a dark background, rotating on a timer. Built for a second monitor.

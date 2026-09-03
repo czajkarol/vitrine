@@ -15,7 +15,7 @@ None of that serves the actual goal, which is a good-looking ambient display on 
 
 ## Decision
 
-Vitrine is local-first. It runs on the user's own machine, binds to localhost, and serves a
+vitrine is local-first. It runs on the user's own machine, binds to localhost, and serves a
 single user. Any API key it holds is the operator's own.
 
 ## Alternatives considered

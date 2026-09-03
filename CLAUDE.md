@@ -1,10 +1,14 @@
 # CLAUDE.md
 
-Vitrine — an ambient digital-art display. It shows one public-domain artwork from the
+vitrine — an ambient digital-art display. It shows one public-domain artwork from the
 Art Institute of Chicago at a time, full-bleed on a dark background, rotating on a timer.
 Python/FastAPI backend, vanilla-JS frontend, SQLite. Runs locally on the developer's machine.
 
 The project name is provisional. If it is going to change, change it in M0 before any other work.
+
+**The name is written `vitrine`, lower case, always.** Including at the start of a sentence, in
+headings, in the browser tab title, and in prose. Not `Vitrine`. Sentence-casing autocorrects
+itself back constantly, so if you find a capital V, fix it.
 
 ---
 

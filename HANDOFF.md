@@ -1,6 +1,6 @@
 # Handoff
 
-State of Vitrine as of 2026-09-03. Written for whoever (or whatever) picks this up next.
+State of vitrine as of 2026-09-03. Written for whoever (or whatever) picks this up next.
 
 ---
 
