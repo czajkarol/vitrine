@@ -7,7 +7,7 @@ The only module in the app permitted to read the environment. Everything else ta
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # AIC's IIIF service sits behind Cloudflare and rejects requests that do not look like a
@@ -55,6 +55,20 @@ class Settings(BaseSettings):
     # Seconds, and one of the values on the menu — same reasoning as default_language:
     # a value the UI cannot select would be discarded on every page load.
     default_interval_seconds: Literal[30, 60, 300, 900, 1800] = 300
+
+    @field_validator("default_interval_seconds", mode="before")
+    @classmethod
+    def _interval_from_environment(cls, value: object) -> object:
+        """Accept the string an environment variable is always going to be.
+
+        Pydantic will not coerce `"300"` into a `Literal[300]`, so without this the app
+        refuses to start on the value `.env.example` itself documents — which is exactly
+        how it was found: starting the server as a subprocess for the e2e tests, with the
+        example's own line in the environment.
+        """
+        if isinstance(value, str) and value.strip().isdigit():
+            return int(value)
+        return value
 
     # --- AI ---------------------------------------------------------------------------
     # Optional throughout. `CLAUDE.md` makes it an enhancement and never a dependency, so

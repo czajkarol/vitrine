@@ -130,7 +130,9 @@ Per `CLAUDE.md`, ask Karol before starting it.
       request from a `ContextVar` so existing log calls did not have to change, honoured
       from an inbound header, and a redaction pass over every record that catches a
       key-shaped token whatever wrote it
-- [ ] Playwright smoke tests: loads, advances, overlay opens, language switches, AI-disabled state
+- [x] Playwright smoke tests: loads, advances, overlay opens, language switches, AI-disabled
+      state — the fixture starts its own uvicorn against a temporary database seeded from the
+      bundled set, so `uv run pytest -m e2e` needs nothing set up but Chromium
 - [x] GitHub Actions: ruff, mypy, pytest excluding live and e2e
 - [ ] README written properly — architecture, setup, AI, caching, testing, security, limitations
 - [ ] Screenshots

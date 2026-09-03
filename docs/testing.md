@@ -32,6 +32,20 @@ or before a release. They are also how fixtures get refreshed.
 Playwright is slow and flaky in proportion to how much you ask of it. Everything not in that
 list belongs in a unit or integration test.
 
+The fixture starts its own uvicorn on a free port, against a temporary database seeded from the
+bundled fallback set, and strips `AI_*` and every vendor key out of the environment it inherits —
+a key in the developer's shell would turn AI on and flow 5 would silently stop testing what it
+says it tests. Metadata therefore needs no AIC call; the images still come from artic.edu, which
+is the one thing in the suite that touches the network and is exactly what flow 1 checks.
+
+Wait on `naturalWidth`, never on `load` or `complete`: an `<img>` with no src at all reports
+complete, and so does one whose src has already 404'd.
+
+```bash
+uv sync --all-extras
+uv run playwright install chromium
+```
+
 ## Failure paths
 
 Each of these has a named test. They are the ones that matter, because they are what a user
@@ -63,7 +77,7 @@ running the app for eight hours will actually hit:
 ```bash
 uv run pytest                     # unit + contract + integration
 uv run pytest -m live             # real AIC, manual
-uv run pytest -m e2e              # Playwright, needs the server running
+uv run pytest -m e2e              # Playwright; it starts its own server
 uv run pytest --cov=app           # coverage when you want a number
 ```
 
