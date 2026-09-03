@@ -31,8 +31,8 @@ The goal is one real artwork on screen, fetched over the network, in a browser. 
 - [x] Rotation timer with 1/5/15/30 intervals, default 5
 - [x] Next-artwork preload scheduled ahead of expiry
 - [x] `visibilitychange` catch-up so a backgrounded tab does not drift
-- [x] Keyboard shortcuts per `docs/product-spec.md`, disabled inside inputs — all but `S`,
-      which stays unbound until there is a settings panel to open in M4
+- [x] Keyboard shortcuts per `docs/product-spec.md`, disabled inside inputs — the whole map,
+      `S` included once M3 gave it a settings panel to open
 - [x] Fullscreen via the Fullscreen API — written, but not verified by hand: it needs a real
       user gesture, which browser automation cannot supply
 - [x] Metadata overlay with mouse-idle fade, AIC attribution included
@@ -49,7 +49,7 @@ This is the milestone that makes the rest possible. See ADR-0003.
 - [x] Public-domain and image-quality filtering at index time
 - [x] Random sampling from the index, with the history penalty
 - [x] `history` table, last ~50 IDs
-- [x] Preferences persistence — the rotation interval survives a reload; M4's panel adds the rest
+- [x] Preferences persistence — interval, mode and artwork type survive a reload; M4 adds language
 - [x] Bundled fallback set of ~30 artworks for the no-network case — metadata only, so it
       covers "the API is down", not "no internet at all"
 - [x] Commit
