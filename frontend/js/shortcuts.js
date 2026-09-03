@@ -55,7 +55,11 @@ function actsOnSpace(target) {
  */
 export function bindShortcuts(handlers) {
   function onKeyDown(event) {
-    if (event.defaultPrevented || isTyping(event.target)) return;
+    if (event.defaultPrevented) return;
+    // Escape is the exception to the typing rule. The settings panel now holds a text
+    // field — the API key — and a field you cannot escape from is a panel you cannot
+    // close from the keyboard, which is the same bug isTyping() was written to fix.
+    if (isTyping(event.target) && event.key !== 'Escape') return;
     // Never shadow a browser or OS shortcut. Ctrl+F is find, not fullscreen.
     if (event.ctrlKey || event.metaKey || event.altKey) return;
 

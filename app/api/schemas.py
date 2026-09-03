@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 from app.domain.artwork import Artwork
 
@@ -148,6 +148,62 @@ class AiStatus(BaseModel):
     circuit_open: bool = False
     """True while the provider is being left alone after repeated failures. `enabled` still
     reports what is configured; this reports whether it is currently being called."""
+
+
+class AiKeyRequest(BaseModel):
+    """A key the user pasted into the settings panel.
+
+    `SecretStr` rather than `str` so that the shape cannot print its own contents: this
+    model is exactly the kind of thing that ends up in a traceback or a debugger.
+
+    It does not, on its own, keep the key out of a rejection — pydantic reports the raw
+    input it was given, before this field type applies. That is handled in
+    `app/api/errors.py`, and a test here sends a malformed key and looks for it in the
+    response body.
+    """
+
+    provider: Literal["anthropic", "openai"]
+    """The vendors bring-your-own supports. `mock` is not one: it needs no key."""
+
+    api_key: SecretStr = Field(min_length=8, max_length=512)
+
+    @field_validator("api_key")
+    @classmethod
+    def _looks_like_a_key(cls, value: SecretStr) -> SecretStr:
+        """Reject what cannot be an API key, and nothing more.
+
+        No vendor prefixes are checked. They change, and a key rejected here for looking
+        wrong would be indistinguishable to the user from a key the provider rejected —
+        so the only rules are the ones that would break the HTTP request itself.
+        """
+        raw = value.get_secret_value()
+        if raw != raw.strip():
+            # Almost always a stray newline from a copy-paste, and stripping it silently
+            # is the kinder answer than a validation error.
+            raw = raw.strip()
+        if not raw or any(character.isspace() for character in raw):
+            raise ValueError("an API key cannot contain whitespace")
+        if not raw.isascii() or not raw.isprintable():
+            raise ValueError("an API key must be printable ASCII")
+        return SecretStr(raw)
+
+
+class AiKeyResponse(BaseModel):
+    """The key situation, with no key in it.
+
+    `key_hint` is the last four characters at most — `core/redaction.py` — and it is the
+    only part of a key that ever crosses this boundary. `CLAUDE.md` makes that a
+    non-negotiable, so the field is named for what it is.
+    """
+
+    enabled: bool
+    provider: str | None = None
+    model: str | None = None
+    source: Literal["none", "environment", "keyring", "database"] = "none"
+    key_hint: str = ""
+    storage: Literal["keyring", "database"] = "database"
+    """Where a key saved from here would go. `database` means unencrypted, and the panel
+    says so before anything is typed."""
 
 
 class HealthResponse(BaseModel):

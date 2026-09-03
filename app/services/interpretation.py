@@ -90,6 +90,19 @@ class InterpretationService:
         """Whether there is a provider at all. False is an ordinary state."""
         return self._provider is not None
 
+    def set_provider(self, provider: InterpretationProvider | None) -> None:
+        """Swap the live provider, or take it away.
+
+        Exists for bring-your-own keys, which arrive long after startup. The breaker is
+        reset with it: its failure count belongs to the provider that earned it, and a key
+        the user just pasted should get a call rather than a cooling period.
+
+        The caller owns the provider's lifetime — this does not close the outgoing one,
+        because it does not know whether anyone else is holding it.
+        """
+        self._provider = provider
+        self._breaker.reset()
+
     @property
     def circuit_open(self) -> bool:
         """Whether calls are currently being refused. Surfaced on /api/health."""

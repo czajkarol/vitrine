@@ -112,6 +112,31 @@ OS keyring if `keyring` is available and fall back to SQLite with that warning s
 
 Never log a key. Never return one from an API endpoint. Redact to last four characters everywhere.
 
+**How it came out.** `repositories/credentials.py` holds both backends and picks between them
+once, at startup, rather than per call — a key written to the keyring and then looked for in
+SQLite would read as "no key" and quietly turn the feature off. The choice is a probe, not an
+import check: `import keyring` succeeds on a machine with no working credential store, and the
+backend it resolves to raises only when you use it. So the store reads a name nothing is ever
+stored under, and falls back to SQLite if that throws.
+
+`services/ai_credentials.py` is the seam between the two modes. It swaps the live provider
+without a restart — a user who has just typed a key and been told to restart the server has been
+told the feature does not work — and resets the circuit breaker as it does, because a failure
+count belongs to the provider that earned it. A saved key outranks `.env`: it is the later and
+more deliberate of the two. `AI_ENABLED` is not consulted for it, because pasting a key *is* the
+decision to enable the feature.
+
+Everything about a missing or unreadable key degrades to "AI is off", never to a failed boot.
+The keyring being cleared behind the app's back is an ordinary Tuesday.
+
+**One thing redaction did not cover, found by a test.** `PUT /api/ai/key` takes the key in a
+request body, and FastAPI's own 422 echoes the offending input back to the caller — so a key
+with a stray character in it came straight back out in the error, `SecretStr` or not, because
+pydantic reports what it was given before the field type applies. `app/api/errors.py` drops
+`input` and `ctx` from every validation error for that reason. Nothing about the original code
+read as a leak; the only way it was going to be found was a test that sent a malformed key and
+looked for it in the response.
+
 ---
 
 ## Budget and failure control

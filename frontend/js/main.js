@@ -215,6 +215,12 @@ const panel = createPanel(
     intervalList: document.getElementById('panel-intervals'),
     typeList: document.getElementById('panel-types'),
     summary: document.getElementById('panel-summary'),
+    aiProviderInputs: [...document.querySelectorAll('input[name="ai-provider"]')],
+    aiKeyInput: document.getElementById('panel-ai-key'),
+    aiSaveButton: document.getElementById('panel-ai-save'),
+    aiClearButton: document.getElementById('panel-ai-clear'),
+    aiStatusLine: document.getElementById('panel-ai-status'),
+    aiStorageLine: document.getElementById('panel-ai-storage'),
   },
   {
     // A panel you are reading should not have the picture change underneath it.
@@ -248,6 +254,14 @@ const panel = createPanel(
     onAmbientChange: (on) => {
       void ambient.setEnabled(on);
       persist();
+    },
+    // A key saved or removed changes what the display may ask for, right now and
+    // without a reload — which is the whole point of taking the key here rather than
+    // telling the user to edit .env and restart.
+    onAiChange: (status) => {
+      aiEnabled = status?.enabled === true;
+      if (!aiEnabled) cancelInterpretation();
+      else if (getState().overlayPinned) void requestInterpretation();
     },
     onLanguageChange: async (code) => {
       await setLanguage(code);

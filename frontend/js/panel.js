@@ -3,16 +3,23 @@
 // Opening it pauses rotation and closing resumes, per docs/product-spec.md — a panel you
 // are reading should not have the picture change underneath it.
 
-import { fetchFilters } from './api.js';
+import { deleteAiKey, fetchAiKey, fetchFilters, saveAiKey } from './api.js';
 import { t } from './i18n.js';
 import { INTERVAL_SECONDS } from './rotation.js';
 
 export function createPanel(elements, handlers) {
   const { panel, modeInputs, languageInputs, ambientInput, ambientGroup, intervalList,
-    typeList, summary } = elements;
+    typeList, summary, aiProviderInputs, aiKeyInput, aiSaveButton, aiClearButton,
+    aiStatusLine, aiStorageLine } = elements;
 
   let open = false;
   let loaded = false;
+  // The last answer from /api/ai/key: whether a provider is live, where its key is kept
+  // and the last four characters of it. Never a key — the server has none to give.
+  let keyStatus = null;
+  // A transient line under the AI group: "Key saved", or why it was not. Kept as a key
+  // rather than as text so a language change can say it again.
+  let keyMessage = null;
   // The filter vocabulary as fetched. Kept so a language change can relabel the list
   // without asking the server for it again.
   let filters = null;
@@ -113,6 +120,110 @@ export function createPanel(elements, handlers) {
     return wrapper;
   }
 
+  /**
+   * Say what the key situation is, in a settings panel that must never show a key.
+   *
+   * Three states, and they read differently on purpose. A key from `.env` is not the
+   * user's to remove from here, so no button is offered for it. A key in the OS keyring
+   * is fine. A key in the database is unencrypted, and `docs/ai-system.md` allows that
+   * only on condition the UI says so — which is this line, shown before anything is typed
+   * as well as after.
+   */
+  function renderAiKey() {
+    if (!keyStatus) {
+      aiStatusLine.textContent = t('ai_key_unknown');
+      return;
+    }
+
+    if (keyMessage) {
+      aiStatusLine.textContent = t(keyMessage);
+    } else if (keyStatus.source === 'environment') {
+      aiStatusLine.textContent = t('ai_key_environment', { provider: keyStatus.provider });
+    } else if (keyStatus.enabled) {
+      aiStatusLine.textContent = t('ai_key_active', {
+        provider: keyStatus.provider,
+        hint: keyStatus.key_hint,
+      });
+    } else {
+      aiStatusLine.textContent = t('ai_key_none');
+    }
+
+    aiStorageLine.textContent =
+      keyStatus.storage === 'keyring' ? t('ai_storage_keyring') : t('ai_storage_database');
+    // Nothing to remove, and nothing this panel could remove: a key in .env is a file
+    // the user edits themselves.
+    aiClearButton.hidden = keyStatus.source === 'environment' || keyStatus.source === 'none';
+
+    const target = [...aiProviderInputs].find((input) => input.value === keyStatus.provider);
+    if (target) target.checked = true;
+  }
+
+  async function loadAiKey() {
+    keyStatus = await fetchAiKey();
+    renderAiKey();
+  }
+
+  function chosenProvider() {
+    return [...aiProviderInputs].find((input) => input.checked)?.value ?? 'anthropic';
+  }
+
+  async function submitKey() {
+    const apiKey = aiKeyInput.value.trim();
+    if (!apiKey) return;
+    aiSaveButton.disabled = true;
+    try {
+      keyStatus = await saveAiKey(chosenProvider(), apiKey);
+      keyMessage = 'ai_key_saved';
+      // Out of the field the moment it is stored. It is in the browser's memory for as
+      // long as this node holds it, and there is no reason for that to be the rest of
+      // the evening.
+      aiKeyInput.value = '';
+      handlers.onAiChange(keyStatus);
+    } catch (error) {
+      console.warn('Could not save the key.', error);
+      // A key the shape check rejected and a keyring that refused are the user's two
+      // fixable cases, and they are fixed differently. Everything else is one message.
+      keyMessage = ['ai_key_invalid', 'key_store_unavailable'].includes(error?.code)
+        ? error.code
+        : 'ai_key_failed';
+    } finally {
+      aiSaveButton.disabled = false;
+      renderAiKey();
+    }
+  }
+
+  async function removeKey() {
+    aiClearButton.disabled = true;
+    try {
+      keyStatus = await deleteAiKey();
+      keyMessage = 'ai_key_removed';
+      handlers.onAiChange(keyStatus);
+    } catch (error) {
+      console.warn('Could not remove the key.', error);
+      keyMessage = 'ai_key_failed';
+    } finally {
+      aiClearButton.disabled = false;
+      renderAiKey();
+    }
+  }
+
+  aiSaveButton.addEventListener('click', () => void submitKey());
+  aiClearButton.addEventListener('click', () => void removeKey());
+  // Enter in the field is what anyone who has just pasted a key will press.
+  aiKeyInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      void submitKey();
+    }
+  });
+  // A new keystroke means the old outcome is no longer what the user is looking at.
+  aiKeyInput.addEventListener('input', () => {
+    if (keyMessage) {
+      keyMessage = null;
+      renderAiKey();
+    }
+  });
+
   for (const input of modeInputs) {
     input.addEventListener('change', () => {
       current = { ...current, mode: input.value };
@@ -145,6 +256,10 @@ export function createPanel(elements, handlers) {
       panel.classList.add('visible');
       panel.removeAttribute('inert');
       await loadFilters();
+      // Read fresh on every open rather than cached: the key can have been changed from
+      // another tab, or the provider taken away by a restart.
+      keyMessage = null;
+      await loadAiKey();
       // After the list exists, not before — see `current` above.
       applySelection();
       handlers.onOpen();
@@ -178,6 +293,7 @@ export function createPanel(elements, handlers) {
     retranslate() {
       renderIntervals();
       if (loaded) renderFilters();
+      renderAiKey();
       applySelection();
     },
   };

@@ -94,6 +94,34 @@
       </label>
     </fieldset>
 
+    <!-- Bring your own key. The one control in the app that takes a secret, so it is
+         also the one that has to say where the secret goes: panel.js fills the note
+         below from /api/ai/key, and it reads differently for the OS keyring than for
+         the unencrypted database. Nothing here ever displays a key back. -->
+    <fieldset class="panel-group" id="panel-ai-group">
+      <legend data-i18n="ai_key_legend">AI interpretation</legend>
+      <p id="panel-ai-status" class="panel-summary"></p>
+      <div id="panel-ai-form">
+        <label class="panel-option">
+          <input type="radio" name="ai-provider" value="anthropic" checked>
+          <!-- Vendor names, not interface text: the same in every locale. -->
+          <span>Anthropic</span>
+        </label>
+        <label class="panel-option">
+          <input type="radio" name="ai-provider" value="openai">
+          <span>OpenAI</span>
+        </label>
+        <input type="password" id="panel-ai-key" class="panel-input"
+               autocomplete="off" spellcheck="false"
+               data-i18n-placeholder="ai_key_placeholder" placeholder="Paste your API key">
+        <div class="panel-buttons">
+          <button type="button" id="panel-ai-save" data-i18n="ai_key_save">Save key</button>
+          <button type="button" id="panel-ai-clear" data-i18n="ai_key_remove">Remove key</button>
+        </div>
+        <p id="panel-ai-storage" class="panel-warning"></p>
+      </div>
+    </fieldset>
+
     <fieldset class="panel-group">
       <legend data-i18n="language_legend">Language</legend>
       <label class="panel-option">

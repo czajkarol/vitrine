@@ -6,14 +6,16 @@
 //
 // Markup is translated by attribute rather than by lookup from JS, so a label lives in
 // one place: `data-i18n="key"` sets textContent, `data-i18n-aria-label="key"` sets the
-// label a screen reader reads. The English text stays in index.html as what the browser
-// paints before the locale arrives.
+// label a screen reader reads, and `data-i18n-placeholder="key"` sets the grey text in an
+// empty field. The English text stays in index.html as what the browser paints before the
+// locale arrives.
 
 export const SUPPORTED_LANGUAGES = ['en', 'pl'];
 const FALLBACK_LANGUAGE = 'en';
 
 const TEXT_ATTRIBUTE = 'data-i18n';
 const ARIA_LABEL_ATTRIBUTE = 'data-i18n-aria-label';
+const PLACEHOLDER_ATTRIBUTE = 'data-i18n-placeholder';
 
 let language = FALLBACK_LANGUAGE;
 let strings = {};
@@ -110,6 +112,9 @@ export function applyTo(root = document) {
   }
   for (const element of root.querySelectorAll(`[${ARIA_LABEL_ATTRIBUTE}]`)) {
     element.setAttribute('aria-label', t(element.getAttribute(ARIA_LABEL_ATTRIBUTE)));
+  }
+  for (const element of root.querySelectorAll(`[${PLACEHOLDER_ATTRIBUTE}]`)) {
+    element.setAttribute('placeholder', t(element.getAttribute(PLACEHOLDER_ATTRIBUTE)));
   }
 }
 

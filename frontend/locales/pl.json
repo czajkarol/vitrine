@@ -27,6 +27,22 @@
   "ai_look_closer": "Przyjrzyj się",
   "ai_source": "{provider} · {model}",
 
+  "ai_key_legend": "Interpretacja AI",
+  "ai_key_unknown": "Sprawdzam…",
+  "ai_key_none": "Brak klucza. Interpretacja jest wyłączona.",
+  "ai_key_active": "Używany klucz {provider} {hint}.",
+  "ai_key_environment": "Klucz {provider} pochodzi z pliku .env. Zmienisz go tylko tam.",
+  "ai_key_placeholder": "Wklej swój klucz API",
+  "ai_key_save": "Zapisz klucz",
+  "ai_key_remove": "Usuń klucz",
+  "ai_key_saved": "Klucz zapisany. Naciśnij I przy dziele, żeby przeczytać interpretację.",
+  "ai_key_removed": "Klucz usunięty. Interpretacja jest wyłączona.",
+  "ai_key_invalid": "To nie może być klucz API — sprawdź spacje albo niepełne wklejenie.",
+  "ai_key_failed": "Nie udało się zapisać klucza.",
+  "ai_storage_keyring": "Klucze trafiają do menedżera haseł systemu.",
+  "ai_storage_database": "Klucze leżą bez szyfrowania w bazie vitrine. Odczyta je każdy, kto ma dostęp do pliku data/vitrine.db. Zainstaluj dodatek keyring, żeby używać menedżera haseł systemu.",
+  "key_store_unavailable": "Menedżer haseł systemu odmówił zapisania klucza.",
+
   "settings_title": "Ustawienia",
   "panel_hint": "Esc — zamknij ustawienia. Rotacja jest wstrzymana.",
 

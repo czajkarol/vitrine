@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Res
 from pydantic import ValidationError
 
 from app.api.schemas import (
+    AiKeyRequest,
+    AiKeyResponse,
     AiStatus,
     ArtworkResponse,
     FilterOption,
@@ -21,7 +23,9 @@ from app.domain.artwork import CACHED_IIIF_WIDTHS, PREFERRED_IIIF_WIDTH
 from app.providers.ai.base import AiError
 from app.providers.aic.client import AicClient, AicError, AicUnavailableError
 from app.repositories.artwork_index import ArtworkIndexRepository
+from app.repositories.credentials import CredentialStoreError
 from app.repositories.preferences import PreferencesRepository
+from app.services.ai_credentials import AiCredentialService, AiKeyStatus
 from app.services.interpretation import (
     ArtworkNotFoundError,
     BudgetExhaustedError,
@@ -68,12 +72,18 @@ def get_index(request: Request) -> ArtworkIndexRepository:
     return ArtworkIndexRepository(request.app.state.database)
 
 
+def get_ai_credentials(request: Request) -> AiCredentialService:
+    service: AiCredentialService = request.app.state.ai_credentials
+    return service
+
+
 ClientDep = Annotated[AicClient, Depends(get_client)]
 SelectionDep = Annotated[SelectionService, Depends(get_selection)]
 PreferencesDep = Annotated[PreferencesRepository, Depends(get_preferences)]
 IndexDep = Annotated[ArtworkIndexRepository, Depends(get_index)]
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 InterpretationDep = Annotated[InterpretationService, Depends(get_interpretation)]
+AiCredentialsDep = Annotated[AiCredentialService, Depends(get_ai_credentials)]
 
 # Below this, a filter cannot sustain a rotation and is not offered at all.
 MIN_FILTER_COUNT: Final[int] = 40
@@ -275,6 +285,57 @@ async def read_interpretation(
         interpretation=result.interpretation,
         themes=result.themes,
         look_closer=result.look_closer,
+    )
+
+
+@router.get("/ai/key", response_model=AiKeyResponse)
+async def read_ai_key(credentials: AiCredentialsDep) -> AiKeyResponse:
+    """Whether a key is set, where it lives, and its last four characters.
+
+    Never the key. The panel needs enough to tell the user which key is in use and to warn
+    them when it is sitting unencrypted in the database, and that is exactly this much.
+    """
+    return _key_response(credentials.status())
+
+
+@router.put("/ai/key", response_model=AiKeyResponse)
+async def write_ai_key(body: AiKeyRequest, credentials: AiCredentialsDep) -> AiKeyResponse:
+    """Save a bring-your-own key and start using it, without a restart.
+
+    The key is not validated against the vendor here. That would cost a real call, and a
+    wrong key announces itself clearly enough at the first interpretation.
+    """
+    try:
+        status = await credentials.save(body.provider, body.api_key.get_secret_value())
+    except CredentialStoreError as exc:
+        # The keyring refused. Nothing is stored and nothing changed, which is worth
+        # saying differently from "the key is wrong".
+        logger.warning("Could not store the %s key: %s", body.provider, exc)
+        raise HTTPException(status_code=503, detail="key_store_unavailable") from exc
+    return _key_response(status)
+
+
+@router.delete("/ai/key", response_model=AiKeyResponse)
+async def delete_ai_key(credentials: AiCredentialsDep) -> AiKeyResponse:
+    """Forget the stored key. Falls back to whatever `.env` configures, or to no AI."""
+    try:
+        status = await credentials.clear()
+    except CredentialStoreError as exc:
+        logger.warning("Could not remove the stored key: %s", exc)
+        raise HTTPException(status_code=503, detail="key_store_unavailable") from exc
+    return _key_response(status)
+
+
+def _key_response(status: AiKeyStatus) -> AiKeyResponse:
+    """One place where the service's answer becomes an HTTP body, so there is one place
+    to check that a key cannot leak through it."""
+    return AiKeyResponse(
+        enabled=status.enabled,
+        provider=status.provider,
+        model=status.model,
+        source=status.source,
+        key_hint=status.key_hint,
+        storage=status.storage,
     )
 
 

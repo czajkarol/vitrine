@@ -10,18 +10,22 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 
+from app.api.errors import validation_error_handler
 from app.api.routes import router
 from app.core.config import Settings, get_settings
 from app.providers.ai.factory import create_provider
 from app.providers.aic.client import AicClient
 from app.repositories.ai_usage import AiUsageRepository
 from app.repositories.artwork_index import ArtworkIndexRepository
+from app.repositories.credentials import create_credential_store
 from app.repositories.database import Database
 from app.repositories.history import HistoryRepository
 from app.repositories.interpretations import NullSharedCache, SqliteInterpretationCache
 from app.repositories.preferences import PreferencesRepository
+from app.services.ai_credentials import AiCredentialService
 from app.services.fallback import FallbackSet
 from app.services.interpretation import InterpretationService
 from app.services.selection import IIIF_BASE_KEY, SelectionService
@@ -71,6 +75,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         usage=AiUsageRepository(database),
     )
 
+    # A key pasted into the settings panel outranks .env and is applied here, before
+    # the first request. Everything about it degrades to "AI is off" rather than to a
+    # failed boot — see the service.
+    app.state.ai_credentials = AiCredentialService(
+        settings=settings,
+        credentials=create_credential_store(database),
+        preferences=preferences,
+        interpretation=app.state.interpretation,
+        env_provider=provider,
+    )
+    await app.state.ai_credentials.restore()
+
     app.state.selection = SelectionService(
         index=index,
         history=HistoryRepository(database),
@@ -86,9 +102,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await app.state.aic_client.aclose()
-        # A real provider holds an HTTP client of its own; the mock does not.
-        if (closer := getattr(provider, "aclose", None)) is not None:
-            await closer()
+        # Whichever provider is live by now — the one built from .env, or one built from
+        # a key saved while the app was running. A real provider holds an HTTP client of
+        # its own; the mock does not.
+        await app.state.ai_credentials.aclose()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -99,6 +116,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = settings or get_settings()
+    # Before the routes, because one of them takes an API key and the default 422 would
+    # echo it back. See app/api/errors.py.
+    app.add_exception_handler(RequestValidationError, validation_error_handler)
     app.include_router(router)
     if FRONTEND_DIR.is_dir():
         # Mounted last so it cannot shadow /api.

@@ -114,8 +114,11 @@ Per `CLAUDE.md`, ask Karol before starting it.
       themselves without a key
 - [x] A second real provider, to prove the abstraction — OpenAI. `base.py` did not have
       to change; the shared HTTP plumbing moved to `providers/ai/http.py`
-- [ ] BYO key handling with keyring preference and redaction everywhere
-- [ ] Commit
+- [x] BYO key handling with keyring preference and redaction everywhere — the keyring is
+      probed rather than imported, because an installed `keyring` with no working backend
+      raises only when used; the SQLite fallback says so in the panel before anything is
+      typed. A saved key outranks `.env` and swaps the provider without a restart
+- [x] Commit
 
 ## M6 — Finish
 

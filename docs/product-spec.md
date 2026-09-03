@@ -87,7 +87,8 @@ Esc        close settings if open, else close overlay if open, else exit fullscr
 ```
 
 Esc priority is exactly that order — most transient thing first. Shortcuts are disabled while
-focus is inside a text input.
+focus is inside a text input — except Esc itself, which always closes. The panel holds one text
+field, the API key, and a field you cannot escape from is a panel you cannot close.
 
 ---
 
@@ -176,7 +177,14 @@ visibility, ambient mode. Persisted locally. Opening settings pauses rotation; c
 Changing the interval while the panel is open must not restart the clock under it — set the new
 interval, keep the clock held, and let closing the panel start it.
 
-API keys entered here are write-only in the UI — once saved, show `sk-…abcd`, never the value.
+API keys entered here are write-only in the UI — once saved, show `…abcd`, never the value.
+The panel also says where the key is kept: the OS keyring, or unencrypted in the app's own
+database when there is no keyring to use. That line is shown before anything is typed, not
+after, because it is what someone needs in order to decide whether to type at all.
+
+A key configured in `.env` is shown as such and cannot be removed from here — it is a file the
+user edits themselves. A key saved here overrides one in `.env`, and takes effect without a
+restart.
 
 ---
 

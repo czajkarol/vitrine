@@ -6,27 +6,28 @@ State of vitrine as of 2026-09-03. Written for whoever (or whatever) picks this 
 
 ## Where the project actually is
 
-M0 through M4 are complete and committed, apart from one scoped-down item in M3 (M3.5, parked
-deliberately — see below). M5 is most of the way through: everything except the real providers
-and BYO keys is built and running against `MockProvider`. `docs/roadmap.md` is accurate: it was
-reconciled against the code, not against intentions, and is ticked as work lands.
+M0 through M5 are complete and committed, apart from one scoped-down item in M3 (M3.5, parked
+deliberately — see below). M6 has not started, beyond the CI workflow that was already there.
+`docs/roadmap.md` is accurate: it was reconciled against the code, not against intentions, and
+is ticked as work lands.
 
 The app works end to end: it serves an artwork from a local SQLite index in ~19ms with no
 network call, rotates on a timer, has a keyboard map, a metadata overlay, a settings panel with
 Explore filters, and Curated mode backed by transparent scoring. It speaks English and Polish,
 switchable without a reload, and will hold the screen awake if asked.
 
-AI is wired end to end, but only against the mock provider. Pinning the overlay with `I` asks
-for an interpretation; it is cached, capped and breakered. With nothing configured — the
-default — the feature simply is not offered, which `CLAUDE.md` requires and which is worth
-re-checking after any change here.
+AI is wired end to end. Pinning the overlay with `I` asks for an interpretation; it is cached,
+capped and breakered. Two real providers are built, and a key can be pasted into the settings
+panel and takes effect without a restart. With nothing configured — the default — the feature
+simply is not offered, which `CLAUDE.md` requires and which is worth re-checking after any
+change here.
 
 ## Run it
 
 ```bash
 uv sync --all-extras
 uv run uvicorn app.main:app --reload      # http://127.0.0.1:8000
-uv run pytest                             # 281 tests, excludes live/e2e
+uv run pytest                             # 308 tests, excludes live/e2e
 uv run pytest -m live                     # 9 tests: the real AIC API, and the AI
                                           # providers if their keys are in .env
 uv run ruff check . && uv run ruff format --check . && uv run mypy app
@@ -42,9 +43,14 @@ AI_ENABLED=true AI_PROVIDER=mock uv run uvicorn app.main:app
 ```
 
 With a real provider, put `AI_ENABLED`, `AI_PROVIDER` (`anthropic` or `openai`) and the
-matching key in `.env`. Name a provider without its key and the feature stays off with a
-warning rather than the app failing to start — worth re-checking after any change there,
-because "AI is an enhancement, never a dependency" is a `CLAUDE.md` non-negotiable.
+matching key in `.env` — or skip all of that and paste a key into the settings panel, which
+overrides `.env` and needs no restart. Name a provider in `.env` without its key and the
+feature stays off with a warning rather than the app failing to start — worth re-checking after
+any change there, because "AI is an enhancement, never a dependency" is a `CLAUDE.md`
+non-negotiable.
+
+`uv sync --all-extras` includes the `keyring` extra; without it a pasted key goes in
+`data/vitrine.db` unencrypted, and the panel says so.
 
 ```bash
 uv run python scripts/build_index.py             # full walk, ~22 min at 1 req/s, resumable
@@ -55,15 +61,35 @@ uv run python scripts/build_index.py --explain <artwork_id>
 
 ## What to do next
 
-**M5 — AI** has one item left: **BYO key handling** — keyring first, SQLite with a plainly
-worded warning otherwise, redaction to the last four characters everywhere, and no key ever
-reaching the frontend. `app/core/redaction.py` already exists and is used by both providers.
+**M6 — Finish.** Five items, none of them blocked: `/api/stats`, structured logging with
+request ids, the five Playwright smoke flows, the README written properly, screenshots, and a
+review of the ADRs against what was actually built. The README is no longer a pure stub — the
+bring-your-own key section was written for M5, because `docs/ai-system.md` makes documenting
+the unencrypted fallback a condition of having one — but everything else in it is still the
+stub text.
 
-Everything else in M5 is done. Two real providers are built — Anthropic (Karol's choice,
-first) and OpenAI (second, to test the abstraction). Neither is verified against its real API
-yet: **`uv run pytest -m live` with a key in `.env` is the outstanding manual step**, and it
-is the only thing that can catch a wrong default model id or `max_completion_tokens` being
-wrong for the model in use.
+**Still outstanding from M5, and it needs Karol:** neither real provider has been verified
+against its real API. **`uv run pytest -m live` with a key in `.env` is the manual step**, and
+it is the only thing that can catch a wrong default model id or `max_completion_tokens` being
+wrong for the model in use. A fake key was pushed all the way through the BYO path in a
+browser on 2026-09-03 and came back a clean 401 — which proves the wiring and nothing about
+the model ids.
+
+How bring-your-own keys fit together:
+
+- `repositories/credentials.py` holds two backends and chooses once, at startup. The keyring
+  is *probed*, not imported: `import keyring` succeeds on a machine whose credential store
+  does not work, and the backend it resolves to raises only when used. Failing the probe means
+  SQLite, unencrypted, and the panel says so before anything is typed.
+- `services/ai_credentials.py` decides which provider is live. A saved key outranks `.env`,
+  `AI_ENABLED` is not consulted for it — pasting a key is the decision to enable the feature —
+  and swapping providers resets the circuit breaker, because the failure count belonged to the
+  provider that earned it.
+- `app/api/errors.py` exists because FastAPI's default 422 echoes the rejected input, so a
+  malformed key came back out in the error body. It drops `input` and `ctx` from every
+  validation error. See the note in "Things that will bite you".
+- The one text field in the app is the key field, which is why Esc is now exempt from the
+  "shortcuts are inert while typing" rule in `shortcuts.js`.
 
 Adding the second provider did not change `providers/ai/base.py`, which is the result
 `docs/ai-system.md` set that exercise up to test. It did produce `providers/ai/http.py` — the
@@ -109,8 +135,11 @@ What M4 put in place, and what M5 built on:
   Anything new that renders text from data has to be added there — markup with a key does not.
 - **Preferences.** `GET`/`PUT /api/preferences`, a typed schema in `app/api/schemas.py`.
   A new preference means a field there and a key constant in `app/api/routes.py`. Interval,
-  mode, artwork type, language and ambient are wired; the AI toggles are next. The table
-  stores strings, so a boolean is written `"1"`/`"0"` and only `"1"` reads back as true.
+  mode, artwork type, language and ambient are wired. The table stores strings, so a boolean
+  is written `"1"`/`"0"` and only `"1"` reads back as true. The BYO provider name lives in the
+  same table under `ai_byo_provider`, but deliberately *not* in `PreferencesResponse`: it is
+  written by `PUT /api/ai/key` alongside the key itself, and letting the browser set it
+  independently would point the app at a vendor whose key it does not have.
 - **The panel** (`frontend/js/panel.js`) opens on `S`, closes on `Esc`, and pauses rotation
   while open. It holds mode, Explore filters, ambient and language. The AI toggles join it.
   A control the browser cannot support is removed rather than disabled — see `hideAmbient()`.
@@ -147,7 +176,13 @@ the file named, but they are the ones that cost real time.
    `does not provide an export named X` for an export that is plainly there. Refetch with
    `fetch(url, { cache: 'reload' })` for each changed file, then reload. There is no build
    step and no cache-busting query, so this will keep happening.
-10. **A Screen Wake Lock is released whenever the tab stops being visible, and is not given
+10. **FastAPI's 422 echoes the rejected input back to the caller.** Ordinarily helpful; not
+   when the input is an API key. A key with a stray character in it came back out in the error
+   body, and `SecretStr` does not stop it — pydantic reports what it was handed, before the
+   field type applies. `app/api/errors.py` strips `input` and `ctx` from every validation
+   error. Nothing about the original code read as a leak. It was found by a test that sent a
+   malformed key and searched the response for it, which is the only way it was going to be.
+11. **A Screen Wake Lock is released whenever the tab stops being visible, and is not given
    back.** Same family as 1 and 2: the browser takes something away while you are not looking.
    Re-acquiring on `visibilitychange` is not a refinement of ambient mode, it *is* ambient
    mode. Also note that opening a second tab through browser automation did not hide the first

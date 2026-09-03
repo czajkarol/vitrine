@@ -63,6 +63,16 @@ class CircuitBreaker:
         return self.state is not CircuitState.OPEN
 
     def record_success(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
+        """Forget the failure history.
+
+        For when the thing behind the breaker has changed rather than recovered — a new
+        API key is not the provider that was failing a minute ago, and making the user
+        wait out a cooling period earned by the old one would look like the new key was
+        rejected.
+        """
         self._failures = 0
         self._opened_at = None
 

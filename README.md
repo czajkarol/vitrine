@@ -24,6 +24,28 @@ Then open <http://127.0.0.1:8000>.
 
 AI interpretation is optional and off by default. Everything else works without it.
 
+## Bringing your own API key
+
+Press `S` for settings, pick Anthropic or OpenAI, paste your key. It takes effect immediately —
+no restart. `.env` still works (`AI_ENABLED`, `AI_PROVIDER`, and the matching key), and a key
+saved from the panel takes precedence over one in the file.
+
+**Where the key is kept, and how safe that is.** If the `keyring` package is installed and your
+machine has a working credential store, the key goes there:
+
+```bash
+uv sync --extra keyring        # or: pip install "vitrine[keyring]"
+```
+
+Otherwise it goes in `data/vitrine.db`, **unencrypted**. Anyone who can read that file can read
+your key. The settings panel says which of the two is in use before you type anything. This is a
+local-first app (`docs/adr/0002-local-first-single-user.md`) and the database is a file you own, but it is worth
+knowing, and it is worth installing the extra.
+
+The key is never sent to the browser, never written to a log, and never returned by an endpoint.
+Everything that reports on it — the panel, log lines, error messages — shows at most its last
+four characters. Remove it with the button in the same panel.
+
 ## Documentation
 
 | | |

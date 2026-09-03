@@ -27,6 +27,22 @@
   "ai_look_closer": "Look closer",
   "ai_source": "{provider} · {model}",
 
+  "ai_key_legend": "AI interpretation",
+  "ai_key_unknown": "Checking…",
+  "ai_key_none": "No key saved. Interpretation is off.",
+  "ai_key_active": "Using your {provider} key {hint}.",
+  "ai_key_environment": "Using the {provider} key from .env. Remove it there to change it.",
+  "ai_key_placeholder": "Paste your API key",
+  "ai_key_save": "Save key",
+  "ai_key_remove": "Remove key",
+  "ai_key_saved": "Key saved. Press I on an artwork to read an interpretation.",
+  "ai_key_removed": "Key removed. Interpretation is off.",
+  "ai_key_invalid": "That cannot be an API key — check for spaces or a partial paste.",
+  "ai_key_failed": "The key could not be saved.",
+  "ai_storage_keyring": "Keys are kept in your system keyring.",
+  "ai_storage_database": "Keys are kept unencrypted in vitrine's own database file. Anyone who can read data/vitrine.db can read the key. Install the keyring extra to use your system keyring instead.",
+  "key_store_unavailable": "Your system keyring refused to store the key.",
+
   "settings_title": "Settings",
   "panel_hint": "Esc to close. Rotation is paused while this is open.",
 

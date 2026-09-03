@@ -85,6 +85,67 @@ export async function fetchHealth() {
   }
 }
 
+/**
+ * The key situation: whether a provider is live, where its key is kept, and the last
+ * four characters of it. Never the key — the server has no endpoint that returns one.
+ */
+export async function fetchAiKey() {
+  try {
+    const response = await fetch('/api/ai/key', { headers: { Accept: 'application/json' } });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save the user's own API key. Takes effect without a restart, so the answer carries the
+ * new state and the caller does not have to ask again.
+ *
+ * @throws {Error} with a `code`: `ai_key_invalid` for something that cannot be a key,
+ * `key_store_unavailable` when the keyring refused, `ai_key_failed` otherwise.
+ */
+export async function saveAiKey(provider, apiKey) {
+  let response;
+  try {
+    response = await fetch('/api/ai/key', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, api_key: apiKey }),
+    });
+  } catch (cause) {
+    throw withCode(new Error('network request failed'), 'network_unreachable', cause);
+  }
+  if (!response.ok) {
+    // 422 is the shape check in app/api/schemas.py: whitespace, length, non-ASCII. It
+    // says nothing about whether the vendor would accept the key, and neither do we.
+    throw withCode(
+      new Error(`HTTP ${response.status}`),
+      response.status === 422
+        ? 'ai_key_invalid'
+        : response.status === 503
+          ? 'key_store_unavailable'
+          : 'ai_key_failed',
+    );
+  }
+  return response.json();
+}
+
+/** Forget the stored key. The server falls back to .env, or to no AI at all. */
+export async function deleteAiKey() {
+  let response;
+  try {
+    response = await fetch('/api/ai/key', { method: 'DELETE' });
+  } catch (cause) {
+    throw withCode(new Error('network request failed'), 'network_unreachable', cause);
+  }
+  if (!response.ok) {
+    throw withCode(new Error(`HTTP ${response.status}`), 'ai_key_failed');
+  }
+  return response.json();
+}
+
 /** Build the direct AIC IIIF URL. */
 export function directImageUrl(iiifBase, imageId, width) {
   return `${iiifBase.replace(/\/$/, '')}/${imageId}/full/${width},/0/default.jpg`;

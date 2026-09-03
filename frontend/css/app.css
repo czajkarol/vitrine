@@ -222,6 +222,55 @@ body {
   font-size: 0.8rem;
 }
 
+/* The API key field and its two buttons. Plain, and quieter than the panel's radios:
+   this is the one control here that is not a preference. */
+.panel-input {
+  display: block;
+  width: 100%;
+  margin: 0.6rem 0;
+  padding: 0.45rem 0.55rem;
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 3px;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.panel-input:focus {
+  outline: 1px solid rgba(255, 255, 255, 0.35);
+  outline-offset: 1px;
+}
+
+.panel-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.panel-buttons button {
+  padding: 0.35rem 0.7rem;
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 3px;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.panel-buttons button:hover { background: rgba(255, 255, 255, 0.12); }
+.panel-buttons button:disabled { opacity: 0.5; cursor: default; }
+
+/* Where the key is kept. Never an alarm — most of the time it says "keyring" and is
+   simply a fact — but it has to be readable, because the other thing it says is that
+   the key is sitting unencrypted in a file. */
+.panel-warning {
+  margin: 0.6rem 0 0;
+  color: var(--fg-dim);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
 .panel-hint {
   margin: 2rem 0 0;
   color: var(--fg-dim);

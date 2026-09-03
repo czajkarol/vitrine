@@ -12,7 +12,7 @@ app/services/        Orchestration. Rotation, selection, interpretation, index b
 app/domain/          Models and pure logic: scoring, filtering, cache keys. No I/O.
     │
 app/providers/       Outbound: AIC client, AI provider implementations.
-app/repositories/    SQLite persistence.
+app/repositories/    SQLite persistence, and the OS keyring when there is one.
 ```
 
 Rules that matter more than the diagram:
@@ -24,6 +24,9 @@ Rules that matter more than the diagram:
   downstream sees only those. When AIC changes a field name, exactly one module changes.
 - **Only `providers/ai/` names an AI vendor.** No `if provider == "openai"` outside that package.
 - **Config is constructed once and injected.** No module reads `os.environ` at call time.
+  A bring-your-own API key is the one piece of configuration that arrives after startup, and it
+  goes through `repositories/credentials.py` and `services/ai_credentials.py` rather than around
+  this rule: `Settings` stays immutable and the service swaps the live provider.
 
 Do not add a layer to "be clean". A service that only forwards a call to a repository is noise;
 let the router call the repository. Add the service when there is orchestration to do.
