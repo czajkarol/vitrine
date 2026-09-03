@@ -3,6 +3,14 @@
 Status: Accepted
 Date: 2026-09-02
 
+> **Postscript, 2026-09-03, checked against the built app.** Bring-your-own keys landed in M5
+> and this held: the key never crosses a network we do not control, and it is the operator's
+> own. One thing this ADR did not anticipate — the local store is the OS keyring where there is
+> a working one, and the app's own SQLite file only where there is not, with the settings panel
+> saying which. "Documented trade-off rather than liability" turned out to need the UI to say it,
+> not just the README. The app still binds to localhost by default and has no notion of a second
+> user.
+
 ## Context
 
 The original specification described both a locally-run desktop-style application and a hosted

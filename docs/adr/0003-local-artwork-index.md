@@ -9,6 +9,13 @@ Date: 2026-09-02
 > at all, so the index is built by walking it at 1 req/s rather than by downloading the nightly
 > data dump. Details in `docs/aic-api.md`.
 
+> **Second postscript, 2026-09-03, checked against the built app.** One line below is stronger
+> than what was built, and in the app's favour: "AIC is called only to refresh detail for the one
+> artwork about to be shown" describes a refresh that does not happen. The index row carries
+> everything the display needs, so serving an indexed artwork makes no AIC API call at all —
+> visible in `/api/stats`, where `aic.requests` stays at zero through a rotation. AIC is reached
+> only when there is no index (`_from_aic`), and by the image proxy of ADR-0008.
+
 ## Context
 
 The application needs to pick a random artwork matching a set of filters, repeatedly, for hours.

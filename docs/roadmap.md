@@ -136,7 +136,9 @@ Per `CLAUDE.md`, ask Karol before starting it.
 - [x] GitHub Actions: ruff, mypy, pytest excluding live and e2e
 - [ ] README written properly — architecture, setup, AI, caching, testing, security, limitations
 - [ ] Screenshots
-- [ ] ADRs reviewed against what was actually built
+- [x] ADRs reviewed against what was actually built — four gained a postscript, none had to
+      be superseded. The one that mattered: 0003 claimed AIC is called to refresh the artwork
+      about to be shown, and no such call exists
 - [ ] Commit
 
 ---

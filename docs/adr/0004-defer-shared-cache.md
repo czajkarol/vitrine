@@ -3,6 +3,11 @@
 Status: Accepted
 Date: 2026-09-02
 
+> **Postscript, 2026-09-03, checked against the built app.** Built as described; the real class
+> is `SqliteInterpretationCache`, not `SqliteCache`. The chain, the always-missing shared tier
+> and the rule that a cache which raises is skipped rather than propagated are all in
+> `services/interpretation.py` and covered by tests. Nothing is deployed.
+
 ## Context
 
 The original specification described a shared public cache of AI interpretations, so that one

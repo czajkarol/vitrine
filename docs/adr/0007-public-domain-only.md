@@ -3,6 +3,14 @@
 Status: Accepted
 Date: 2026-09-02
 
+> **Postscript, 2026-09-03, checked against the built app.** Accurate, with one clarification
+> about "again at display time". On the index path there is no second filter, because there
+> cannot be a row to filter: only public-domain works are written, and reading one back sets
+> `is_public_domain=True` structurally. The re-check is real on the other two paths, where
+> `is_displayable` tests the flag on a record that came from AIC or the bundled set. The
+> invariant holds either way; it is enforced by construction in one place and by a predicate in
+> the others.
+
 ## Context
 
 AIC's IIIF service will serve images for works that are not in the public domain, and the

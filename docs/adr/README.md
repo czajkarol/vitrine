@@ -10,6 +10,13 @@ Write one when a decision closes off an alternative that a reasonable engineer w
 Do not write one for routine choices.
 
 Never edit an accepted ADR to change its decision. Write a new one and mark the old superseded.
+A postscript that corrects a *premise*, or records what the built thing actually did, is fine and
+is how several of these carry their corrections — the decision stays as it was taken.
+
+All eight were read against the code on 2026-09-03, at the end of M6. Four gained a postscript:
+0002 (where a bring-your-own key actually ends up), 0003 (indexed artworks make no AIC call at
+all, not the refresh the ADR describes), 0004 (a class name), 0007 (what "again at display time"
+means in practice). 0001, 0005, 0006 and 0008 describe what was built.
 
 | # | Title | Status |
 |---|---|---|
