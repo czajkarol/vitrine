@@ -1,11 +1,18 @@
 // Entry point: wiring. The pieces it joins each own one concern.
 
 import { createAmbient, isSupported as ambientSupported } from './ambient.js';
-import { fetchPreferences, fetchRandomArtwork, savePreferences } from './api.js';
+import {
+  fetchHealth,
+  fetchInterpretation,
+  fetchPreferences,
+  fetchRandomArtwork,
+  savePreferences,
+} from './api.js';
 import { createPanel } from './panel.js';
 import { chooseWidth, loadImage, present } from './display.js';
 import * as fullscreen from './fullscreen.js';
 import { getLanguage, onLanguageChange, setLanguage, t } from './i18n.js';
+import { createInterpretation } from './interpretation.js';
 import { createOverlay } from './overlay.js';
 import { DEFAULT_INTERVAL_SECONDS, createRotation } from './rotation.js';
 import { bindShortcuts } from './shortcuts.js';
@@ -43,6 +50,25 @@ const overlay = createOverlay({
 });
 
 const ambient = createAmbient();
+
+const interpretation = createInterpretation({
+  section: document.getElementById('ov-ai'),
+  status: document.getElementById('ai-status'),
+  body: document.getElementById('ai-body'),
+  visual: document.getElementById('ai-visual'),
+  reading: document.getElementById('ai-reading'),
+  themes: document.getElementById('ai-themes'),
+  lookCloser: document.getElementById('ai-look-closer'),
+  source: document.getElementById('ai-source'),
+});
+
+// Whether the server has a provider at all. Read once from /api/health, so the display
+// never asks for an interpretation only to be told the feature is off.
+let aiEnabled = false;
+
+// The in-flight request, so an artwork change or a second press can cancel it. An
+// abandoned generation still costs money on a real provider.
+let interpretationRequest = null;
 
 // What the display is currently asking for. Persisted, so it survives a reload.
 const query = { mode: 'random', artworkType: null };
@@ -103,8 +129,55 @@ async function prepareArtwork(attemptsLeft = MAX_IMAGE_ATTEMPTS) {
   }
 }
 
+/**
+ * Ask for an interpretation of what is on screen.
+ *
+ * On demand only. This is called when someone pins the overlay open, never when the
+ * overlay flashes on rotation — `docs/ai-system.md` puts an order of magnitude of cost on
+ * that distinction, because most artworks are shown and never asked about.
+ */
+async function requestInterpretation() {
+  const { artwork } = getState();
+  if (!aiEnabled || !artwork) return;
+
+  interpretationRequest?.abort();
+  const controller = new AbortController();
+  interpretationRequest = controller;
+
+  interpretation.loading();
+  try {
+    const payload = await fetchInterpretation(artwork.id, getLanguage(), {
+      signal: controller.signal,
+    });
+    // The artwork may have rotated away while we waited.
+    if (controller.signal.aborted || getState().artwork?.id !== artwork.id) return;
+    interpretation.render(payload);
+  } catch (error) {
+    if (error?.name === 'AbortError') return;
+    if (error?.code === 'ai_disabled') {
+      // The server changed its mind since boot. Stop offering it rather than showing a
+      // note about something the user never asked to be told.
+      aiEnabled = false;
+      interpretation.clear();
+      return;
+    }
+    console.warn('Interpretation failed.', error);
+    interpretation.unavailable();
+  } finally {
+    if (interpretationRequest === controller) interpretationRequest = null;
+  }
+}
+
+function cancelInterpretation() {
+  interpretationRequest?.abort();
+  interpretationRequest = null;
+  interpretation.clear();
+}
+
 function presentArtwork({ artwork, image }) {
   setArtwork(artwork);
+  // The previous artwork's interpretation is about a picture nobody is looking at.
+  cancelInterpretation();
   present(elements, artwork, image);
   overlay.render(artwork);
   // Surfaced briefly on every change: it says what you are looking at, and it is what
@@ -211,6 +284,10 @@ bindShortcuts({
     const pinned = overlay.toggle();
     setOverlayPinned(pinned);
     flashStatus(t(pinned ? 'overlay_pinned' : 'overlay_unpinned'));
+    // Pinning is the deliberate "I want to read about this", which is what the spec
+    // means by generating on demand. The overlay's own flash on every rotation is not.
+    if (pinned) void requestInterpretation();
+    else cancelInterpretation();
   },
   onInterval: (seconds) => {
     applyInterval(seconds);
@@ -220,6 +297,7 @@ bindShortcuts({
   onDismissOverlay: () => {
     overlay.dismiss();
     setOverlayPinned(false);
+    cancelInterpretation();
   },
   onExitFullscreen: () => void fullscreen.exit(),
   isSettingsOpen: () => panel.isOpen(),
@@ -250,7 +328,11 @@ function retranslate() {
   const { artwork } = getState();
   if (artwork) overlay.render(artwork);
   panel.retranslate();
+  interpretation.retranslate();
   if (statusKey) elements.status.textContent = t(statusKey);
+  // The generated text is in the old language and cannot be translated locally — it has
+  // to be asked for again, and only if it was on screen in the first place.
+  if (interpretation.hasContent()) void requestInterpretation();
 }
 
 onLanguageChange(retranslate);
@@ -287,6 +369,10 @@ async function boot() {
     ambient: ambient.isEnabled(),
     intervalSeconds: rotation.getIntervalSeconds(),
   });
+
+  // Before the first artwork, so pinning the overlay immediately still works.
+  const health = await fetchHealth();
+  aiEnabled = health?.ai?.enabled === true;
 
   await rotation.start();
 }

@@ -45,6 +45,46 @@ export async function fetchFilters() {
   }
 }
 
+/**
+ * Ask for one artwork's interpretation. Called only when someone asks for it — never on
+ * rotation, which is where the cost of this feature would otherwise come from.
+ *
+ * @throws {Error} with a `code`: `ai_disabled` when nothing is configured, which is an
+ * ordinary state, or `ai_unavailable` when a provider was there and did not answer.
+ */
+export async function fetchInterpretation(artworkId, language, { signal } = {}) {
+  let response;
+  try {
+    response = await fetch(
+      `/api/interpretation/${encodeURIComponent(artworkId)}?language=${encodeURIComponent(language)}`,
+      { headers: { Accept: 'application/json' }, signal },
+    );
+  } catch (cause) {
+    if (cause?.name === 'AbortError') throw cause;
+    throw withCode(new Error('network request failed'), 'network_unreachable', cause);
+  }
+
+  if (!response.ok) {
+    const detail = await response
+      .json()
+      .then((body) => body?.detail)
+      .catch(() => null);
+    throw withCode(new Error(`HTTP ${response.status}`), detail ?? 'ai_unavailable');
+  }
+  return response.json();
+}
+
+/** What the server can do. Read once at boot to decide whether to offer AI at all. */
+export async function fetchHealth() {
+  try {
+    const response = await fetch('/api/health', { headers: { Accept: 'application/json' } });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 /** Build the direct AIC IIIF URL. */
 export function directImageUrl(iiifBase, imageId, width) {
   return `${iiifBase.replace(/\/$/, '')}/${imageId}/full/${width},/0/default.jpg`;

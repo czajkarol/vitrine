@@ -98,12 +98,14 @@ Per `CLAUDE.md`, ask Karol before starting it.
 - [x] `Interpretation` model and JSON-only prompt — instruction and data kept apart,
       grounded in `thumbnail.alt_text`
 - [x] `InterpretationProvider` protocol + `MockProvider`
-- [ ] Full feature wired end to end against the mock
+- [x] Full feature wired end to end against the mock — `GET /api/interpretation/{id}`,
+      its own labelled section in the overlay, and `/api/health` says whether to offer it
 - [ ] SQLite interpretation cache with the composite key
 - [ ] `NullSharedCache` and the three-tier resolution chain
 - [ ] Budget guard: token cap, daily request cap, `ai_usage` tracking
 - [ ] Circuit breaker with cooling period
-- [ ] Generation on demand only — never on rotation
+- [x] Generation on demand only — never on rotation. Tied to pinning the overlay with `I`,
+      not to the overlay's own flash on every artwork change
 - [ ] One real provider
 - [ ] A second real provider, to prove the abstraction
 - [ ] BYO key handling with keyring preference and redaction everywhere

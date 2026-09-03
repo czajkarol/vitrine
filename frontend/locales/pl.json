@@ -18,6 +18,14 @@
   "interval_option_seconds": "{seconds} s",
   "interval_option_minutes": "{minutes} min",
 
+  "ai_label": "Interpretacja",
+  "ai_disclaimer": "Tekst wygenerowany przez AI na podstawie metadanych muzeum. To nie jest tekst kuratorski.",
+  "ai_loading": "Generowanie…",
+  "ai_unavailable": "Interpretacja jest chwilowo niedostępna.",
+  "ai_themes": "Motywy",
+  "ai_look_closer": "Przyjrzyj się",
+  "ai_source": "{provider} · {model}",
+
   "settings_title": "Ustawienia",
   "panel_hint": "Esc — zamknij ustawienia. Rotacja jest wstrzymana.",
 

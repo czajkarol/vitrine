@@ -228,3 +228,54 @@ body {
   font-size: 0.75rem;
   opacity: 0.8;
 }
+
+/* --- AI interpretation -------------------------------------------------------
+   Deliberately not styled like the museum text above it. A rule, a label and a
+   quieter voice, so a glance can tell generated text from a caption written by
+   the Art Institute (docs/product-spec.md). */
+
+.interpretation {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.ai-label {
+  margin: 0 0 0.4rem;
+  color: var(--fg-dim);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ai-status {
+  margin: 0;
+  color: var(--fg-dim);
+  font-size: 0.85rem;
+}
+
+/* Dimmer than the museum's own caption, never brighter. Seen in a browser first:
+   generated text at full --fg read as the more authoritative of the two, which is
+   exactly backwards. */
+.ai-text {
+  margin: 0 0 0.5rem;
+  color: var(--fg-dim);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.ai-themes {
+  margin: 0 0 0.5rem;
+  color: var(--fg-dim);
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.ai-source,
+.ai-disclaimer {
+  margin: 0.35rem 0 0;
+  color: var(--fg-dim);
+  font-size: 0.7rem;
+  opacity: 0.75;
+}

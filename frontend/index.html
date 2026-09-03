@@ -29,6 +29,24 @@
         <p id="ov-meta" class="ov-meta"></p>
         <p id="ov-description" class="ov-description"></p>
       </section>
+      <!-- AI interpretation, in its own labelled container. It must never share one
+           with the museum facts above: a glance should not be able to mistake generated
+           text for a museum caption (docs/product-spec.md). Hidden unless asked for. -->
+      <section id="ov-ai" class="interpretation" hidden>
+        <h2 class="ai-label" data-i18n="ai_label">Interpretation</h2>
+        <p id="ai-status" class="ai-status"></p>
+        <div id="ai-body" hidden>
+          <p id="ai-visual" class="ai-text"></p>
+          <p id="ai-reading" class="ai-text"></p>
+          <p id="ai-themes" class="ai-themes"></p>
+          <p id="ai-look-closer" class="ai-text"></p>
+          <p id="ai-source" class="ai-source"></p>
+        </div>
+        <p id="ai-disclaimer" class="ai-disclaimer" data-i18n="ai_disclaimer">
+          AI-generated from the museum's metadata. Not a curatorial text.
+        </p>
+      </section>
+
       <p id="ov-credit" class="ov-credit"></p>
       <p id="ov-attribution" class="ov-attribution"></p>
     </div>
