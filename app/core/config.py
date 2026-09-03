@@ -7,7 +7,7 @@ The only module in the app permitted to read the environment. Everything else ta
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # AIC's IIIF service sits behind Cloudflare and rejects requests that do not look like a
@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     # every field here has a default that means "off".
     ai_enabled: bool = False
 
-    ai_provider: Literal["", "mock"] = ""
+    ai_provider: Literal["", "mock", "anthropic"] = ""
     """Only what is actually implemented. A vendor joins this list in the commit that
     builds it — a name accepted here but unbuilt would fail at the first request instead
     of at startup."""
@@ -81,6 +81,10 @@ class Settings(BaseSettings):
     disables the breaker."""
 
     ai_circuit_breaker_cooldown_seconds: float = Field(default=300.0, ge=0)
+
+    anthropic_api_key: SecretStr | None = None
+    """A SecretStr so that printing the settings object, which happens in tracebacks and
+    debuggers, cannot print the key. Reading it takes a deliberate `.get_secret_value()`."""
 
 
 @lru_cache(maxsize=1)

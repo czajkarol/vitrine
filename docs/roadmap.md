@@ -110,7 +110,8 @@ Per `CLAUDE.md`, ask Karol before starting it.
       reopens immediately, and an open circuit still serves the cache
 - [x] Generation on demand only — never on rotation. Tied to pinning the overlay with `I`,
       not to the overlay's own flash on every artwork change
-- [ ] One real provider
+- [x] One real provider — Anthropic, Karol's choice. Live tests are `-m live` and skip
+      themselves without a key
 - [ ] A second real provider, to prove the abstraction
 - [ ] BYO key handling with keyring preference and redaction everywhere
 - [ ] Commit

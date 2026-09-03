@@ -86,6 +86,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await app.state.aic_client.aclose()
+        # A real provider holds an HTTP client of its own; the mock does not.
+        if (closer := getattr(provider, "aclose", None)) is not None:
+            await closer()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
