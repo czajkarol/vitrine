@@ -3,7 +3,7 @@
 Karol ruled on all twelve open questions on 2026-09-03. They are settled; this is the record of
 what was decided and why, so nobody relitigates them.
 
-Only **#5** is still outstanding, and it needs a keypress rather than a decision.
+All twelve are now closed: **#5** was confirmed by hand on 2026-09-03.
 
 ---
 
@@ -56,15 +56,21 @@ A failed fetch retries in 20s rather than waiting out the whole rotation interva
 
 ---
 
-## 5. Fullscreen is unverified — **still open, needs a keypress**
+## 5. Fullscreen — **verified by hand; works**
 
-`F` toggles fullscreen via the Fullscreen API. It cannot be verified from automation:
+`F` toggles fullscreen via the Fullscreen API. It could not be verified from automation:
 `requestFullscreen()` requires a real user gesture and synthetic key events do not qualify.
-Everything else in the keyboard map is verified in a browser.
+Everything else in the keyboard map was verified in a browser.
 
 > I will test `F` manually and let you know if anything behaves incorrectly.
 
-**The only item still outstanding.**
+Tested on 2026-09-03:
+
+> fullscreen by F works fine
+
+Closed. Worth remembering the shape of it rather than the answer: a real user gesture is the
+one thing browser automation cannot fake, so anything gated on one needs a human keypress and
+should be handed over deliberately rather than left to look untested.
 
 ---
 

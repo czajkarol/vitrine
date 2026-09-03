@@ -33,8 +33,8 @@ The goal is one real artwork on screen, fetched over the network, in a browser. 
 - [x] `visibilitychange` catch-up so a backgrounded tab does not drift
 - [x] Keyboard shortcuts per `docs/product-spec.md`, disabled inside inputs — the whole map,
       `S` included once M3 gave it a settings panel to open
-- [x] Fullscreen via the Fullscreen API — written, but not verified by hand: it needs a real
-      user gesture, which browser automation cannot supply
+- [x] Fullscreen via the Fullscreen API — verified by hand on 2026-09-03. It needs a real
+      user gesture, which browser automation cannot supply, so it took a human keypress
 - [x] Metadata overlay with mouse-idle fade, AIC attribution included
 - [x] `prefers-reduced-motion` cuts instead of fading
 - [x] Commit
