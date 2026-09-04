@@ -707,15 +707,26 @@ function holdAdvance(seconds) {
 }
 
 /**
- * A left click on the artwork, in fullscreen: take everything but the picture away.
+ * A left click on the artwork: take everything but the picture away. Click again for it back.
  *
- * Only in fullscreen, because windowed there is already chrome around the page and the
- * gesture would be a click that silently changed a mode. A click on one of the overlay's
- * own buttons is not this — those stop the event themselves by being buttons, and the
- * check below keeps a click on the expanded description from counting either.
+ * **Windowed as well as fullscreen since M17.** It was fullscreen-only on the argument that
+ * windowed there is chrome around the page already, so the gesture would be a click that
+ * silently changed a mode. That was right about the silence and wrong about the remedy: the
+ * way out of the mode is the same click that got you into it, on the same spot, and having
+ * to enter fullscreen first to reach the one gesture the display has is a worse cost than
+ * the one it was avoiding.
+ *
+ * **And it no longer says anything.** The status line used to name what had happened, on the
+ * reasoning that a click hiding every control also hides the way back. But it does not: the
+ * way back is to click again, which is what somebody who has just clicked is best placed to
+ * discover. Meanwhile the message was chrome appearing at the top of the screen at the exact
+ * moment the user asked for less of it, which is the opposite of what they clicked for.
+ *
+ * A click on one of the overlay's own buttons is not this — those stop the event themselves
+ * by being buttons, and the check below keeps a click on the expanded description, or in the
+ * settings panel, from counting either.
  */
 function onStageClick(event) {
-  if (!fullscreen.isFullscreen()) return;
   if (event.button !== 0) return;
   if (event.target.closest('.ov-button, .ov-description, .panel')) return;
   const suppressed = !overlay.isSuppressed();
@@ -725,8 +736,6 @@ function onStageClick(event) {
     cancelDescription();
     setOverlayPinned(false);
   }
-  // Said out loud once, because a click that hides every control also hides the way back.
-  flashStatus(t(suppressed ? 'chrome_hidden' : 'chrome_shown'));
 }
 
 /**

@@ -137,19 +137,21 @@ S          toggle settings
 Esc        close settings if open, else close overlay if open, else exit fullscreen
 ```
 
-Plus one mouse gesture, and only one: **a left click on the artwork while in fullscreen** hides
-the overlay entirely, and movement does not bring it back. A second click restores it. Both say
-so once on the status line, because a click that hides every control also hides the way back.
-**Restoring has to actually restore.** Clearing the suppressed flag is not the same as putting
-the overlay back: it used to only clear the flag, and the overlay then stayed hidden until the
-next pointer *movement*. A click does not move the mouse, so the gesture meant to bring the
-controls back brought nothing back — the status line said they had returned and the screen did
-not change — and it appeared to work only on whichever press the user happened to jog the mouse
-on. A press now counts as presence everywhere the overlay listens for movement.
+Plus one mouse gesture, and only one: **a left click on the artwork** hides the overlay
+entirely, and movement does not bring it back. A second click restores it.
 
-Only in fullscreen — windowed there is chrome around the page already, and the gesture would be
-a click that silently changed a mode. Clicks that land on the overlay's own buttons, or on an
-expanded description, are not this.
+**It works windowed as well as in fullscreen, and it says nothing.** Both of those were the
+other way round until M17 and both were argued for here, so both amendments are worth stating.
+It was fullscreen-only because windowed there is chrome around the page already and the gesture
+would be a click that silently changed a mode — right about the silence, wrong about the
+remedy, since the way out of the mode is the same click on the same spot that got you into it,
+and requiring fullscreen first to reach the display's only gesture cost more than it saved. And
+it used to name what had happened on the status line, on the reasoning that a click hiding every
+control also hides the way back; it does not, and the message was chrome appearing at the top of
+the screen at the moment the user had asked for less of it.
+
+Clicks that land on the overlay's own buttons, on an expanded description, or in the settings
+panel are not this.
 
 `?` exists because thirteen shortcuts documented only in this file are thirteen shortcuts nobody
 using the app knows about. It opens the settings panel with the keyboard map expanded, and the
@@ -339,17 +341,20 @@ the API supports and produce empty result sets.
 Only expose a filter if the local index has enough artworks behind it to sustain rotation.
 A filter that yields four artworks is worse than no filter. Show the count.
 
-**One thing is excluded before anybody asks: coins.** A fresh install starts with `type.coin`
-in its exclusion list — 1,220 of the 57,607 indexed works. They are small, dark, two-sided,
-photographed identically, and one arriving every few minutes is what an ambient display of art
-is least served by. Nothing else meets that bar, and the list is meant to stay this short:
-adding to it is hiding something from somebody who never asked.
+**Two things are excluded before anybody asks: coins and medals.** A fresh install starts with
+`type.coin` and `type.medals` in its exclusion list — 1,220 and 418 of the 57,607 indexed works.
+They are the same case twice: small, dark, two-sided, photographed identically against the same
+grey card, and one arriving every few minutes is what an ambient display of art is least served
+by. A museum has reason to catalogue them apart; on a wall they are one thing. Nothing else
+meets that bar, and the list is meant to stay this short: adding to it is hiding something from
+somebody who never asked.
 
 **It is a default, and it has to arrive looking like one.** It is seeded into the `exclude`
 *preference* on first run, not compiled into the query, so it comes into the panel as an
-ordinary exclusion — the artwork-type badge reads "1 out", the group opens itself because
-something in it is set, the Coin row is struck through, and one click clears it for good. A
-constant in the selection path would remove 1,220 artworks with nothing on screen saying so,
+ordinary exclusion — the artwork-type badge reads "2 out", the group opens itself because
+something in it is set, the Coin and Medals rows are struck through, and one click each clears
+them for good. A constant in the selection path would remove 1,638 artworks with nothing on
+screen saying so,
 which is the failure this whole section is written against. Scoring was the other candidate and
 is the wrong tool: it ranks Curated and does nothing in Random, so "excluded by default" would
 not be true in the mode most people are in.

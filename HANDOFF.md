@@ -330,6 +330,19 @@ All found the hard way, in a browser or against the live API. Each is documented
     dark brown was muddy, a neutral grey was legible and dead. Only the last of those was
     predictable from a swatch. Screenshot it against a real work before believing it.
 
+35. **The click gesture is windowed now, and silent.** Both halves reverse an argument
+    `docs/product-spec.md` made and both are amended there rather than contradicted. It was
+    fullscreen-only so a click could not silently change a mode windowed; the way out of the
+    mode turned out to be the same click on the same spot, so the silence was cheap and the
+    fullscreen requirement was not. And it no longer flashes what happened: the message was
+    chrome arriving at the top of the screen at the moment the user asked for less of it.
+    `chrome_hidden` and `chrome_shown` are gone from both locales.
+36. **Test residue lands in the real `data/vitrine.db`.** The headed checks in this round
+    clicked real filters and saved real preferences into the developer's own database — a
+    subject inclusion survived a run and was still set an hour later. Anything driving the app
+    against port 8031/8032 is writing to the same file the owner uses. Reset what you touched,
+    or point the check at a temporary database the way `tests/conftest.py` does.
+
 ## Outstanding, and only the owner can close it
 
 *(The first of these is closed. Kept below, struck through, because the way it was closed is

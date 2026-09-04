@@ -267,11 +267,13 @@ DROPPED: Final[Mapping[FacetGroup, Mapping[str, str]]] = {
 # other candidate and is the wrong tool — it ranks Curated and does nothing at all in
 # Random, so "excluded by default" would not be true in the mode most people are in.
 #
-# Coins are 1,220 of the 57,607 indexed works, and they are the clearest case: small, dark,
-# two-sided, photographed identically, and one every few minutes is what an ambient display
-# of *art* is least served by. Nothing else meets that bar today. Adding to this list means
-# hiding something from someone who never asked, so it stays short and each entry says why.
-DEFAULT_EXCLUDED_FACETS: Final[tuple[str, ...]] = ("type.coin",)
+# Coins are 1,220 of the 57,607 indexed works and medals a further 418, and they are the same
+# case twice: small, dark, two-sided, photographed identically against the same grey card, and
+# one arriving every few minutes is what an ambient display of *art* is least served by. They
+# are catalogued apart because a museum has reason to tell them apart; on a wall they are one
+# thing. Nothing else meets that bar today. Adding to this list means hiding something from
+# somebody who never asked, so it stays short and each entry has to say why.
+DEFAULT_EXCLUDED_FACETS: Final[tuple[str, ...]] = ("type.coin", "type.medals")
 
 
 # --- Derivation --------------------------------------------------------------------

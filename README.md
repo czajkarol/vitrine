@@ -65,8 +65,9 @@ S          toggle settings
 Esc        close settings, else close the overlay, else leave fullscreen
 ```
 
-And one mouse gesture: **a left click on the artwork while in fullscreen** takes the overlay away
-entirely, and moving the mouse does not bring it back. Click again to restore it.
+And one mouse gesture: **a left click on the artwork** takes the overlay away entirely, and
+moving the mouse does not bring it back. Click again to restore it. It says nothing when it does
+— the way back is the click you just made.
 
 The same list lives in the app, translated, behind `?` — a shortcut documented only in a README
 is a shortcut nobody knows about.

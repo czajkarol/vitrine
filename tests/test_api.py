@@ -350,18 +350,18 @@ class TestPreferences:
         assert body["artwork_type"] == ["type.painting", "type.print"]
         assert body["language"] == "pl"
 
-    def test_a_fresh_install_starts_with_coins_excluded(self, client):
-        """The one default exclusion, and it has to arrive as an exclusion.
+    def test_a_fresh_install_starts_with_coins_and_medals_excluded(self, client):
+        """The default exclusions, and they have to arrive as exclusions.
 
-        Seeded into the preference rather than compiled into the query, so it reaches the
-        panel as an ordinary filter: badge, struck-through row, one click to undo. A
-        constant in the selection path would hide 1,220 artworks with nothing on screen
+        Seeded into the preference rather than compiled into the query, so they reach the
+        panel as ordinary filters: badge, struck-through rows, one click each to undo. A
+        constant in the selection path would hide 1,638 artworks with nothing on screen
         saying so.
         """
         from app.domain.vocabulary import DEFAULT_EXCLUDED_FACETS
 
         assert client.get("/api/preferences").json()["exclude"] == list(DEFAULT_EXCLUDED_FACETS)
-        assert "type.coin" in DEFAULT_EXCLUDED_FACETS
+        assert set(DEFAULT_EXCLUDED_FACETS) == {"type.coin", "type.medals"}
 
     def test_clearing_the_exclusions_is_not_undone_by_the_default(self, client):
         """The half that makes it a default rather than a rule.
