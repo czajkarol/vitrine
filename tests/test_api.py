@@ -302,7 +302,7 @@ class TestModesAndFilters:
             return_value=httpx.Response(200, json=search_response)
         )
 
-        response = client.get("/api/artwork/random?artwork_type=Sculpture")
+        response = client.get("/api/artwork/random?artwork_type=type.sculpture")
 
         # Showing an unfiltered artwork would be worse than showing none. 404, not 503:
         # the filter matching nothing is the user's doing, not the museum being down.
@@ -337,7 +337,8 @@ class TestPreferences:
         saved = {
             "interval_seconds": 900,
             "mode": "curated",
-            "artwork_type": "Painting",
+            # Lists since M13: several values in a group are ORed. ADR-0014.
+            "artwork_type": ["type.painting", "type.print"],
             "language": "pl",
         }
         assert client.put("/api/preferences", json=saved).status_code == 200
@@ -345,8 +346,14 @@ class TestPreferences:
         body = client.get("/api/preferences").json()
         assert body["interval_seconds"] == 900
         assert body["mode"] == "curated"
-        assert body["artwork_type"] == "Painting"
+        assert body["artwork_type"] == ["type.painting", "type.print"]
         assert body["language"] == "pl"
+
+    def test_a_museum_choice_survives_a_reload(self, client):
+        """A display left pointed at Cleveland is still pointed at it after a reload."""
+        assert client.get("/api/preferences").json()["museum"] == "aic"
+        client.put("/api/preferences", json={"interval_seconds": 300, "museum": "cma"})
+        assert client.get("/api/preferences").json()["museum"] == "cma"
 
     def test_ambient_is_off_until_it_is_asked_for(self, client):
         # Keeping someone's screen awake is a side effect on their machine.
@@ -403,12 +410,15 @@ class TestPreferences:
         with TestClient(create_app(settings.model_copy(update={"default_language": "pl"}))) as c:
             assert c.get("/api/preferences").json()["language"] == "pl"
 
-    def test_clearing_the_filter_reads_back_as_none(self, client):
-        client.put("/api/preferences", json={"interval_seconds": 300, "artwork_type": "Painting"})
-        client.put("/api/preferences", json={"interval_seconds": 300, "artwork_type": None})
-        # Stored as an empty string, because the table cannot hold NULL — but the API
-        # must not leak that.
-        assert client.get("/api/preferences").json()["artwork_type"] is None
+    def test_clearing_the_filter_reads_back_as_empty(self, client):
+        client.put(
+            "/api/preferences", json={"interval_seconds": 300, "artwork_type": ["type.painting"]}
+        )
+        client.put("/api/preferences", json={"interval_seconds": 300, "artwork_type": []})
+        # Stored as an empty string, because the table cannot hold a list — but the API
+        # must not leak that, and an empty selection must not read back as one facet
+        # whose key is "".
+        assert client.get("/api/preferences").json()["artwork_type"] == []
 
     def test_rejects_an_unknown_mode(self, client):
         assert (
@@ -448,6 +458,7 @@ class TestPreferences:
             "style",
             "subject",
             "exclude",
+            "museum",
             "language",
             "ambient",
         }
@@ -678,9 +689,9 @@ class TestFacetFilters:
             json={
                 "interval_seconds": 300,
                 "mode": "random",
-                "artwork_type": None,
-                "style": None,
-                "subject": None,
+                "artwork_type": [],
+                "style": [],
+                "subject": [],
                 "exclude": ["type.coin", "subject.man", "nonsense"],
                 "language": "en",
                 "ambient": False,
@@ -752,6 +763,7 @@ class TestFavorites:
 
         assert client.get("/api/favorites/summary").json() == {
             "likes": 0,
+            "dislikes": 0,
             "hides": 0,
             "personalising": False,
             "minimum_likes": MIN_LIKES_FOR_PROFILE,
@@ -797,3 +809,154 @@ class TestScoringEndpoint:
         assert {w["name"] for w in body["weights"]} == set(WEIGHTS)
         assert body["weights"] == sorted(body["weights"], key=lambda w: -w["weight"])
         assert abs(sum(w["share"] for w in body["weights"]) - 1.0) < 0.01
+
+
+class TestCleveland:
+    """A second museum, served live. ADR-0013.
+
+    The interesting assertions are all about the seam: an unindexed source has to reach the
+    display with a finished image URL, its own attribution and its own feedback key, and it
+    must never quietly fall through to the Art Institute.
+    """
+
+    CMA = "https://openaccess-api.clevelandart.org/api"
+
+    def _page(self):
+        import json
+        from pathlib import Path
+
+        return json.loads(
+            (Path(__file__).parent / "fixtures" / "cma" / "artworks_page.json").read_text(
+                encoding="utf-8"
+            )
+        )
+
+    @respx.mock
+    def test_it_serves_a_cleveland_artwork_with_a_finished_image_url(self, client):
+        respx.get(f"{self.CMA}/artworks/").mock(return_value=httpx.Response(200, json=self._page()))
+
+        body = client.get("/api/artwork/random?museum=cma").json()
+
+        assert body["museum"] == "cma"
+        assert body["source"] == "live"
+        # No IIIF service, so nothing for the browser to build a URL from — the source has
+        # already decided. ADR-0012 item 3, arrived at.
+        assert body["iiif_base"] == ""
+        assert body["image_url"].startswith("https://openaccess-cdn.clevelandart.org/")
+
+    @respx.mock
+    def test_a_live_source_that_is_down_does_not_fall_through_to_the_art_institute(
+        self, client, database, search_response
+    ):
+        """The user chose a museum. Quietly showing them a different one is the sort of
+        thing that makes a source selector untrustworthy."""
+        from app.repositories.artwork_index import ArtworkIndexRepository
+        from app.repositories.preferences import PreferencesRepository
+        from app.services.selection import IIIF_BASE_KEY
+
+        PreferencesRepository(database).set_sync(IIIF_BASE_KEY, IIIF)
+        ArtworkIndexRepository(database).upsert_many_sync([_indexed(1, "Painting")])
+        aic = respx.get(f"{BASE}/artworks/search").mock(
+            return_value=httpx.Response(200, json=search_response)
+        )
+        respx.get(f"{self.CMA}/artworks/").mock(return_value=httpx.Response(503))
+
+        assert client.get("/api/artwork/random?museum=cma").status_code == 503
+        assert not aic.called
+
+    @respx.mock
+    def test_a_hidden_cleveland_artwork_is_not_served_again(self, client):
+        page = self._page()
+        # One record, so the only thing the source can return is the hidden one.
+        page["data"] = page["data"][:1]
+        page["info"]["total"] = 1
+        artwork_id = page["data"][0]["id"]
+        respx.get(f"{self.CMA}/artworks/").mock(return_value=httpx.Response(200, json=page))
+        client.put(f"/api/favorites/{artwork_id}", json={"kind": "hide", "museum": "cma"})
+
+        assert client.get("/api/artwork/random?museum=cma").status_code == 503
+
+    @respx.mock
+    def test_hiding_at_cleveland_does_not_hide_the_same_id_at_the_art_institute(
+        self, client, database
+    ):
+        """Migration 010's whole reason. Artwork id 1 is a real record at both museums."""
+        from app.repositories.artwork_index import ArtworkIndexRepository
+        from app.repositories.preferences import PreferencesRepository
+        from app.services.selection import IIIF_BASE_KEY
+
+        PreferencesRepository(database).set_sync(IIIF_BASE_KEY, IIIF)
+        ArtworkIndexRepository(database).upsert_many_sync([_indexed(1, "Painting")])
+        client.put("/api/favorites/1", json={"kind": "hide", "museum": "cma"})
+
+        assert client.get("/api/artwork/random").json()["id"] == 1
+
+    @respx.mock
+    def test_its_filters_are_one_small_list_with_live_counts(self, client):
+        respx.get(f"{self.CMA}/artworks/").mock(
+            return_value=httpx.Response(200, json={"info": {"total": 3956}, "data": []})
+        )
+
+        body = client.get("/api/filters?museum=cma").json()
+
+        assert body["museum"] == "cma"
+        assert body["artwork_types"]
+        # No index, so no facet layer: style and subject are not offered at all rather
+        # than offered empty.
+        assert body["styles"] == []
+        assert body["subjects"] == []
+
+    @respx.mock
+    def test_filters_that_cannot_be_fetched_are_empty_rather_than_a_500(self, client):
+        respx.get(f"{self.CMA}/artworks/").mock(side_effect=httpx.ConnectError("down"))
+
+        body = client.get("/api/filters?museum=cma").json()
+
+        assert body["artwork_types"] == []
+
+
+class TestDislike:
+    """The verdict between a like and a hide. ADR-0014."""
+
+    def _seed(self, database, count=4):
+        from app.repositories.artwork_index import ArtworkIndexRepository
+        from app.repositories.preferences import PreferencesRepository
+        from app.services.selection import IIIF_BASE_KEY
+
+        PreferencesRepository(database).set_sync(IIIF_BASE_KEY, IIIF)
+        ArtworkIndexRepository(database).upsert_many_sync(
+            [_indexed(i, "Painting") for i in range(1, count + 1)]
+        )
+
+    def test_a_dislike_is_recorded_and_travels_with_the_artwork(self, client, database):
+        self._seed(database, count=1)
+        client.put("/api/favorites/1", json={"kind": "dislike"})
+
+        body = client.get("/api/artwork/random").json()
+
+        assert body["feedback"] == "dislike"
+        assert body["liked"] is False
+
+    def test_a_disliked_artwork_still_comes_round(self, client, database):
+        """The difference from `X` in one assertion. A dislike is a ranking signal and
+        nothing else; the exclusion is what `hide` is for."""
+        self._seed(database, count=1)
+        client.put("/api/favorites/1", json={"kind": "dislike"})
+
+        assert client.get("/api/artwork/random").status_code == 200
+
+    @respx.mock
+    def test_a_hidden_artwork_does_not(self, client, database):
+        self._seed(database, count=3)
+        client.put("/api/favorites/1", json={"kind": "hide"})
+
+        for _ in range(8):
+            assert client.get("/api/artwork/random").json()["id"] != 1
+
+    def test_the_summary_counts_dislikes_separately(self, client):
+        client.put("/api/favorites/1", json={"kind": "like"})
+        client.put("/api/favorites/2", json={"kind": "dislike"})
+
+        body = client.get("/api/favorites/summary").json()
+
+        assert (body["likes"], body["dislikes"], body["hides"]) == (1, 1, 0)

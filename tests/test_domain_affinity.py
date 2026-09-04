@@ -124,3 +124,42 @@ class TestExplain:
         profile = likes(*([["style.japanese"]] * MIN_LIKES_FOR_PROFILE))
         facets = ["style.japanese", "subject.portrait"]
         assert explain(0.4, profile, facets).total == personal_score(0.4, profile, facets)
+
+
+class TestDislike:
+    """The verdict M13 put between a like and a hide. ADR-0014."""
+
+    def test_a_disliked_facet_ranks_below_an_unknown_one(self):
+        """The whole point of the key: pressing it has to move the ranking. A dislike
+        carries no exclusion behind it, so the nudge is all the user gets for it."""
+        profile = build_profile(
+            [["style.japanese"]] * MIN_LIKES_FOR_PROFILE,
+            disliked_facets=[["subject.war"]],
+        )
+        assert personal_score(0.5, profile, ["subject.war"]) < personal_score(
+            0.5, profile, ["subject.unseen"]
+        )
+
+    def test_it_counts_against_harder_than_a_hide_does(self):
+        """Hiding is usually about one artwork — one bad picture at 3am — and the veto is
+        already the exclusion. A dislike is only ever the nudge, so it is the larger one."""
+        disliked = build_profile(
+            [["style.japanese"]] * MIN_LIKES_FOR_PROFILE, disliked_facets=[["subject.war"]]
+        )
+        hidden = build_profile(
+            [["style.japanese"]] * MIN_LIKES_FOR_PROFILE, hidden_facets=[["subject.war"]]
+        )
+        assert disliked.weights["subject.war"] < hidden.weights["subject.war"]
+
+    def test_liking_and_disliking_the_same_facet_cancels_out(self):
+        """Two people share a display, or one changes their mind. Neither should leave the
+        facet carrying a weight nobody intended."""
+        profile = build_profile(
+            [["subject.war"], *[["style.japanese"]] * MIN_LIKES_FOR_PROFILE],
+            disliked_facets=[["subject.war"]],
+        )
+        assert "subject.war" not in profile.weights
+
+    def test_dislikes_are_counted_so_the_panel_can_say_so(self):
+        profile = build_profile([["a.b"]], disliked_facets=[["c.d"], ["e.f"]])
+        assert (profile.likes, profile.dislikes, profile.hides) == (1, 2, 0)

@@ -253,26 +253,40 @@ class ArtworkIndexRepository:
 
     @staticmethod
     def _facet_clauses(
-        include: Sequence[str], exclude: Sequence[str], id_column: str = "id"
+        include: Sequence[Sequence[str]], exclude: Sequence[str], id_column: str = "id"
     ) -> tuple[list[str], list[object]]:
         """WHERE fragments for a facet selection. One query shape for all three groups.
 
         That is what migration 008 bought: before it, artwork type was a column and style
         and subject were a join table, so this had to be written twice and kept in step.
 
-        Inclusion is ANDed one facet at a time — an artwork must carry every one. Exclusion
-        is a single NOT IN over all of them, because excluding several things at once is
-        one condition, not several.
+        **`include` is a list of alternative-sets, one per group: OR inside, AND between.**
+        Until M13 a group held one facet and inclusion was a flat AND over all of them.
+        Allowing several at once inside a group had to change the operator, not just the
+        arity: `type.painting AND type.print` is empty by construction — nothing is both —
+        where `type.painting OR type.print` is the filter anyone means by ticking two boxes.
+        Across groups it stays AND, because "a Japanese print" narrows in the way a person
+        expects.
+
+        Exclusion stays a single NOT IN over everything excluded, from any group: excluding
+        several things at once is one condition, not several.
 
         `id_column` is the artwork id in whatever the caller is selecting from: `id` in
         `artwork_index`, `artwork_id` when counting inside `artwork_facets` itself. It is
-        never user input — the two callers below pass literals.
+        never user input — the callers below pass literals.
         """
         where: list[str] = []
         params: list[object] = []
-        for facet in include:
-            where.append(f"{id_column} IN (SELECT artwork_id FROM artwork_facets WHERE facet = ?)")
-            params.append(facet)
+        for group in include:
+            facets = [facet for facet in group if facet]
+            if not facets:
+                continue
+            placeholders = ",".join("?" for _ in facets)
+            where.append(
+                f"{id_column} IN (SELECT artwork_id FROM artwork_facets "
+                f"WHERE facet IN ({placeholders}))"
+            )
+            params.extend(facets)
         if exclude:
             placeholders = ",".join("?" for _ in exclude)
             where.append(
@@ -286,7 +300,7 @@ class ArtworkIndexRepository:
         self,
         limit: int,
         curated: bool = False,
-        facets: Sequence[str] = (),
+        facets: Sequence[Sequence[str]] = (),
         exclude: Sequence[str] = (),
         hidden: Sequence[int] = (),
     ) -> list[Artwork]:
@@ -299,9 +313,9 @@ class ArtworkIndexRepository:
         scored NULL are excluded there rather than sorted to one end, because an unscored
         row is unranked, not bad — it just has not been through a scoring pass yet.
 
-        `facets` are canonical facet keys and combine with AND; `exclude` removes anything
-        carrying any of them. Both go through `artwork_facets`, artwork type included —
-        see `_facet_clauses`.
+        `facets` is one sequence of canonical facet keys per group — OR inside a group,
+        AND between groups; `exclude` removes anything carrying any of the keys in it.
+        Both go through `artwork_facets`, artwork type included — see `_facet_clauses`.
         """
         where, params = self._facet_clauses(facets, exclude)
         # Hidden artworks are excluded in every mode, including plain random. `X` means
@@ -336,7 +350,7 @@ class ArtworkIndexRepository:
         self,
         limit: int,
         curated: bool = False,
-        facets: Sequence[str] = (),
+        facets: Sequence[Sequence[str]] = (),
         exclude: Sequence[str] = (),
         hidden: Sequence[int] = (),
     ) -> list[Artwork]:
@@ -468,7 +482,7 @@ class ArtworkIndexRepository:
     def facet_counts_sync(
         self,
         group: FacetGroup,
-        include: Sequence[str] = (),
+        include: Sequence[Sequence[str]] = (),
         exclude: Sequence[str] = (),
     ) -> dict[str, int]:
         """How many artworks sit behind each facet in one group.
@@ -497,7 +511,7 @@ class ArtworkIndexRepository:
     async def facet_counts(
         self,
         group: FacetGroup,
-        include: Sequence[str] = (),
+        include: Sequence[Sequence[str]] = (),
         exclude: Sequence[str] = (),
     ) -> dict[str, int]:
         return await asyncio.to_thread(self.facet_counts_sync, group, include, exclude)

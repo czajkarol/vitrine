@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from app.api.schemas import (
     MAX_EXCLUSIONS,
+    MAX_INCLUSIONS,
     AicStats,
     AiKeyRequest,
     AiKeyResponse,
@@ -38,6 +39,7 @@ from app.domain.scoring import WEIGHTS
 from app.domain.vocabulary import FACET_GROUPS, FacetGroup, facet_for, label_for
 from app.providers.ai.base import AiError
 from app.providers.aic.client import AicClient, AicError, AicUnavailableError
+from app.providers.source import SourceError
 from app.repositories.ai_usage import AiUsageRepository, today
 from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.credentials import CredentialStoreError
@@ -182,6 +184,7 @@ SUBJECT_KEY: Final[str] = "subject"
 EXCLUDE_KEY: Final[str] = "exclude"
 LANGUAGE_KEY: Final[str] = "language"
 AMBIENT_KEY: Final[str] = "ambient"
+MUSEUM_KEY: Final[str] = "museum"
 
 # The exclusion list is several values in a table that stores one string per key. Comma
 # separated rather than JSON because a facet key is `[a-z0-9.-]` by construction and can
@@ -196,23 +199,27 @@ async def random_artwork(
     selection: SelectionDep,
     feedback: FeedbackDep,
     mode: Annotated[Literal["random", "curated", "personal"], Query()] = "random",
-    artwork_type: Annotated[str | None, Query(max_length=100)] = None,
-    style: Annotated[str | None, Query(max_length=100)] = None,
-    subject: Annotated[str | None, Query(max_length=100)] = None,
+    museum: Annotated[Literal["aic", "cma"], Query()] = "aic",
+    artwork_type: Annotated[list[str] | None, Query(max_length=MAX_INCLUSIONS)] = None,
+    style: Annotated[list[str] | None, Query(max_length=MAX_INCLUSIONS)] = None,
+    subject: Annotated[list[str] | None, Query(max_length=MAX_INCLUSIONS)] = None,
     exclude: Annotated[list[str] | None, Query(max_length=MAX_EXCLUSIONS)] = None,
 ) -> ArtworkResponse:
     """One random public-domain artwork with a usable image.
 
-    The service decides where it comes from — local index first, then AIC, then the
-    bundled set (ADR-0003). This route only shapes the answer.
+    The service decides where it comes from — for the Art Institute, the local index
+    first, then AIC, then the bundled set (ADR-0003); for Cleveland, one live call
+    (ADR-0013). This route only shapes the answer.
 
-    The three named parameters keep their names for the three groups, and carry canonical
+    The three named parameters keep their names for the three groups and carry canonical
     facet keys since M10 — `style=style.japanese`, not `style=Japanese (culture or style)`.
-    `exclude` is repeatable and may name facets from any group.
+    All four are repeatable since M13: several values inside a group are ORed, the groups
+    are ANDed together, and `exclude` is NOT-ed over all of them at once.
     """
     query = SelectionQuery(
         mode=mode,
-        facets=tuple(f for f in (artwork_type, style, subject) if f),
+        museum=museum,
+        facets=tuple(tuple(_included_facets(group)) for group in (artwork_type, style, subject)),
         exclude=tuple(_valid_facets(exclude)),
     )
     try:
@@ -232,11 +239,21 @@ async def random_artwork(
         # Every tier came up empty: no index, no network, no bundled set.
         raise HTTPException(status_code=503, detail="aic_unavailable")
 
-    # Remembered so the image proxy never has to guess a IIIF base or hardcode one.
-    request.app.state.iiif_base = result.iiif_base
-    response = ArtworkResponse.from_domain(result.artwork, result.iiif_base, source=result.source)
+    if result.iiif_base:
+        # Remembered so the image proxy never has to guess a IIIF base or hardcode one.
+        # A source with no IIIF service leaves the last known one alone rather than
+        # clearing it — the proxy is still the fallback for Art Institute images.
+        request.app.state.iiif_base = result.iiif_base
+    response = ArtworkResponse.from_domain(
+        result.artwork,
+        result.iiif_base,
+        source=result.source,
+        museum=result.museum,
+        image_url=result.image_url,
+    )
     response.personalised = result.personalised
-    existing = await feedback.get(result.artwork.id)
+    existing = await feedback.get(result.artwork.id, result.museum)
+    response.feedback = existing.kind if existing else None
     response.liked = existing is not None and existing.kind == "like"
     return response
 
@@ -284,10 +301,12 @@ async def image_proxy(
 
 @router.get("/filters", response_model=FiltersResponse)
 async def read_filters(
+    request: Request,
     index: IndexDep,
-    artwork_type: Annotated[str | None, Query(max_length=100)] = None,
-    style: Annotated[str | None, Query(max_length=100)] = None,
-    subject: Annotated[str | None, Query(max_length=100)] = None,
+    museum: Annotated[Literal["aic", "cma"], Query()] = "aic",
+    artwork_type: Annotated[list[str] | None, Query(max_length=MAX_INCLUSIONS)] = None,
+    style: Annotated[list[str] | None, Query(max_length=MAX_INCLUSIONS)] = None,
+    subject: Annotated[list[str] | None, Query(max_length=MAX_INCLUSIONS)] = None,
     exclude: Annotated[list[str] | None, Query(max_length=MAX_EXCLUSIONS)] = None,
 ) -> FiltersResponse:
     """The Explore vocabulary, built from the index rather than a hardcoded list.
@@ -305,15 +324,26 @@ async def read_filters(
 
     An option whose constrained count is zero stays, at zero, and the panel disables it.
     A list that reshuffles under the cursor is worse than a greyed row.
+
+    Cleveland is not indexed and has none of this. Its filters come from its own source and
+    are a different, much smaller thing — one closed list of artwork types with live totals.
+    ADR-0013.
     """
-    chosen = {"type": artwork_type, "style": style, "subject": subject}
+    if museum != "aic":
+        return await _live_filters(request, museum)
+
+    chosen: dict[str, list[str]] = {
+        "type": _included_facets(artwork_type),
+        "style": _included_facets(style),
+        "subject": _included_facets(subject),
+    }
     excluded = _valid_facets(exclude)
     labels = await _facet_labels(index)
 
     groups = {}
     for group in FACET_GROUPS:
         # Leave-one-out: every group's selection except this one's.
-        others = [value for key, value in chosen.items() if key != group and value]
+        others = [values for key, values in chosen.items() if key != group and values]
         groups[group] = (
             await index.facet_counts(group),
             await index.facet_counts(group, include=others, exclude=excluded),
@@ -321,12 +351,41 @@ async def read_filters(
         )
 
     return FiltersResponse(
+        museum="aic",
         artwork_types=_options(*groups["type"]),
         styles=_options(*groups["style"], limit=MAX_FILTER_OPTIONS),
         subjects=_options(*groups["subject"], limit=MAX_FILTER_OPTIONS),
         minimum_count=MIN_FILTER_COUNT,
         maximum_options=MAX_FILTER_OPTIONS,
         indexed_total=await index.count(),
+    )
+
+
+async def _live_filters(request: Request, museum: str) -> FiltersResponse:
+    """The filter vocabulary of a live source, which is a much smaller question.
+
+    No index, so no facet layer, no dependent counts and no exclusion: what comes back is
+    one closed list with a total beside each entry, asked of the museum once per process.
+    A source that cannot answer at all yields an empty vocabulary and the panel says the
+    filters are unavailable rather than showing an empty box.
+    """
+    source = request.app.state.live_sources.get(museum)
+    if source is None:  # pragma: no cover — the route's Literal bounds this
+        raise HTTPException(status_code=404, detail="unknown_museum")
+    try:
+        options = await source.artwork_types()
+    except SourceError as exc:
+        logger.warning("Could not read %s filters: %s", museum, exc)
+        options = []
+    return FiltersResponse(
+        museum=museum,
+        artwork_types=[
+            FilterOption(value=option.value, count=option.count, label=option.label)
+            for option in options
+        ],
+        minimum_count=0,
+        maximum_options=len(options),
+        indexed_total=sum(option.count for option in options),
     )
 
 
@@ -359,11 +418,15 @@ async def _facet_labels(index: ArtworkIndexRepository) -> dict[str, str]:
 
 
 def _valid_facets(values: list[str] | None) -> list[str]:
-    """Keep only what looks like a facet key, and deduplicate.
+    """Keep only what looks like a facet key, and deduplicate. For **exclusion**.
 
     Not a check that the facet exists: the vocabulary can change under a saved preference,
     and an unknown key should simply match nothing rather than 400. This only keeps a
     query string from putting arbitrary text into the `NOT IN` list.
+
+    Dropping a malformed value is safe here and only here. An exclusion that is dropped
+    shows the user *more* than they asked to see, which is a widening they can see and
+    correct; the same treatment of an inclusion is `_included_facets` below, and it is not.
     """
     if not values:
         return []
@@ -373,6 +436,27 @@ def _valid_facets(values: list[str] | None) -> list[str]:
         if group in FACET_GROUPS and rest and value not in seen and len(value) <= 100:
             seen.append(value)
     return seen[:MAX_EXCLUSIONS]
+
+
+def _included_facets(values: list[str] | None) -> list[str]:
+    """The same, for **inclusion**, and deliberately more permissive.
+
+    A value that is not a facet key is kept rather than dropped, because dropping it would
+    turn "show me sculptures" into "show me anything" the moment the vocabulary moved
+    under a saved preference — a filter silently ceasing to filter, which is the one
+    failure the whole Explore path is written to avoid. Kept, it matches no row in
+    `artwork_facets`, the selection comes back empty, and the display says so.
+
+    Length and count are still bounded: that is what keeps a query string out of a
+    thousand-placeholder `IN (...)`.
+    """
+    if not values:
+        return []
+    seen: list[str] = []
+    for value in values:
+        if value and len(value) <= 100 and value not in seen:
+            seen.append(value)
+    return seen[:MAX_INCLUSIONS]
 
 
 def _options(
@@ -406,7 +490,6 @@ async def read_preferences(
 ) -> PreferencesResponse:
     """Whatever has been saved, with the defaults filling the gaps."""
     stored_interval = await preferences.get(INTERVAL_KEY)
-    stored_type = await preferences.get(ARTWORK_TYPE_KEY)
     fields: dict[str, object] = {}
     if stored_interval is not None and stored_interval.isdigit():
         fields["interval_seconds"] = int(stored_interval)
@@ -414,12 +497,20 @@ async def read_preferences(
         fields["interval_seconds"] = settings.default_interval_seconds
     if (stored_mode := await preferences.get(MODE_KEY)) is not None:
         fields["mode"] = stored_mode
-    # An empty string means "no filter"; storing None is not possible in this table.
-    fields["artwork_type"] = stored_type or None
-    fields["style"] = await preferences.get(STYLE_KEY) or None
-    fields["subject"] = await preferences.get(SUBJECT_KEY) or None
-    stored_exclude = await preferences.get(EXCLUDE_KEY) or ""
-    fields["exclude"] = _valid_facets(stored_exclude.split(EXCLUDE_SEPARATOR))
+    # Comma-separated since M13, the same encoding `exclude` has always used, and for the
+    # same reason: a facet key is `[a-z0-9.-]` by construction and can never contain a
+    # comma. A value written by an older version holds one key and decodes to a one-item
+    # list, so nobody's saved filter is lost.
+    for key, name, clean in (
+        (ARTWORK_TYPE_KEY, "artwork_type", _included_facets),
+        (STYLE_KEY, "style", _included_facets),
+        (SUBJECT_KEY, "subject", _included_facets),
+        (EXCLUDE_KEY, "exclude", _valid_facets),
+    ):
+        stored = await preferences.get(key) or ""
+        fields[name] = clean([part for part in stored.split(EXCLUDE_SEPARATOR) if part])
+    if (stored_museum := await preferences.get(MUSEUM_KEY)) is not None:
+        fields["museum"] = stored_museum
     # Nothing saved yet means the deployment's own default, not the schema's — this is
     # what makes DEFAULT_LANGUAGE in .env do anything.
     fields["language"] = await preferences.get(LANGUAGE_KEY) or settings.default_language
@@ -449,10 +540,14 @@ async def write_preferences(
     """Persist the user's settings. Pydantic rejects an interval off the menu."""
     await preferences.set(INTERVAL_KEY, str(body.interval_seconds))
     await preferences.set(MODE_KEY, body.mode)
-    await preferences.set(ARTWORK_TYPE_KEY, body.artwork_type or "")
-    await preferences.set(STYLE_KEY, body.style or "")
-    await preferences.set(SUBJECT_KEY, body.subject or "")
-    await preferences.set(EXCLUDE_KEY, EXCLUDE_SEPARATOR.join(_valid_facets(body.exclude)))
+    for key, values, clean in (
+        (ARTWORK_TYPE_KEY, body.artwork_type, _included_facets),
+        (STYLE_KEY, body.style, _included_facets),
+        (SUBJECT_KEY, body.subject, _included_facets),
+        (EXCLUDE_KEY, body.exclude, _valid_facets),
+    ):
+        await preferences.set(key, EXCLUDE_SEPARATOR.join(clean(values)))
+    await preferences.set(MUSEUM_KEY, body.museum)
     await preferences.set(LANGUAGE_KEY, body.language)
     await preferences.set(AMBIENT_KEY, "1" if body.ambient else "0")
     return body
@@ -622,9 +717,9 @@ async def read_scoring() -> ScoringResponse:
 @router.get("/favorites", response_model=list[FeedbackItem])
 async def read_favorites(
     feedback: FeedbackDep,
-    kind: Annotated[Literal["like", "hide"], Query()] = "like",
+    kind: Annotated[Literal["like", "dislike", "hide"], Query()] = "like",
 ) -> list[FeedbackItem]:
-    """Everything liked, or everything hidden. Most recent first."""
+    """Everything with one verdict, across every museum. Most recent first."""
     return [FeedbackItem(**vars(item)) for item in await feedback.all(kind)]
 
 
@@ -638,6 +733,7 @@ async def read_favorites_summary(feedback: FeedbackDep) -> FeedbackSummary:
     counts = await feedback.counts()
     return FeedbackSummary(
         likes=counts["like"],
+        dislikes=counts["dislike"],
         hides=counts["hide"],
         personalising=counts["like"] >= MIN_LIKES_FOR_PROFILE,
         minimum_likes=MIN_LIKES_FOR_PROFILE,
@@ -650,15 +746,17 @@ async def write_favorite(
     body: FeedbackRequest,
     feedback: FeedbackDep,
 ) -> FeedbackItem:
-    """Like or hide one artwork, replacing whatever it was before.
+    """Like, dislike or hide one artwork, replacing whatever it was before.
 
     The snapshot in the body is stored as sent: the server may never have seen this
     artwork, because the display's second and third tiers serve straight from AIC and from
-    the bundled set. See migration 009 for why there is no foreign key here.
+    the bundled set, and Cleveland is never indexed at all. See migration 009 for why there
+    is no foreign key here, and migration 010 for why the museum is part of the key.
     """
     stored = await feedback.set(
         artwork_id,
         body.kind,
+        museum=body.museum,
         title=body.title,
         artist=body.artist,
         image_id=body.image_id,
@@ -668,10 +766,12 @@ async def write_favorite(
 
 @router.delete("/favorites/{artwork_id}", status_code=204)
 async def delete_favorite(
-    artwork_id: Annotated[int, Path(gt=0)], feedback: FeedbackDep
+    artwork_id: Annotated[int, Path(gt=0)],
+    feedback: FeedbackDep,
+    museum: Annotated[Literal["aic", "cma"], Query()] = "aic",
 ) -> Response:
-    """Forget a like or a hide. Idempotent: forgetting nothing is not an error."""
-    await feedback.clear(artwork_id)
+    """Forget a verdict. Idempotent: forgetting nothing is not an error."""
+    await feedback.clear(artwork_id, museum)
     return Response(status_code=204)
 
 

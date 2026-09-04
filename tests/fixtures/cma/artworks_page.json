@@ -1,0 +1,1843 @@
+{
+ "info": {
+  "total": 41512,
+  "parameters": {
+   "skip": 5000,
+   "limit": 10,
+   "cc0": "1",
+   "has_image": "1",
+   "select": "accession_number,accession_number_sortable,cover_accession_number,department,gallery,classification_type,department,collection"
+  }
+ },
+ "data": [
+  {
+   "id": 93945,
+   "accession_number": "1914.533",
+   "share_license_status": "CC0",
+   "tombstone": "Lace Pillow, 1800s. Spain. Bobbin lace (torchon lace) pillow; paper, pins, wood bobbins, linen thread; overall: 18.5 x 72.5 x 24 cm (7 5/16 x 28 9/16 x 9 7/16 in.). The Cleveland Museum of Art, Gift of J. H. Wade, 1914.533",
+   "current_location": null,
+   "title": "Lace Pillow",
+   "creation_date": "1800s",
+   "creation_date_earliest": 1800,
+   "creation_date_latest": 1899,
+   "artists_tags": [],
+   "culture": [
+    "Spain"
+   ],
+   "technique": "Bobbin lace (torchon lace) pillow; paper, pins, wood bobbins, linen thread",
+   "support_materials": [],
+   "department": "Textiles",
+   "collection": "T - Lace",
+   "type": "Lace",
+   "measurements": "Overall: 18.5 x 72.5 x 24 cm (7 5/16 x 28 9/16 x 9 7/16 in.)",
+   "dimensions": {
+    "overall": {
+     "height": 0.185,
+     "height_inch": 7,
+     "height_inch_fraction": 0.3125,
+     "width": 0.725,
+     "width_inch": 28,
+     "width_inch_fraction": 0.5625,
+     "depth": 0.24,
+     "depth_inch": 9,
+     "depth_inch_fraction": 0.4375
+    }
+   },
+   "state_of_the_work": null,
+   "edition_of_the_work": null,
+   "copyright": null,
+   "inscriptions": [],
+   "exhibitions": {
+    "current": [
+     {
+      "id": 302358,
+      "title": "Fiberworks: Tradition and Technique",
+      "description": "<i>Fiberworks: Tradition and Technique</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (October 5-November 11, 1977).",
+      "opening_date": "1977-10-05T04:00:00"
+     },
+     {
+      "id": 310027,
+      "title": "Lace: Italy, Flanders, France",
+      "description": "<i>Lace: Italy, Flanders, France</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (March 3-July 9, 1987).",
+      "opening_date": "1987-03-03T05:00:00"
+     }
+    ],
+    "legacy": [
+     {
+      "description": "Exhibition of African Arts, Chicago Historical Society, Chicago, IL (May 1953).",
+      "opening_date": "1953-05-01T04:00:00Z"
+     }
+    ]
+   },
+   "provenance": [
+    {
+     "description": "Thomas Wilson Lace Collection.",
+     "citations": [],
+     "footnotes": null,
+     "date": null,
+     "sortorder": null
+    }
+   ],
+   "find_spot": null,
+   "related_works": [],
+   "former_accession_numbers": [],
+   "did_you_know": "The boxwood bobbins are handmade. At one point, these boxwood bobbins were cut off, perhaps to use them for another piece of lace, and have since been reknotted to the linen thread on this bobbin lace pillow.",
+   "early_education_description": null,
+   "artlens_description": null,
+   "description": "Spanish bobbin lace is made on a cylindrical straw-stuffed bolster pillow of a size and shape like this one. Further evidence of a Spanish origin is the shape and materials of the handmade bobbins (boxwood in this case). The lace maker would have sat with one short end of the pillow (the end with the bobbins) in her lap and the other end propped against a table. A pattern (pricking) on red card stock is pinned to the pillow around the perimeter. Linen thread is wound on the boxwood bobbins. To create this Torchon lace edging, the thread on the bobbins is crossed and twisted to create a connection. A pin is then placed in the pillow to correctly space each connection. Once complete, the pins are removed, and the bobbin lace separated from the pillow. The 15.2 cm (6-inch) wide piece of Torchon lace edging created on this pillow is a common type of lace, easy and fast to make. It has leaf-shaped tallies. The foot side (straight edge) of the Torchon lace edging on this pillow would have been sewn to the edge of a garment or a furnishing fabric. The scalloped edge is referred to as the headside of this Torchon lace.",
+   "external_resources": {
+    "wikidata": [
+     "https://www.wikidata.org/wiki/Q79473715"
+    ],
+    "internet_archive": [
+     "https://archive.org/details/clevelandart-1914.533-bobbin-lace-pillow",
+     "https://archive.org/details/clevelandart-1914.533-torchon-bobbin-lace"
+    ]
+   },
+   "citations": [],
+   "url": "https://clevelandart.org/art/1914.533",
+   "images": {
+    "annotation": null,
+    "web": {
+     "url": "https://openaccess-cdn.clevelandart.org/1914.533/1914.533_web.jpg",
+     "width": "900",
+     "height": "397",
+     "filesize": "220258",
+     "filename": "1914.533_web.jpg"
+    },
+    "print": {
+     "url": "https://openaccess-cdn.clevelandart.org/1914.533/1914.533_print.jpg",
+     "width": "3400",
+     "height": "1501",
+     "filesize": "1767850",
+     "filename": "1914.533_print.jpg"
+    },
+    "full": {
+     "url": "https://openaccess-cdn.clevelandart.org/1914.533/1914.533_full.tif",
+     "width": "12902",
+     "height": "5695",
+     "filesize": "220458336",
+     "filename": "1914.533_full.tif"
+    }
+   },
+   "alternate_images": [],
+   "creditline": "Gift of J. H. Wade",
+   "image_credit": null,
+   "sketchfab_id": null,
+   "sketchfab_url": null,
+   "gallery_donor_text": null,
+   "athena_id": 93945,
+   "creators": [],
+   "legal_status": "accessioned",
+   "accession_date": "1914-06-15T00:00:00",
+   "sortable_date": 1800,
+   "date_added_to_oa": null,
+   "date_text": "1800s",
+   "collapse_artists": false,
+   "on_loan": false,
+   "recently_acquired": false,
+   "record_type": "object",
+   "conservation_statement": null,
+   "has_conservation_images": false,
+   "cover_accession_number": null,
+   "is_nazi_era_provenance": false,
+   "impression": null,
+   "alternate_titles": [],
+   "is_highlight": false,
+   "updated_at": "2026-05-29 04:59:15.630000"
+  },
+  {
+   "id": 95343,
+   "accession_number": "1916.1108",
+   "share_license_status": "CC0",
+   "tombstone": "A Low Tide Pentaptych (汐干五番内), c. 1830. Utagawa Kuniyoshi (Japanese, 1797–1861). Pentaptych of color woodblock prints; each: 21.2 x 18.4 cm (8 3/8 x 7 1/4 in.). The Cleveland Museum of Art, Gift of Mr. and Mrs. J. H. Wade, 1916.1108",
+   "current_location": null,
+   "title": "A Low Tide Pentaptych",
+   "title_in_original_language": "汐干五番内",
+   "creation_date": "c. 1830",
+   "creation_date_earliest": 1825,
+   "creation_date_latest": 1830,
+   "artists_tags": [
+    "male"
+   ],
+   "culture": [
+    "Japan, Edo period (1615–1868)"
+   ],
+   "technique": "Pentaptych of color woodblock prints",
+   "support_materials": [],
+   "department": "Japanese Art",
+   "collection": "Japanese Art",
+   "type": "Print",
+   "measurements": "Each: 21.2 x 18.4 cm (8 3/8 x 7 1/4 in.)",
+   "dimensions": {
+    "each": {
+     "height": 0.212,
+     "height_inch": 8,
+     "height_inch_fraction": 0.375,
+     "width": 0.184,
+     "width_inch": 7,
+     "width_inch_fraction": 0.25
+    }
+   },
+   "state_of_the_work": null,
+   "edition_of_the_work": null,
+   "copyright": null,
+   "inscriptions": [
+    {
+     "inscription": "Signature: Ichiyusai Kuniyoshi ga.",
+     "inscription_translation": null,
+     "inscription_remark": null,
+     "sortorder": 1
+    }
+   ],
+   "exhibitions": {
+    "current": [
+     {
+      "id": 698362,
+      "title": "Highlights of Japanese Art",
+      "description": "<i>Highlights of Japanese Art</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (December 7, 2025-June 14, 2026).",
+      "opening_date": "2025-12-07T05:00:00"
+     }
+    ],
+    "legacy": [
+     {
+      "description": "<em>Later Japanese Art Gallery Rotation (Gallery 113).</em> The Cleveland Museum of Art, Cleveland, OH (August 25-December 2, 2003).",
+      "opening_date": "2003-08-25T04:00:00Z"
+     },
+     {
+      "description": "<em>Later Japanese Art Gallery Rotation (Gallery 113)</em>. The Cleveland Museum of Art, Cleveland, OH (July 13-November 17, 2004).",
+      "opening_date": "2004-07-13T04:00:00Z"
+     }
+    ]
+   },
+   "provenance": [
+    {
+     "description": "Mr. Jeptha Homer Wade II [1857–1926] and Mrs. Ellen Garretson Wade [1859–1917], Cleveland, OH, given to the Cleveland Museum of Art",
+     "citations": [],
+     "footnotes": null,
+     "date": "?–1916",
+     "sortorder": 1
+    },
+    {
+     "description": "The Cleveland Museum of Art, Cleveland, OH",
+     "citations": [],
+     "footnotes": null,
+     "date": "1916–",
+     "sortorder": 2
+    }
+   ],
+   "find_spot": null,
+   "related_works": [],
+   "former_accession_numbers": [],
+   "did_you_know": "A pentaptych is a composition of five parts.",
+   "early_education_description": null,
+   "artlens_description": null,
+   "description": "Five<em> surimono</em> 刷物, privately commissioned prints known literally as \"printed things,\" make up this image of women collecting sea life at low tide. Ten poems written by members of a poetry salon appear across the upper part of the composition. All but one contain the words \"low tide,\" with the remaining poem describing abalone as a sought-after jewel.",
+   "external_resources": {
+    "wikidata": [
+     "https://www.wikidata.org/wiki/Q79476626"
+    ],
+    "internet_archive": [
+     "https://archive.org/details/clevelandart-1916.1108-a-low-tide-pentaptyc"
+    ]
+   },
+   "citations": [],
+   "url": "https://clevelandart.org/art/1916.1108",
+   "images": {
+    "annotation": null,
+    "web": {
+     "url": "https://openaccess-cdn.clevelandart.org/1916.1108/1916.1108_web.jpg",
+     "width": "900",
+     "height": "209",
+     "filesize": "113554",
+     "filename": "1916.1108_web.jpg"
+    },
+    "print": {
+     "url": "https://openaccess-cdn.clevelandart.org/1916.1108/1916.1108_print.jpg",
+     "width": "3400",
+     "height": "791",
+     "filesize": "1134490",
+     "filename": "1916.1108_print.jpg"
+    },
+    "full": {
+     "url": "https://openaccess-cdn.clevelandart.org/1916.1108/1916.1108_full.tif",
+     "width": "43932",
+     "height": "10221",
+     "filesize": "1347116504",
+     "filename": "1916.1108_full.tif"
+    }
+   },
+   "alternate_images": [
+    {
+     "web": {
+      "url": "https://openaccess-cdn.clevelandart.org/1916.1108/1916.1108_alt0_web.jpg",
+      "width": "900",
+      "height": "208",
+      "filesize": "167069"
+     },
+     "print": {
+      "url": "https://openaccess-cdn.clevelandart.org/1916.1108/1916.1108_alt0_print.jpg",
+      "width": "3400",
+      "height": "787",
+      "filesize": "1071120"
+     },
+     "full": {
+      "url": "https://openaccess-cdn.clevelandart.org/1916.1108/1916.1108_alt0_full.tif",
+      "width": "28429",
+      "height": "6580",
+      "filesize": "561216224"
+     },
+     "date_created": "2014-07-07T11:24:53",
+     "annotation": ""
+    }
+   ],
+   "creditline": "Gift of Mr. and Mrs. J. H. Wade",
+   "image_credit": null,
+   "sketchfab_id": null,
+   "sketchfab_url": null,
+   "gallery_donor_text": null,
+   "athena_id": 95343,
+   "creators": [
+    {
+     "id": 23331,
+     "description": "Utagawa Kuniyoshi (Japanese, 1797–1861)",
+     "extent": null,
+     "qualifier": null,
+     "role": "artist",
+     "biography": "One of the principal Ukiyo-e artists of the late Edo period.",
+     "name_in_original_language": "歌川 国芳",
+     "birth_year": "1797",
+     "death_year": "1861",
+     "use_in_caption": true,
+     "include_extent": false,
+     "weight": 1
+    }
+   ],
+   "legal_status": "accessioned",
+   "accession_date": "1916-12-05T00:00:00",
+   "sortable_date": 1825,
+   "date_added_to_oa": null,
+   "date_text": "c. 1830",
+   "collapse_artists": false,
+   "on_loan": false,
+   "recently_acquired": false,
+   "record_type": "cover",
+   "conservation_statement": null,
+   "has_conservation_images": false,
+   "cover_accession_number": null,
+   "is_nazi_era_provenance": false,
+   "impression": null,
+   "alternate_titles": [
+    "Five Pictures of Low Tide"
+   ],
+   "is_highlight": false,
+   "updated_at": "2026-07-23 12:45:38.707000"
+  },
+  {
+   "id": 104613,
+   "accession_number": "1922.91",
+   "share_license_status": "CC0",
+   "tombstone": "The Passion: The Agony in the Garden, c. 1480. Martin Schongauer (German, c. 1450–1491). Engraving. The Cleveland Museum of Art, Gift of The Print Club of Cleveland, 1922.91",
+   "current_location": null,
+   "title": "The Passion: The Agony in the Garden",
+   "creation_date": "c. 1480",
+   "creation_date_earliest": 1475,
+   "creation_date_latest": 1485,
+   "artists_tags": [
+    "male"
+   ],
+   "culture": [
+    "Germany"
+   ],
+   "technique": "engraving",
+   "support_materials": [],
+   "department": "Prints",
+   "collection": "PR - Engraving",
+   "type": "Print",
+   "dimensions": {},
+   "state_of_the_work": null,
+   "edition_of_the_work": null,
+   "copyright": null,
+   "inscriptions": [],
+   "exhibitions": {
+    "current": [
+     {
+      "id": 357426,
+      "title": "Italian and German Prints of the 15th Century",
+      "description": "<i>Italian and German Prints of the 15th Century</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (November 29, 1933-January 3, 1934).",
+      "opening_date": "1933-11-29T05:00:00"
+     },
+     {
+      "id": 356411,
+      "title": "15th Century German and Netherlands Prints from the Museum Collection",
+      "description": "<i>15th Century German and Netherlands Prints from the Museum Collection</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (October 11-28, 1935).",
+      "opening_date": "1935-10-11T05:00:00"
+     },
+     {
+      "id": 345558,
+      "title": "15th Century German Engravings",
+      "description": "<i>15th Century German Engravings</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (November 15-December 11, 1938).",
+      "opening_date": "1938-11-15T05:00:00"
+     }
+    ],
+    "legacy": []
+   },
+   "provenance": [],
+   "find_spot": null,
+   "related_works": [],
+   "former_accession_numbers": [],
+   "did_you_know": "Martin Schongauer achieved great effects of depth and tonal variation in the rendering of the central rock formation, which mimics the posture of Christ.",
+   "early_education_description": null,
+   "artlens_description": null,
+   "description": "Martin Schongauer's series of the Passion of Christ was his largest set of engravings, made around 1480, and extensively copied across Europe. It consists of twelve prints detailing the suffering of Christ in the last days of his life. Schongauer's version focuses on crowded scenes, grotesque physiognomies of Christ's tormentors, and great pathos in the compositions. Here, Jesus kneels in prayer in the Garden of Olives and looks up at a hovering angels. The apostles Peter, James, and John are sleeping in the foreground. In the background, Judas holds the bag of money received in exchange for his betrayal as he leads Roman soldiers towards Christ.",
+   "external_resources": {
+    "wikidata": [
+     "https://www.wikidata.org/wiki/Q79514128"
+    ],
+    "internet_archive": [
+     "https://archive.org/details/clevelandart-1922.91-the-passion-the-agon"
+    ]
+   },
+   "citations": [],
+   "catalogue_raisonne": "Lehrs V.122.19",
+   "url": "https://clevelandart.org/art/1922.91",
+   "images": {
+    "annotation": null,
+    "web": {
+     "url": "https://openaccess-cdn.clevelandart.org/1922.91/1922.91_web.jpg",
+     "width": "637",
+     "height": "893",
+     "filesize": "558455",
+     "filename": "1922.91_web.jpg"
+    },
+    "print": {
+     "url": "https://openaccess-cdn.clevelandart.org/1922.91/1922.91_print.jpg",
+     "width": "2425",
+     "height": "3400",
+     "filesize": "7089095",
+     "filename": "1922.91_print.jpg"
+    },
+    "full": {
+     "url": "https://openaccess-cdn.clevelandart.org/1922.91/1922.91_full.tif",
+     "width": "3432",
+     "height": "4811",
+     "filesize": "49569748",
+     "filename": "1922.91_full.tif"
+    }
+   },
+   "alternate_images": [],
+   "creditline": "Gift of The Print Club of Cleveland",
+   "image_credit": null,
+   "sketchfab_id": null,
+   "sketchfab_url": null,
+   "gallery_donor_text": null,
+   "athena_id": 104613,
+   "creators": [
+    {
+     "id": 12292,
+     "description": "Martin Schongauer (German, c. 1450–1491)",
+     "extent": null,
+     "qualifier": null,
+     "role": "artist",
+     "biography": "Martin Schongauer (ca. 1450-53, Colmar - 2 February 1491, Breisach) was one of the most skilled and influential graphic artists of Europe in the last quarter of the 15h century. Trained both as an engraver and as a painter, Schongauer started his apprenticeship under his father Caspar Schongauer, a goldsmith from Augsburg. In 1465, he matriculated at the University of Leipzig. After one year, he left his studies, and came back to Colmar. There, he was trained under the painter Caspar Isenmann, between 1466 and 1469. Schongauer later traveled down to the Rhine, Cologne, Burgundy, the Netherlands, and he likely visited Spain. In 1489, he became a citizen of Breisach, where he died probably of the plague in 1491. Only a few of Schongauer's paintings survive. Among these is the <em>Madonna in the Rose Garden</em> for the Church of Saint Martin in Colmar (1473), which betrays Schongauer's admiration for the works by the Netherlandish painter Roger Van der Weyden. The bulk of Schongauer's engravings is more conspicuous: 116 prints, none of them dated, but all marked by his monogram M+S. Characterized by exquisite cross-hatching and impeccable craftsmanship, Schongauer's engravings were widely imitated by the German printmakers Ishrael van Meckenem and Albrecht Durer, as well as by Italian artists, such as Cristoforo Robetta and Nicoletto da Modena.",
+     "name_in_original_language": null,
+     "birth_year": "1450",
+     "death_year": "1491",
+     "use_in_caption": true,
+     "include_extent": false,
+     "weight": 1
+    }
+   ],
+   "legal_status": "accessioned",
+   "accession_date": "1922-05-25T00:00:00",
+   "sortable_date": 1475,
+   "date_added_to_oa": null,
+   "date_text": "c. 1480",
+   "collapse_artists": false,
+   "on_loan": false,
+   "recently_acquired": false,
+   "record_type": "object",
+   "conservation_statement": null,
+   "has_conservation_images": false,
+   "cover_accession_number": null,
+   "is_nazi_era_provenance": false,
+   "impression": null,
+   "alternate_titles": [
+    "Christ on the Mount of Olives"
+   ],
+   "is_highlight": false,
+   "updated_at": "2026-05-29 05:38:27.973000"
+  },
+  {
+   "id": 114235,
+   "accession_number": "1933.480",
+   "share_license_status": "CC0",
+   "tombstone": "Qur'an Manuscript Folio, 1300s. Egypt, Mamluk sultanate (1250–1517). Ink, gold, and colors on paper; sheet: 41.2 x 32.4 cm (16 1/4 x 12 3/4 in.). The Cleveland Museum of Art, Edward L. Whittemore Fund, 1933.480",
+   "current_location": null,
+   "title": "Qur'an Manuscript Folio",
+   "creation_date": "1300s",
+   "creation_date_earliest": 1300,
+   "creation_date_latest": 1399,
+   "artists_tags": [],
+   "culture": [
+    "Egypt, Mamluk sultanate (1250–1517)"
+   ],
+   "technique": "ink, gold, and colors on paper",
+   "support_materials": [],
+   "department": "Islamic Art",
+   "collection": "Islamic Art",
+   "type": "Drawing",
+   "measurements": "Sheet: 41.2 x 32.4 cm (16 1/4 x 12 3/4 in.)",
+   "dimensions": {
+    "sheet": {
+     "height": 0.412,
+     "height_inch": 16,
+     "height_inch_fraction": 0.25,
+     "width": 0.324,
+     "width_inch": 12,
+     "width_inch_fraction": 0.75
+    }
+   },
+   "state_of_the_work": null,
+   "edition_of_the_work": null,
+   "copyright": null,
+   "inscriptions": [
+    {
+     "inscription": "Surah al-Zumar [Chapter: The Crowds] 39: 42–50 on recto and 51–60 on verso",
+     "inscription_translation": null,
+     "inscription_remark": null,
+     "sortorder": 1
+    }
+   ],
+   "exhibitions": {
+    "current": [
+     {
+      "id": 355632,
+      "title": "Exhibition of the Month: Calligraphy",
+      "description": "<i>Exhibition of the Month: Calligraphy</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (November 7-December 29, 1950).",
+      "opening_date": "1950-11-07T05:00:00"
+     },
+     {
+      "id": 302022,
+      "title": "Decorative Style",
+      "description": "<i>Decorative Style</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (September 8, 1961-January 7, 1962).",
+      "opening_date": "1961-09-08T04:00:00"
+     },
+     {
+      "id": 520021,
+      "title": "Oriental Art",
+      "description": "<i>Oriental Art</i>. Berea College, Berea, KY (organizer) (November 1-December 1, 1962).",
+      "opening_date": "1962-11-01T05:00:00"
+     }
+    ],
+    "legacy": []
+   },
+   "provenance": [
+    {
+     "description": "Ananda K. Coomaraswamy [1877–1947] sold to the Cleveland Museum of Art",
+     "citations": [],
+     "footnotes": null,
+     "date": "?–1933",
+     "sortorder": 1
+    },
+    {
+     "description": "The Cleveland Museum of Art, Cleveland, OH",
+     "citations": [],
+     "footnotes": null,
+     "date": "1933–",
+     "sortorder": 2
+    }
+   ],
+   "find_spot": null,
+   "related_works": [],
+   "former_accession_numbers": [],
+   "did_you_know": "The text is from Chapter 39 of the Qur'an, \"Surah al-Zumar\"; verses 42–50 are on recto, while 51–60 are on the verso.",
+   "early_education_description": null,
+   "artlens_description": null,
+   "description": "The text includes verses from the 39th chapter of the Qur’an, \"Surah al-Zumar.\" The Arabic text is written in Rayhani script, one of the six official scripts of Perso-Arabic calligraphy, and ornamented with red, blue, and gold rosettes. There is a red, blue, and gold roundel in the border on the verso (front).",
+   "external_resources": {
+    "wikidata": [
+     "https://www.wikidata.org/wiki/Q80006970"
+    ],
+    "internet_archive": [
+     "https://archive.org/details/clevelandart-1933.480-qur-an-manuscript-fo"
+    ]
+   },
+   "citations": [],
+   "url": "https://clevelandart.org/art/1933.480",
+   "images": {
+    "annotation": null,
+    "web": {
+     "url": "https://openaccess-cdn.clevelandart.org/1933.480/1933.480_web.jpg",
+     "width": "718",
+     "height": "900",
+     "filesize": "270682",
+     "filename": "1933.480_web.jpg"
+    },
+    "print": {
+     "url": "https://openaccess-cdn.clevelandart.org/1933.480/1933.480_print.jpg",
+     "width": "2713",
+     "height": "3400",
+     "filesize": "2537729",
+     "filename": "1933.480_print.jpg"
+    },
+    "full": {
+     "url": "https://openaccess-cdn.clevelandart.org/1933.480/1933.480_full.tif",
+     "width": "4992",
+     "height": "6256",
+     "filesize": "93718924",
+     "filename": "1933.480_full.tif"
+    }
+   },
+   "alternate_images": [],
+   "creditline": "Edward L. Whittemore Fund",
+   "image_credit": null,
+   "sketchfab_id": null,
+   "sketchfab_url": null,
+   "gallery_donor_text": null,
+   "athena_id": 114235,
+   "creators": [],
+   "legal_status": "accessioned",
+   "accession_date": "1933-12-28T00:00:00",
+   "sortable_date": 1300,
+   "date_added_to_oa": null,
+   "date_text": "1300s",
+   "collapse_artists": false,
+   "on_loan": false,
+   "recently_acquired": false,
+   "record_type": "cover",
+   "conservation_statement": null,
+   "has_conservation_images": false,
+   "cover_accession_number": null,
+   "is_nazi_era_provenance": false,
+   "impression": null,
+   "alternate_titles": [],
+   "is_highlight": false,
+   "updated_at": "2026-05-29 06:00:15.945000"
+  },
+  {
+   "id": 125852,
+   "accession_number": "1948.102",
+   "share_license_status": "CC0",
+   "tombstone": "Stenciled Velvet, c. 1902–10. Dorothy Marshall Hornblower (American, 1886–1968), Tiffany Studios (United States, New York, 1902–32). Plain silk velvet stencilled with vegetable dyes; overall: 22 x 30.8 cm (8 11/16 x 12 1/8 in.); mounted: 28.6 x 36.8 cm (11 1/4 x 14 1/2 in.). The Cleveland Museum of Art, Gift of Joseph F. Sindelar, 1948.102",
+   "current_location": null,
+   "title": "Stenciled Velvet",
+   "creation_date": "c. 1902–10",
+   "creation_date_earliest": 1902,
+   "creation_date_latest": 1910,
+   "artists_tags": [
+    "female",
+    "gender unknown"
+   ],
+   "culture": [
+    "America, New York"
+   ],
+   "technique": "plain silk velvet stencilled with vegetable dyes",
+   "support_materials": [],
+   "department": "Textiles",
+   "collection": "Textiles",
+   "type": "Velvet",
+   "measurements": "Overall: 22 x 30.8 cm (8 11/16 x 12 1/8 in.); Mounted: 28.6 x 36.8 cm (11 1/4 x 14 1/2 in.)",
+   "dimensions": {
+    "overall": {
+     "height": 0.22,
+     "height_inch": 8,
+     "height_inch_fraction": 0.6875,
+     "width": 0.308,
+     "width_inch": 12,
+     "width_inch_fraction": 0.125
+    },
+    "mounted": {
+     "height": 0.286,
+     "height_inch": 11,
+     "height_inch_fraction": 0.25,
+     "width": 0.368,
+     "width_inch": 14,
+     "width_inch_fraction": 0.5
+    }
+   },
+   "state_of_the_work": null,
+   "edition_of_the_work": null,
+   "copyright": null,
+   "inscriptions": [],
+   "exhibitions": {
+    "current": [
+     {
+      "id": 302021,
+      "title": "Design in Printed Textiles",
+      "description": "<i>Design in Printed Textiles</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (April 7-September 3, 1961).",
+      "opening_date": "1961-04-07T05:00:00"
+     },
+     {
+      "id": 219076,
+      "title": "Louis Comfort Tiffany: Artist for the Ages",
+      "description": "<i>Louis Comfort Tiffany: Artist for the Ages</i>. Seattle Art Museum, Seattle, WA (October 13, 2005-January 4, 2006); The Toledo Museum of Art, Toledo, OH (February 2-April 30, 2006).",
+      "opening_date": "2005-10-13T00:00:00"
+     },
+     {
+      "id": 358650,
+      "title": "Tiffany in Bloom: Stained Glass Lamps of Louis Comfort Tiffany",
+      "description": "<i>Tiffany in Bloom: Stained Glass Lamps of Louis Comfort Tiffany</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (October 20, 2019-October 4, 2020).",
+      "opening_date": "2019-10-20T04:00:00"
+     }
+    ],
+    "legacy": []
+   },
+   "provenance": [
+    {
+     "description": "Joseph F. Sindelar, given to the Cleveland Museum of Art",
+     "citations": [],
+     "footnotes": [],
+     "date": "?-1948",
+     "sortorder": 1
+    },
+    {
+     "description": "The Cleveland Museum of Art",
+     "citations": [],
+     "footnotes": [],
+     "date": "1948-",
+     "sortorder": 2
+    }
+   ],
+   "find_spot": null,
+   "related_works": [],
+   "former_accession_numbers": [],
+   "did_you_know": "This morning glory pattern stenciled velvet was likely used for drapery fabric.",
+   "early_education_description": null,
+   "artlens_description": null,
+   "description": "Textiles formed a large part of Louis Comfort Tiffany's artistic production, especially since he used many of them in his designs for artistic interiors. His clients included many society notables, institutions, churches, and even the White House. Tiffany employed many women artisans in his business, including Dorothy Marshall Hornblower, who oversaw the textile department and likely designed this ethereal Art Nouveau pattern.",
+   "external_resources": {
+    "wikidata": [
+     "https://www.wikidata.org/wiki/Q79904943"
+    ],
+    "internet_archive": [
+     "https://archive.org/details/clevelandart-1948.102-stenciled-velvet"
+    ]
+   },
+   "citations": [],
+   "url": "https://clevelandart.org/art/1948.102",
+   "images": {
+    "annotation": null,
+    "web": {
+     "url": "https://openaccess-cdn.clevelandart.org/1948.102/1948.102_web.jpg",
+     "width": "1232",
+     "height": "893",
+     "filesize": "969526",
+     "filename": "1948.102_web.jpg"
+    },
+    "print": {
+     "url": "https://openaccess-cdn.clevelandart.org/1948.102/1948.102_print.jpg",
+     "width": "3400",
+     "height": "2464",
+     "filesize": "6779166",
+     "filename": "1948.102_print.jpg"
+    },
+    "full": {
+     "url": "https://openaccess-cdn.clevelandart.org/1948.102/1948.102_full.tif",
+     "width": "5462",
+     "height": "3958",
+     "filesize": "64876852",
+     "filename": "1948.102_full.tif"
+    }
+   },
+   "alternate_images": [
+    {
+     "web": {
+      "url": "https://openaccess-cdn.clevelandart.org/1948.102/1948.102_alt0_web.jpg",
+      "width": "1205",
+      "height": "893",
+      "filesize": "970060"
+     },
+     "print": {
+      "url": "https://openaccess-cdn.clevelandart.org/1948.102/1948.102_alt0_print.jpg",
+      "width": "3400",
+      "height": "2520",
+      "filesize": "8279828"
+     },
+     "full": {
+      "url": "https://openaccess-cdn.clevelandart.org/1948.102/1948.102_alt0_full.tif",
+      "width": "5318",
+      "height": "3942",
+      "filesize": "62911744"
+     },
+     "date_created": "2009-11-13T16:11:56",
+     "annotation": ""
+    }
+   ],
+   "creditline": "Gift of Joseph F. Sindelar",
+   "image_credit": null,
+   "sketchfab_id": null,
+   "sketchfab_url": null,
+   "gallery_donor_text": null,
+   "athena_id": 125852,
+   "creators": [
+    {
+     "id": 373112,
+     "description": "Dorothy Marshall Hornblower (American, 1886–1968)",
+     "extent": "designed by",
+     "qualifier": null,
+     "role": "designer",
+     "biography": null,
+     "name_in_original_language": null,
+     "birth_year": "1886",
+     "death_year": "1968",
+     "use_in_caption": true,
+     "include_extent": false,
+     "weight": 1
+    },
+    {
+     "id": 292194,
+     "description": "Tiffany Studios (United States, New York, 1902–32)",
+     "extent": null,
+     "qualifier": null,
+     "role": "maker",
+     "biography": "American jewelry and glass manufactory, 1902-1932",
+     "name_in_original_language": null,
+     "use_in_caption": true,
+     "include_extent": false,
+     "weight": 2
+    }
+   ],
+   "legal_status": "accessioned",
+   "accession_date": "1948-05-19T00:00:00",
+   "sortable_date": 1902,
+   "date_added_to_oa": null,
+   "date_text": "c. 1902–10",
+   "collapse_artists": false,
+   "on_loan": false,
+   "recently_acquired": false,
+   "record_type": "object",
+   "conservation_statement": null,
+   "has_conservation_images": false,
+   "cover_accession_number": null,
+   "is_nazi_era_provenance": false,
+   "impression": null,
+   "alternate_titles": [],
+   "is_highlight": false,
+   "updated_at": "2026-05-29 06:30:41.646000"
+  },
+  {
+   "id": 131990,
+   "accession_number": "1954.565",
+   "share_license_status": "CC0",
+   "tombstone": "St. John on the Island of Patmos, c. 1545–55. Virgil Solis (German, 1514–1562). Woodcut; image: 19.8 x 37.3 cm (7 13/16 x 14 11/16 in.); sheet: 19.8 x 37.3 cm (7 13/16 x 14 11/16 in.). The Cleveland Museum of Art, John L. Severance Fund, 1954.565",
+   "current_location": null,
+   "title": "St. John on the Island of Patmos",
+   "creation_date": "c. 1545–55",
+   "creation_date_earliest": 1545,
+   "creation_date_latest": 1555,
+   "artists_tags": [
+    "male"
+   ],
+   "culture": [
+    "Germany"
+   ],
+   "technique": "woodcut",
+   "support_materials": [],
+   "department": "Prints",
+   "collection": "PR - Woodcut",
+   "type": "Print",
+   "measurements": "Image: 19.8 x 37.3 cm (7 13/16 x 14 11/16 in.); Sheet: 19.8 x 37.3 cm (7 13/16 x 14 11/16 in.)",
+   "dimensions": {
+    "image": {
+     "height": 0.198,
+     "height_inch": 7,
+     "height_inch_fraction": 0.8125,
+     "width": 0.373,
+     "width_inch": 14,
+     "width_inch_fraction": 0.6875
+    },
+    "sheet": {
+     "height": 0.198,
+     "height_inch": 7,
+     "height_inch_fraction": 0.8125,
+     "width": 0.373,
+     "width_inch": 14,
+     "width_inch_fraction": 0.6875
+    }
+   },
+   "state_of_the_work": null,
+   "edition_of_the_work": null,
+   "copyright": null,
+   "inscriptions": [],
+   "exhibitions": {
+    "current": [
+     {
+      "id": 311458,
+      "title": "Albrecht Dürer and His Influence",
+      "description": "<i>Albrecht Dürer and His Influence</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (January 16-March 10, 1991).",
+      "opening_date": "1991-01-16T05:00:00"
+     },
+     {
+      "id": 184690,
+      "title": "Against the Grain: Woodcuts from the Collection",
+      "description": "<i>Against the Grain: Woodcuts from the Collection</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (August 17-November 9, 2003).",
+      "opening_date": "2003-08-17T00:00:00"
+     },
+     {
+      "id": 437915,
+      "title": "Love Gardens / Forbidden Fruit",
+      "description": "<i>Love Gardens / Forbidden Fruit</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (July 2-October 29, 2023).",
+      "opening_date": "2023-07-02T04:00:00"
+     }
+    ],
+    "legacy": []
+   },
+   "provenance": [],
+   "find_spot": null,
+   "related_works": [],
+   "former_accession_numbers": [],
+   "did_you_know": "In this setting intended to be the Greek island of Patmos, the saint sits among northern European trees and towns, and even a northern ship on the harbor.",
+   "early_education_description": null,
+   "artlens_description": null,
+   "description": "Christian tradition says that after Christ’s death, John the Evangelist was exiled to the Aegean island Patmos, where he composed the Book of Revelation based on a series of prophetic visions. Here, Saint John gazes upward toward a vision of the woman of the apocalypse (traditionally interpreted as the Virgin Mary) in the top left corner. The artist’s composition implies that John’s vision was partially inspired by his isolation within nature—portrayed in a wide expanse featuring dramatic peaks and fir trees, castles, farms, shepherds, and even a merchant’s ship on a vast harbor.",
+   "external_resources": {
+    "wikidata": [
+     "https://www.wikidata.org/wiki/Q80023570"
+    ],
+    "internet_archive": [
+     "https://archive.org/details/clevelandart-1954.565-st-john-on-the-islan"
+    ]
+   },
+   "citations": [],
+   "catalogue_raisonne": "Passavant IV.303.1; Geisberg 1319",
+   "url": "https://clevelandart.org/art/1954.565",
+   "images": {
+    "annotation": null,
+    "web": {
+     "url": "https://openaccess-cdn.clevelandart.org/1954.565/1954.565_web.jpg",
+     "width": "1263",
+     "height": "680",
+     "filesize": "848375",
+     "filename": "1954.565_web.jpg"
+    },
+    "print": {
+     "url": "https://openaccess-cdn.clevelandart.org/1954.565/1954.565_print.jpg",
+     "width": "3400",
+     "height": "1830",
+     "filesize": "6043308",
+     "filename": "1954.565_print.jpg"
+    },
+    "full": {
+     "url": "https://openaccess-cdn.clevelandart.org/1954.565/1954.565_full.tif",
+     "width": "5850",
+     "height": "3149",
+     "filesize": "55297380",
+     "filename": "1954.565_full.tif"
+    }
+   },
+   "alternate_images": [],
+   "creditline": "John L. Severance Fund",
+   "image_credit": null,
+   "sketchfab_id": null,
+   "sketchfab_url": null,
+   "gallery_donor_text": null,
+   "athena_id": 131990,
+   "creators": [
+    {
+     "id": 5505,
+     "description": "Virgil Solis (German, 1514–1562)",
+     "extent": null,
+     "qualifier": null,
+     "role": "artist",
+     "biography": null,
+     "name_in_original_language": null,
+     "birth_year": "1514",
+     "death_year": "1562",
+     "use_in_caption": true,
+     "include_extent": false,
+     "weight": 1
+    }
+   ],
+   "legal_status": "accessioned",
+   "accession_date": "1954-08-11T00:00:00",
+   "sortable_date": 1545,
+   "date_added_to_oa": null,
+   "date_text": "c. 1545–55",
+   "collapse_artists": false,
+   "on_loan": false,
+   "recently_acquired": false,
+   "record_type": "object",
+   "conservation_statement": null,
+   "has_conservation_images": false,
+   "cover_accession_number": null,
+   "is_nazi_era_provenance": false,
+   "impression": null,
+   "alternate_titles": [],
+   "is_highlight": false,
+   "updated_at": "2026-05-29 06:47:58.373000"
+  },
+  {
+   "id": 134850,
+   "accession_number": "1957.405",
+   "share_license_status": "CC0",
+   "tombstone": "Snuff Box (Tabatière) with Portrait of Marie-Thérèse of Austria, miniature, c. 1676; box, 1775–76. Jean Petitot (Swiss, 1607–1691), Charles Le Bastier (French). Gold, enamel, and miniature; overall: 2.3 x 4.5 cm (7/8 x 1 3/4 in.). The Cleveland Museum of Art, Gift of Mrs. Edward B. Greene, 1957.405",
+   "current_location": null,
+   "title": "Snuff Box (Tabatière) with Portrait of Marie-Thérèse of Austria",
+   "creation_date": "miniature, c. 1676; box, 1775–76",
+   "creation_date_earliest": 1671,
+   "creation_date_latest": 1776,
+   "artists_tags": [
+    "male"
+   ],
+   "culture": [
+    "France"
+   ],
+   "technique": "Gold, enamel, and miniature",
+   "support_materials": [],
+   "department": "Decorative Art and Design",
+   "collection": "Decorative Arts",
+   "type": "Enamel",
+   "measurements": "Overall: 2.3 x 4.5 cm (7/8 x 1 3/4 in.)",
+   "dimensions": {
+    "overall": {
+     "height": 0.023,
+     "height_inch": 0,
+     "height_inch_fraction": 0.875,
+     "width": 0.045,
+     "width_inch": 1,
+     "width_inch_fraction": 0.75,
+     "length": 0.088,
+     "length_inch": 3,
+     "length_inch_fraction": 0.4375
+    }
+   },
+   "state_of_the_work": null,
+   "edition_of_the_work": null,
+   "copyright": null,
+   "inscriptions": [],
+   "exhibitions": {
+    "current": [
+     {
+      "id": 311503,
+      "title": "Intimate Images: Portrait Miniatures from Europe and America",
+      "description": "<i>Intimate Images: Portrait Miniatures from Europe and America</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (March 26-October 17, 1993).",
+      "opening_date": "1993-03-26T04:00:00"
+     },
+     {
+      "id": 202388,
+      "title": "Disembodied: Portrait Minatures and their Contemporary Relatives",
+      "description": "<i>Disembodied: Portrait Minatures and their Contemporary Relatives</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (November 10, 2013-February 16, 2014).",
+      "opening_date": "2013-11-10T00:00:00"
+     }
+    ],
+    "legacy": [
+     {
+      "description": "Main European Rotation (Gallery 202), July 23, 2013 - May 20, 2014.",
+      "opening_date": "2013-07-23T00:00:00"
+     }
+    ]
+   },
+   "provenance": [
+    {
+     "description": "Mrs. Edward B. Greene, Cleveland, Ohio.",
+     "citations": [],
+     "footnotes": null,
+     "date": null,
+     "sortorder": null
+    }
+   ],
+   "find_spot": null,
+   "related_works": [],
+   "former_accession_numbers": [],
+   "did_you_know": "This box resulted from the combined efforts of the popular portrait painter who served the court of French King Louis XIV, Jean Petitot, and master goldsmith Charles Le Bastier.",
+   "early_education_description": null,
+   "artlens_description": null,
+   "description": "In 18th-century France, ornately enameled boxes that held snuff—powdered tobacco—became a popular accessory in the French court. This box is decorated with a miniature portrait of Marie-Thérèse of Austria, the queen consort of French King Louis XIV. Their union was largely political. A year into their marriage Louis XIV took an official mistress, Madame Pompadour.",
+   "external_resources": {
+    "wikidata": [
+     "https://www.wikidata.org/wiki/Q80027548"
+    ],
+    "internet_archive": [
+     "https://archive.org/details/clevelandart-1957.405-snuff-box-tabatiere"
+    ]
+   },
+   "citations": [],
+   "url": "https://clevelandart.org/art/1957.405",
+   "images": {
+    "annotation": null,
+    "web": {
+     "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_web.jpg",
+     "width": "900",
+     "height": "554",
+     "filesize": "121034",
+     "filename": "1957.405_web.jpg"
+    },
+    "print": {
+     "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_print.jpg",
+     "width": "3400",
+     "height": "2094",
+     "filesize": "1065805",
+     "filename": "1957.405_print.jpg"
+    },
+    "full": {
+     "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_full.tif",
+     "width": "4243",
+     "height": "2613",
+     "filesize": "33288648",
+     "filename": "1957.405_full.tif"
+    }
+   },
+   "alternate_images": [
+    {
+     "web": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt0_web.jpg",
+      "width": "900",
+      "height": "803",
+      "filesize": "152032"
+     },
+     "print": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt0_print.jpg",
+      "width": "3282",
+      "height": "2928",
+      "filesize": "1823374"
+     },
+     "full": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt0_full.tif",
+      "width": "3282",
+      "height": "2928",
+      "filesize": "28857440"
+     },
+     "date_created": "2014-04-07T08:28:50",
+     "annotation": ""
+    },
+    {
+     "web": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt1_web.jpg",
+      "width": "900",
+      "height": "773",
+      "filesize": "148189"
+     },
+     "print": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt1_print.jpg",
+      "width": "3257",
+      "height": "2798",
+      "filesize": "1612817"
+     },
+     "full": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt1_full.tif",
+      "width": "3257",
+      "height": "2798",
+      "filesize": "27367512"
+     },
+     "date_created": "2014-04-07T08:39:14",
+     "annotation": ""
+    },
+    {
+     "web": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt2_web.jpg",
+      "width": "900",
+      "height": "585",
+      "filesize": "131553"
+     },
+     "print": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt2_print.jpg",
+      "width": "3400",
+      "height": "2211",
+      "filesize": "1352381"
+     },
+     "full": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt2_full.tif",
+      "width": "4181",
+      "height": "2719",
+      "filesize": "34132664"
+     },
+     "date_created": "2014-04-07T08:50:50",
+     "annotation": ""
+    },
+    {
+     "web": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt3_web.jpg",
+      "width": "900",
+      "height": "590",
+      "filesize": "140684"
+     },
+     "print": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt3_print.jpg",
+      "width": "3400",
+      "height": "2229",
+      "filesize": "1445555"
+     },
+     "full": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt3_full.tif",
+      "width": "4046",
+      "height": "2652",
+      "filesize": "32217776"
+     },
+     "date_created": "2014-04-07T08:59:01",
+     "annotation": ""
+    },
+    {
+     "web": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt4_web.jpg",
+      "width": "900",
+      "height": "568",
+      "filesize": "117608"
+     },
+     "print": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt4_print.jpg",
+      "width": "3400",
+      "height": "2146",
+      "filesize": "1146315"
+     },
+     "full": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt4_full.tif",
+      "width": "4611",
+      "height": "2911",
+      "filesize": "40295336"
+     },
+     "date_created": "2014-04-04T15:05:44",
+     "annotation": ""
+    },
+    {
+     "web": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt5_web.jpg",
+      "width": "1158",
+      "height": "893",
+      "filesize": "790988"
+     },
+     "print": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt5_print.jpg",
+      "width": "1991",
+      "height": "1536",
+      "filesize": "2334076"
+     },
+     "full": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt5_full.tif",
+      "width": "1991",
+      "height": "1536",
+      "filesize": "9177780"
+     },
+     "annotation": ""
+    },
+    {
+     "web": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt6_web.jpg",
+      "width": "1263",
+      "height": "819",
+      "filesize": "711604"
+     },
+     "print": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt6_print.jpg",
+      "width": "3400",
+      "height": "2206",
+      "filesize": "3986831"
+     },
+     "full": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt6_full.tif",
+      "width": "4096",
+      "height": "2657",
+      "filesize": "32660028"
+     },
+     "annotation": ""
+    },
+    {
+     "web": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt7_web.jpg",
+      "width": "1263",
+      "height": "819",
+      "filesize": "699625"
+     },
+     "print": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt7_print.jpg",
+      "width": "3400",
+      "height": "2206",
+      "filesize": "4114370"
+     },
+     "full": {
+      "url": "https://openaccess-cdn.clevelandart.org/1957.405/1957.405_alt7_full.tif",
+      "width": "4447",
+      "height": "2885",
+      "filesize": "38515132"
+     },
+     "annotation": ""
+    }
+   ],
+   "creditline": "Gift of Mrs. Edward B. Greene",
+   "image_credit": null,
+   "sketchfab_id": null,
+   "sketchfab_url": null,
+   "gallery_donor_text": null,
+   "athena_id": 134850,
+   "creators": [
+    {
+     "id": 3688,
+     "description": "Jean Petitot (Swiss, 1607–1691)",
+     "extent": null,
+     "qualifier": null,
+     "role": "miniature painted by",
+     "biography": null,
+     "name_in_original_language": null,
+     "birth_year": "1607",
+     "death_year": "1691",
+     "use_in_caption": true,
+     "include_extent": true,
+     "weight": 1
+    },
+    {
+     "id": 8675,
+     "description": "Charles Le Bastier (French)",
+     "extent": null,
+     "qualifier": null,
+     "role": "box by",
+     "biography": null,
+     "name_in_original_language": null,
+     "use_in_caption": true,
+     "include_extent": true,
+     "weight": 2
+    }
+   ],
+   "legal_status": "accessioned",
+   "accession_date": "1957-10-31T00:00:00",
+   "sortable_date": 1671,
+   "date_added_to_oa": null,
+   "date_text": "miniature, c. 1676; box, 1775–76",
+   "collapse_artists": false,
+   "on_loan": false,
+   "recently_acquired": false,
+   "record_type": "object",
+   "conservation_statement": null,
+   "has_conservation_images": false,
+   "cover_accession_number": null,
+   "is_nazi_era_provenance": false,
+   "impression": null,
+   "alternate_titles": [],
+   "is_highlight": false,
+   "updated_at": "2026-08-22 11:53:14.772000"
+  },
+  {
+   "id": 147901,
+   "accession_number": "1974.255",
+   "share_license_status": "CC0",
+   "tombstone": "Grotteschi: The Tomb of Nero, 1747–48. Giovanni Battista Piranesi (Italian, 1720–1778), published by Giovanni Bouchard (Italian, 1700-1850). Etching with engraving and drypoint; image and plate: 39.1 x 55.3 cm (15 3/8 x 21 3/4 in.); sheet: 52.9 x 76.8 cm (20 13/16 x 30 1/4 in.). The Cleveland Museum of Art, Mr. and Mrs. Charles G. Prasse Collection, 1974.255",
+   "current_location": null,
+   "title": "The Tomb of Nero",
+   "series": "Grotteschi",
+   "creation_date": "1747–48",
+   "creation_date_earliest": 1747,
+   "creation_date_latest": 1748,
+   "artists_tags": [
+    "male"
+   ],
+   "culture": [
+    "Italy, 18th century"
+   ],
+   "technique": "etching with engraving and drypoint",
+   "support_materials": [],
+   "department": "Prints",
+   "collection": "PR - Etching",
+   "type": "Print",
+   "measurements": "Image and Plate: 39.1 x 55.3 cm (15 3/8 x 21 3/4 in.); Sheet: 52.9 x 76.8 cm (20 13/16 x 30 1/4 in.)",
+   "dimensions": {
+    "image and plate": {
+     "height": 0.391,
+     "height_inch": 15,
+     "height_inch_fraction": 0.375,
+     "width": 0.553,
+     "width_inch": 21,
+     "width_inch_fraction": 0.75
+    },
+    "sheet": {
+     "height": 0.529,
+     "height_inch": 20,
+     "height_inch_fraction": 0.8125,
+     "width": 0.768,
+     "width_inch": 30,
+     "width_inch_fraction": 0.25
+    }
+   },
+   "state_of_the_work": "I/II",
+   "edition_of_the_work": null,
+   "copyright": null,
+   "inscriptions": [
+    {
+     "inscription": "Lower left, in plate: Piranesi invento; et incise",
+     "inscription_translation": null,
+     "inscription_remark": null,
+     "sortorder": null
+    },
+    {
+     "inscription": "lower right, in plate: Apo. Piranesi dir impetto l'Accademia di Francia in Roma",
+     "inscription_translation": null,
+     "inscription_remark": null,
+     "sortorder": null
+    }
+   ],
+   "exhibitions": {
+    "current": [
+     {
+      "id": 302084,
+      "title": "Year in Review: 1974",
+      "description": "<i>Year in Review: 1974</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (March 11-April 6, 1975).",
+      "opening_date": "1975-03-11T04:00:00"
+     },
+     {
+      "id": 311461,
+      "title": "Generous Donors: A Tribute to The Print Club of Cleveland",
+      "description": "<i>Generous Donors: A Tribute to The Print Club of Cleveland</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (April 2-August 4, 1991).",
+      "opening_date": "1991-04-02T05:00:00"
+     },
+     {
+      "id": 665048,
+      "title": "Imagination in the Age of Reason",
+      "description": "<i>Imagination in the Age of Reason</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (September 28, 2024-March 2, 2025).",
+      "opening_date": "2024-09-28T04:00:00"
+     }
+    ],
+    "legacy": []
+   },
+   "provenance": [
+    {
+     "description": "Leona E. Prasse [1896–1984], Rocky River, OH, given to The Cleveland Museum of Art, Cleveland, OH",
+     "citations": [],
+     "footnotes": null,
+     "date": "?–1975",
+     "sortorder": 1
+    },
+    {
+     "description": "The Cleveland Museum of Art, Cleveland, OH",
+     "citations": [],
+     "footnotes": null,
+     "date": "February 7, 1975–",
+     "sortorder": 2
+    }
+   ],
+   "find_spot": null,
+   "related_works": [],
+   "former_accession_numbers": [],
+   "did_you_know": "Popularly associated with the Emperor Nero in the 1700s, the monument the artist depicted has since been identified as the tomb of P. Vibius Maranus.",
+   "early_education_description": null,
+   "artlens_description": null,
+   "description": "An ancient tomb, teeming with slithering snakes and overgrown vegetation, conjures the ruins of a strange and distant past in this print. The more lightly etched background appears faint against the jumble of darker lines in the foreground, as if the whole scene is slowly fading into the mist of time. Although the composition might seem to be one of pure imagination, the tomb it depicts was based on a real monument the artist had observed near Rome. Fascinated by classical antiquity, Giovanni Battista Piranesi evoked his own experience of seeing ruins, which he felt could not be conveyed by a more realistic portrayal.",
+   "external_resources": {
+    "wikidata": [
+     "https://www.wikidata.org/wiki/Q79927578"
+    ],
+    "internet_archive": [
+     "https://archive.org/details/clevelandart-1974.255-groteschi-ruins-with",
+     "https://archive.org/details/clevelandart-1974.255-the-tomb-of-nero"
+    ]
+   },
+   "citations": [],
+   "catalogue_raisonne": "Focillon 22 ; Robison 23 ; Wilton-Ely 23",
+   "url": "https://clevelandart.org/art/1974.255",
+   "images": {
+    "annotation": null,
+    "web": {
+     "url": "https://openaccess-cdn.clevelandart.org/1974.255/1974.255_web.jpg",
+     "width": "900",
+     "height": "652",
+     "filesize": "306683",
+     "filename": "1974.255_web.jpg"
+    },
+    "print": {
+     "url": "https://openaccess-cdn.clevelandart.org/1974.255/1974.255_print.jpg",
+     "width": "3400",
+     "height": "2464",
+     "filesize": "4062887",
+     "filename": "1974.255_print.jpg"
+    },
+    "full": {
+     "url": "https://openaccess-cdn.clevelandart.org/1974.255/1974.255_full.tif",
+     "width": "5605",
+     "height": "4062",
+     "filesize": "68336448",
+     "filename": "1974.255_full.tif"
+    }
+   },
+   "alternate_images": [],
+   "creditline": "Mr. and Mrs. Charles G. Prasse Collection",
+   "image_credit": null,
+   "sketchfab_id": null,
+   "sketchfab_url": null,
+   "gallery_donor_text": null,
+   "athena_id": 147901,
+   "creators": [
+    {
+     "id": 11946,
+     "description": "Giovanni Battista Piranesi (Italian, 1720–1778)",
+     "extent": null,
+     "qualifier": null,
+     "role": "artist",
+     "biography": null,
+     "name_in_original_language": null,
+     "birth_year": "1720",
+     "death_year": "1778",
+     "use_in_caption": true,
+     "include_extent": false,
+     "weight": 1
+    },
+    {
+     "id": 674825,
+     "description": "Giovanni Bouchard (Italian, 1700-1850)",
+     "extent": "published by",
+     "qualifier": null,
+     "role": "publisher",
+     "biography": "Italian publisher and printer, 18th century",
+     "name_in_original_language": null,
+     "birth_year": "1716",
+     "death_year": "1795",
+     "use_in_caption": true,
+     "include_extent": true,
+     "weight": 2
+    }
+   ],
+   "legal_status": "accessioned",
+   "accession_date": "1975-02-07T00:00:00",
+   "sortable_date": 1747,
+   "date_added_to_oa": null,
+   "date_text": "1747–48",
+   "collapse_artists": false,
+   "on_loan": false,
+   "recently_acquired": false,
+   "record_type": "object",
+   "conservation_statement": null,
+   "has_conservation_images": false,
+   "cover_accession_number": null,
+   "is_nazi_era_provenance": false,
+   "impression": null,
+   "alternate_titles": [],
+   "is_highlight": false,
+   "updated_at": "2026-05-29 07:35:26.704000"
+  },
+  {
+   "id": 159638,
+   "accession_number": "1996.352",
+   "share_license_status": "CC0",
+   "tombstone": "Village Scene (Southern France), c. 1853. André Adolphe-Eugène Disdéri (French, 1819–1889). Salted paper print from waxed-paper negative; image: 15.2 x 12.2 cm (6 x 4 13/16 in.); matted: 45.7 x 35.6 cm (18 x 14 in.). The Cleveland Museum of Art, John L. Severance Fund, 1996.352",
+   "current_location": null,
+   "title": "Village Scene (Southern France)",
+   "creation_date": "c. 1853",
+   "creation_date_earliest": 1848,
+   "creation_date_latest": 1858,
+   "artists_tags": [
+    "male"
+   ],
+   "culture": [
+    "France, 19th century"
+   ],
+   "technique": "salted paper print from waxed-paper negative",
+   "support_materials": [],
+   "department": "Photography",
+   "collection": "PH - French 19th Century",
+   "type": "Photograph",
+   "measurements": "Image: 15.2 x 12.2 cm (6 x 4 13/16 in.); Matted: 45.7 x 35.6 cm (18 x 14 in.)",
+   "dimensions": {
+    "image": {
+     "height": 0.152,
+     "height_inch": 6,
+     "height_inch_fraction": 0.0,
+     "width": 0.122,
+     "width_inch": 4,
+     "width_inch_fraction": 0.8125
+    },
+    "matted": {
+     "height": 0.457,
+     "height_inch": 18,
+     "height_inch_fraction": 0.0,
+     "width": 0.356,
+     "width_inch": 14,
+     "width_inch_fraction": 0.0
+    }
+   },
+   "state_of_the_work": null,
+   "edition_of_the_work": null,
+   "copyright": null,
+   "inscriptions": [
+    {
+     "inscription": "Written in black ink on recto: \"Disdéri, Photographe\"; in pencil on verso: \"10 N[?]\"; 1853 [underlined]\"",
+     "inscription_translation": null,
+     "inscription_remark": null,
+     "sortorder": null
+    }
+   ],
+   "exhibitions": {
+    "current": [
+     {
+      "id": 197576,
+      "title": "France at the Dawn of Photography",
+      "description": "<i>France at the Dawn of Photography</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (October 4, 2009-January 24, 2010).",
+      "opening_date": "2009-10-04T00:00:00"
+     },
+     {
+      "id": 705705,
+      "title": "France in the Time of Manet and Morisot",
+      "description": "<i>France in the Time of Manet and Morisot</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (May 10-August 23, 2026).",
+      "opening_date": "2026-05-10T04:00:00"
+     }
+    ],
+    "legacy": [
+     {
+      "description": "The Cleveland Museum of Art (10/04/2009 - 01/24/2010); \"France at the Dawn of Photography\"",
+      "opening_date": "2009-10-04T00:00:00"
+     }
+    ]
+   },
+   "provenance": [],
+   "find_spot": null,
+   "related_works": [],
+   "former_accession_numbers": [],
+   "did_you_know": "This image was printed from a waxed-paper negative, a process superseded by the sharper, clearer glass plate negative.",
+   "early_education_description": null,
+   "artlens_description": null,
+   "description": "André Adolphe-Eugène Disdéri is best known for his development in Paris in 1854 of the carte-de-visite format for portraits. The year before, he was living in Southern France where he made this rural view. Disderi used waxed-paper negatives for only a short time. The oval cropping and picturesque scene—posed but seemingly spontaneous—suggest that this is meant to be an artistic, rather than a documentary, photograph.",
+   "external_resources": {
+    "wikidata": [
+     "https://www.wikidata.org/wiki/Q79979567"
+    ],
+    "internet_archive": [
+     "https://archive.org/details/clevelandart-1996.352-village-scene-southe"
+    ]
+   },
+   "citations": [],
+   "url": "https://clevelandart.org/art/1996.352",
+   "images": {
+    "annotation": null,
+    "web": {
+     "url": "https://openaccess-cdn.clevelandart.org/1996.352/1996.352_web.jpg",
+     "width": "729",
+     "height": "893",
+     "filesize": "473251",
+     "filename": "1996.352_web.jpg"
+    },
+    "print": {
+     "url": "https://openaccess-cdn.clevelandart.org/1996.352/1996.352_print.jpg",
+     "width": "2775",
+     "height": "3400",
+     "filesize": "6110223",
+     "filename": "1996.352_print.jpg"
+    },
+    "full": {
+     "url": "https://openaccess-cdn.clevelandart.org/1996.352/1996.352_full.tif",
+     "width": "3963",
+     "height": "4855",
+     "filesize": "57753816",
+     "filename": "1996.352_full.tif"
+    }
+   },
+   "alternate_images": [],
+   "creditline": "John L. Severance Fund",
+   "image_credit": null,
+   "sketchfab_id": null,
+   "sketchfab_url": null,
+   "gallery_donor_text": null,
+   "athena_id": 159638,
+   "creators": [
+    {
+     "id": 358,
+     "description": "André Adolphe-Eugène Disdéri (French, 1819–1889)",
+     "extent": null,
+     "qualifier": null,
+     "role": "artist",
+     "biography": "André-Adolphe-Eugène Disdéri French, 1819-1889 Disdéri is best known as a portraitist and popularizer of the carte-de-visite. He spent 10 years as a painter and working in the theater, and another five in the clothing business, before becoming seriously interested in photography around age 30. He first operated studios in Brest and Nîmes, then moved to Paris and opened a studio in 1854, and a second in 1863. In 1854 Disdéri patented the carte-de-visite, a method of producing a number of small images on a single negative that achieved great popularity. He later opened additional studios in London, Madrid, and Toulon. Disdéri was one of the best known portrait photographers of his day, with many important commissions and sitters. Like Mathew Brady, he was an innovator and entrepreneur as well as an artist. The carte-de-visite, which he did not invent, but rather adapted, helped photography to become increasingly versatile as a medium and available to people of all means. In 1879 Disdéri sold his business and moved to Nice. Despite his success, he died 10 years later in Paris in poverty, obscurity, and poor health. T.W.F.",
+     "name_in_original_language": null,
+     "birth_year": "1819",
+     "death_year": "1889",
+     "use_in_caption": true,
+     "include_extent": false,
+     "weight": 1
+    }
+   ],
+   "legal_status": "accessioned",
+   "accession_date": "1996-12-02T00:00:00",
+   "sortable_date": 1848,
+   "date_added_to_oa": null,
+   "date_text": "c. 1853",
+   "collapse_artists": false,
+   "on_loan": false,
+   "recently_acquired": false,
+   "record_type": "object",
+   "conservation_statement": null,
+   "has_conservation_images": false,
+   "cover_accession_number": null,
+   "is_nazi_era_provenance": false,
+   "impression": null,
+   "alternate_titles": [],
+   "is_highlight": false,
+   "updated_at": "2026-08-26 11:41:28.029000"
+  },
+  {
+   "id": 161865,
+   "accession_number": "2001.152",
+   "share_license_status": "CC0",
+   "tombstone": "Hoyshaleshvara Temple Sculpture, Halebidu (Halebeedu), 1856–57. Richard Banner Oakeley (British, 1834–1914). Albumenized salt print from waxed paper negative; image: 27.2 x 29.2 cm (10 11/16 x 11 1/2 in.); mounted: 35.3 x 44.4 cm (13 7/8 x 17 1/2 in.); matted: 50.8 x 61 cm (20 x 24 in.). The Cleveland Museum of Art, John L. Severance Fund, 2001.152",
+   "current_location": null,
+   "title": "Hoyshaleshvara Temple Sculpture, Halebidu (Halebeedu)",
+   "creation_date": "1856–57",
+   "creation_date_earliest": 1856,
+   "creation_date_latest": 1857,
+   "artists_tags": [
+    "male"
+   ],
+   "culture": [
+    "England, 19th century"
+   ],
+   "technique": "albumenized salt print from waxed paper negative",
+   "support_materials": [],
+   "department": "Photography",
+   "collection": "PH - British 19th Century",
+   "type": "Photograph",
+   "measurements": "Image: 27.2 x 29.2 cm (10 11/16 x 11 1/2 in.); Mounted: 35.3 x 44.4 cm (13 7/8 x 17 1/2 in.); Matted: 50.8 x 61 cm (20 x 24 in.)",
+   "dimensions": {
+    "image": {
+     "height": 0.272,
+     "height_inch": 10,
+     "height_inch_fraction": 0.6875,
+     "width": 0.292,
+     "width_inch": 11,
+     "width_inch_fraction": 0.5
+    },
+    "mounted": {
+     "height": 0.353,
+     "height_inch": 13,
+     "height_inch_fraction": 0.875,
+     "width": 0.444,
+     "width_inch": 17,
+     "width_inch_fraction": 0.5
+    },
+    "matted": {
+     "height": 0.508,
+     "height_inch": 20,
+     "height_inch_fraction": 0.0,
+     "width": 0.61,
+     "width_inch": 24,
+     "width_inch_fraction": 0.0
+    }
+   },
+   "state_of_the_work": null,
+   "edition_of_the_work": null,
+   "copyright": null,
+   "inscriptions": [
+    {
+     "inscription": "written in pencil on recto of mount: \"Q1437\"",
+     "inscription_translation": null,
+     "inscription_remark": null,
+     "sortorder": null
+    }
+   ],
+   "exhibitions": {
+    "current": [
+     {
+      "id": 184303,
+      "title": "Travel Photography: Early Images of India",
+      "description": "<i>Travel Photography: Early Images of India</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (March 2-July 17, 2002).",
+      "opening_date": "2002-03-02T00:00:00"
+     },
+     {
+      "id": 299790,
+      "title": "Indian Gallery 242b Rotation – November 2017-April 2018",
+      "description": "<i>Indian Gallery 242b Rotation – November 2017-April 2018</i>. The Cleveland Museum of Art (organizer) (November 10, 2017-April 16, 2018).",
+      "opening_date": "2017-11-10T05:00:00"
+     },
+     {
+      "id": 674335,
+      "title": "Temples and Worship in South Asia",
+      "description": "<i>Temples and Worship in South Asia</i>. The Cleveland Museum of Art, Cleveland, OH (organizer) (September 14, 2024-March 9, 2025).",
+      "opening_date": "2024-09-14T04:00:00"
+     }
+    ],
+    "legacy": []
+   },
+   "provenance": [
+    {
+     "description": "(Charles Isaacs Photographs, Inc., New York, NY, sold to the Cleveland Museum of Art)",
+     "citations": [],
+     "footnotes": null,
+     "date": "?–2001",
+     "sortorder": 1
+    },
+    {
+     "description": "The Cleveland Museum of Art, Cleveland, OH",
+     "citations": [],
+     "footnotes": null,
+     "date": "2001–",
+     "sortorder": 2
+    }
+   ],
+   "find_spot": null,
+   "related_works": [],
+   "former_accession_numbers": [],
+   "did_you_know": "Holysaleswara Temple is a magnificent example of Hindu architecture and sculpture begun during the first half of the 12th century.",
+   "early_education_description": null,
+   "artlens_description": null,
+   "description": "On the recommendation of a friend, Oakeley marched 20 days along treacherous country roads to locate the Hoyshaleshvara Temple in southwestern India. Finding it more beautiful than any other building he had seen in southern India, he framed his subject to capture a sense of the lavish number of vivid sculptures that enliven the temple's walls. <br><br>At the right is the Hindu god Shiva with his wife, the goddess Parvati, seated on his mount, the bull Nandi. At the left, Shiva and Parvati are seated on Mount Kailasha, which a multiarmed demon is attempting to dislodge.",
+   "external_resources": {
+    "wikidata": [
+     "https://www.wikidata.org/wiki/Q79985166"
+    ],
+    "internet_archive": [
+     "https://archive.org/details/clevelandart-2001.152-hoysalesvara-temple",
+     "https://archive.org/details/clevelandart-2001.152-hoyshaleshvara-templ"
+    ]
+   },
+   "citations": [],
+   "url": "https://clevelandart.org/art/2001.152",
+   "images": {
+    "annotation": null,
+    "web": {
+     "url": "https://openaccess-cdn.clevelandart.org/2001.152/2001.152_web.jpg",
+     "width": "1171",
+     "height": "893",
+     "filesize": "912636",
+     "filename": "2001.152_web.jpg"
+    },
+    "print": {
+     "url": "https://openaccess-cdn.clevelandart.org/2001.152/2001.152_print.jpg",
+     "width": "3400",
+     "height": "2592",
+     "filesize": "6424979",
+     "filename": "2001.152_print.jpg"
+    },
+    "full": {
+     "url": "https://openaccess-cdn.clevelandart.org/2001.152/2001.152_full.tif",
+     "width": "5000",
+     "height": "3812",
+     "filesize": "57200572",
+     "filename": "2001.152_full.tif"
+    }
+   },
+   "alternate_images": [],
+   "creditline": "John L. Severance Fund",
+   "image_credit": null,
+   "sketchfab_id": null,
+   "sketchfab_url": null,
+   "gallery_donor_text": null,
+   "athena_id": 161865,
+   "creators": [
+    {
+     "id": 41229,
+     "description": "Richard Banner Oakeley (British, 1834–1914)",
+     "extent": null,
+     "qualifier": null,
+     "role": "artist",
+     "biography": null,
+     "name_in_original_language": null,
+     "birth_year": "1834",
+     "death_year": "1914",
+     "use_in_caption": true,
+     "include_extent": false,
+     "weight": 1
+    }
+   ],
+   "legal_status": "accessioned",
+   "accession_date": "2001-12-03T00:00:00",
+   "sortable_date": 1856,
+   "date_added_to_oa": null,
+   "date_text": "1856–57",
+   "collapse_artists": false,
+   "on_loan": false,
+   "recently_acquired": false,
+   "record_type": "object",
+   "conservation_statement": null,
+   "has_conservation_images": false,
+   "cover_accession_number": null,
+   "is_nazi_era_provenance": false,
+   "impression": null,
+   "alternate_titles": [
+    "Hoysalesvara Temple Sculpture, Halebid"
+   ],
+   "is_highlight": false,
+   "updated_at": "2026-05-29 08:24:41.450000"
+  }
+ ]
+}

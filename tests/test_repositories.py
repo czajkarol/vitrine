@@ -5,6 +5,7 @@ import pytest
 from app.domain.artwork import Artwork, Color, Thumbnail
 from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.database import Database
+from app.repositories.feedback import FeedbackRepository
 from app.repositories.history import HistoryRepository
 from app.repositories.preferences import PreferencesRepository
 
@@ -186,13 +187,13 @@ class TestCuratedSampling:
                 _artwork(2, artwork_type_title="Coin"),
             ]
         )
-        sampled = repo.sample_sync(10, facets=["type.painting"])
+        sampled = repo.sample_sync(10, facets=[["type.painting"]])
         assert [a.id for a in sampled] == [1]
 
     def test_an_unmatched_filter_returns_nothing_rather_than_everything(self, database: Database):
         repo = ArtworkIndexRepository(database)
         repo.upsert_many_sync([_artwork(1, artwork_type_title="Painting")])
-        assert repo.sample_sync(10, facets=["type.sculpture"]) == []
+        assert repo.sample_sync(10, facets=[["type.sculpture"]]) == []
 
 
 class TestTerms:
@@ -237,7 +238,7 @@ class TestTerms:
                 _artwork(3, subject_titles=("landscape", "water")),
             ]
         )
-        found = repo.sample_sync(10, facets=["subject.landscape"])
+        found = repo.sample_sync(10, facets=[["subject.landscape"]])
         assert {artwork.id for artwork in found} == {1, 3}
 
     def test_filters_combine_with_and(self, database: Database):
@@ -249,7 +250,7 @@ class TestTerms:
                 _artwork(3, style_titles=("Cubism",), subject_titles=("landscape",)),
             ]
         )
-        found = repo.sample_sync(10, facets=["style.impressionism", "subject.landscape"])
+        found = repo.sample_sync(10, facets=[["style.impressionism"], ["subject.landscape"]])
         assert {artwork.id for artwork in found} == {1}
 
     def test_counts_are_biggest_first_and_can_be_capped(self, database: Database):
@@ -355,7 +356,7 @@ class TestFacets:
         and invisible to every filter, which is a bug nobody would think to look for."""
         repo = ArtworkIndexRepository(database)
         repo.upsert_many_sync([_artwork(1, subject_titles=("landscape",))])
-        assert repo.sample_sync(10, facets=["subject.landscape"]) != []
+        assert repo.sample_sync(10, facets=[["subject.landscape"]]) != []
 
     def test_a_recrawl_drops_a_facet_whose_term_the_museum_removed(self, database: Database):
         repo = ArtworkIndexRepository(database)
@@ -414,7 +415,7 @@ class TestExclusion:
         "nothing matches those filters" the user can see and undo."""
         repo = ArtworkIndexRepository(database)
         repo.upsert_many_sync([_artwork(1, artwork_type_title="Coin")])
-        assert repo.sample_sync(10, facets=["type.coin"], exclude=["type.coin"]) == []
+        assert repo.sample_sync(10, facets=[["type.coin"]], exclude=["type.coin"]) == []
 
 
 class TestDependentCounts:
@@ -428,7 +429,7 @@ class TestDependentCounts:
             ]
         )
         assert repo.facet_counts_sync("type") == {"type.print": 2, "type.textile": 1}
-        constrained = repo.facet_counts_sync("type", include=["style.japanese"])
+        constrained = repo.facet_counts_sync("type", include=[["style.japanese"]])
         assert constrained == {"type.print": 1, "type.textile": 1}
 
     def test_a_facet_ruled_out_is_absent_rather_than_zero(self, database: Database):
@@ -441,7 +442,7 @@ class TestDependentCounts:
                 _artwork(2, artwork_type_title="Textile", style_titles=("Realism",)),
             ]
         )
-        assert repo.facet_counts_sync("type", include=["style.japanese"]) == {"type.print": 1}
+        assert repo.facet_counts_sync("type", include=[["style.japanese"]]) == {"type.print": 1}
 
     def test_an_exclusion_constrains_the_counts_too(self, database: Database):
         repo = ArtworkIndexRepository(database)
@@ -452,3 +453,91 @@ class TestDependentCounts:
             ]
         )
         assert repo.facet_counts_sync("type", exclude=["subject.water"]) == {"type.print": 1}
+
+
+class TestMultiSelectFacets:
+    """Inclusion became multi-valued in M13. The operator had to change with it — see
+    `_facet_clauses` and ADR-0014."""
+
+    def test_two_facets_in_one_group_are_ored(self, database: Database):
+        """`type.painting AND type.print` is empty by construction: nothing is both. The
+        filter anyone means by ticking two boxes is OR."""
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync(
+            [
+                _artwork(1, artwork_type_title="Painting"),
+                _artwork(2, artwork_type_title="Print"),
+                _artwork(3, artwork_type_title="Coin"),
+            ]
+        )
+        found = repo.sample_sync(10, facets=[["type.painting", "type.print"]])
+        assert sorted(a.id for a in found) == [1, 2]
+
+    def test_groups_still_and_together(self, database: Database):
+        """Across groups the operator stays AND: "a Japanese print" narrows the way a
+        person expects it to."""
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync(
+            [
+                _artwork(1, artwork_type_title="Print", style_titles=("Japanese",)),
+                _artwork(2, artwork_type_title="Print", style_titles=("Realism",)),
+                _artwork(3, artwork_type_title="Painting", style_titles=("Japanese",)),
+            ]
+        )
+        found = repo.sample_sync(10, facets=[["type.print", "type.painting"], ["style.japanese"]])
+        assert sorted(a.id for a in found) == [1, 3]
+
+    def test_an_empty_group_does_not_narrow_anything(self, database: Database):
+        """The three groups always travel together, and two of them are usually empty."""
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync([_artwork(1, artwork_type_title="Painting")])
+        assert repo.sample_sync(10, facets=[(), ("style.impressionism",), ()]) == []
+        assert len(repo.sample_sync(10, facets=[(), (), ()])) == 1
+
+    def test_counts_are_dependent_on_a_multi_selection(self, database: Database):
+        """The leave-one-out count has to OR the other group's selection too, or choosing
+        a second style makes the subject counts smaller rather than larger."""
+        repo = ArtworkIndexRepository(database)
+        repo.upsert_many_sync(
+            [
+                _artwork(1, artwork_type_title="Print", style_titles=("Japanese",)),
+                _artwork(2, artwork_type_title="Print", style_titles=("Realism",)),
+                _artwork(3, artwork_type_title="Print", style_titles=("Cubism",)),
+            ]
+        )
+        one = repo.facet_counts_sync("type", include=[["style.japanese"]])
+        two = repo.facet_counts_sync("type", include=[["style.japanese", "style.realism"]])
+        assert one["type.print"] == 1
+        assert two["type.print"] == 2
+
+
+class TestFeedbackAcrossMuseums:
+    """Migration 010. Artwork id 1 is a real record at both museums."""
+
+    def test_the_same_id_at_two_museums_is_two_verdicts(self, database: Database):
+        repo = FeedbackRepository(database)
+        repo.set_sync(1, "like", museum="aic", title="An Art Institute painting")
+        repo.set_sync(1, "hide", museum="cma", title="A Cleveland print")
+        assert repo.get_sync(1, "aic").kind == "like"
+        assert repo.get_sync(1, "cma").kind == "hide"
+
+    def test_hiding_at_one_museum_does_not_hide_at_the_other(self, database: Database):
+        repo = FeedbackRepository(database)
+        repo.set_sync(1, "hide", museum="cma")
+        assert repo.ids_sync("hide", "aic") == []
+        assert repo.ids_sync("hide", "cma") == [1]
+
+    def test_a_dislike_is_stored_as_its_own_verdict(self, database: Database):
+        repo = FeedbackRepository(database)
+        repo.set_sync(7, "dislike")
+        assert repo.get_sync(7).kind == "dislike"
+        assert repo.counts_sync() == {"like": 0, "dislike": 1, "hide": 0}
+
+    def test_a_verdict_replaces_the_previous_one(self, database: Database):
+        """One row per artwork, so `kind` is a state and not a log. Disliking something
+        previously liked is a change of mind."""
+        repo = FeedbackRepository(database)
+        repo.set_sync(7, "like")
+        repo.set_sync(7, "dislike")
+        assert repo.counts_sync()["like"] == 0
+        assert repo.get_sync(7).kind == "dislike"

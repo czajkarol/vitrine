@@ -5,10 +5,15 @@ one pure `score`, one `explain` that prints the working. If this cannot say
 "you are seeing this because you liked 7 Japanese prints", it is too clever and should be
 simplified rather than tuned. See ADR-0010.
 
-**Explicit feedback only.** Likes and hides, nothing else. No dwell time, no "you did not
-skip it", no inference from silence. A single-user local app has almost no data to learn
-from, and the little it has is worth keeping legible: every number below traces back to a
-key the user actually pressed.
+**Explicit feedback only.** Likes, dislikes and hides, nothing else. No dwell time, no
+"you did not skip it", no inference from silence. A single-user local app has almost no
+data to learn from, and the little it has is worth keeping legible: every number below
+traces back to a key the user actually pressed.
+
+**A dislike is not a hide.** M13 put a verdict between the two, because the original pair
+had nothing in the middle: `hide` removes the artwork from selection outright, so it could
+never also mean "less of this". A dislike is a ranking signal and nothing else — the
+artwork stays in the rotation, and only its facets are counted against.
 
 **Curated is untouched.** This is a third mode, not a change to the second. ADR-0006's
 claim that curated ranking is reproducible and explainable survives only if curated stays
@@ -54,6 +59,12 @@ NEUTRAL_GROUP_WEIGHT: Final[float] = 1.0
 # outright from selection, which is a different mechanism entirely.
 HIDE_PENALTY: Final[float] = 0.5
 
+# A dislike, on the other hand, is *only* the nudge — there is no exclusion behind it, so
+# the nudge is all the user gets for pressing the key and it has to be worth pressing.
+# Weighted equal to a like, and opposite: "less of this" should move the ranking as far as
+# "more of this" does, or the control is decorative.
+DISLIKE_PENALTY: Final[float] = 1.0
+
 
 def _group_of(facet: str) -> str:
     group, _, _ = facet.partition(".")
@@ -71,6 +82,7 @@ class AffinityProfile:
     weights: Mapping[str, float] = field(default_factory=dict)
     likes: int = 0
     hides: int = 0
+    dislikes: int = 0
 
     @property
     def is_usable(self) -> bool:
@@ -85,30 +97,38 @@ class AffinityProfile:
 def build_profile(
     liked_facets: Iterable[Sequence[str]],
     hidden_facets: Iterable[Sequence[str]] = (),
+    disliked_facets: Iterable[Sequence[str]] = (),
 ) -> AffinityProfile:
-    """Turn the facets of liked and hidden artworks into per-facet weights.
+    """Turn the facets of judged artworks into per-facet weights.
 
     Frequency, weighted by group, normalised to the strongest facet so the result is
     comparable regardless of how many artworks went into it. Normalising to the maximum
     rather than to the total is what keeps a profile built from six likes as decisive as
     one built from sixty — otherwise the whole thing quietly fades as it learns more.
+
+    Dislikes and hides both subtract, at different strengths and for different reasons —
+    see `DISLIKE_PENALTY` and `HIDE_PENALTY`.
     """
     liked = list(liked_facets)
     hidden = list(hidden_facets)
+    disliked = list(disliked_facets)
 
     tally: dict[str, float] = defaultdict(float)
     for facets in liked:
         for facet in set(facets):
             tally[facet] += GROUP_WEIGHTS.get(_group_of(facet), NEUTRAL_GROUP_WEIGHT)
-    for facets in hidden:
-        for facet in set(facets):
-            tally[facet] -= HIDE_PENALTY * GROUP_WEIGHTS.get(_group_of(facet), NEUTRAL_GROUP_WEIGHT)
+    for against, penalty in ((hidden, HIDE_PENALTY), (disliked, DISLIKE_PENALTY)):
+        for artwork_facets in against:
+            for facet in set(artwork_facets):
+                tally[facet] -= penalty * GROUP_WEIGHTS.get(_group_of(facet), NEUTRAL_GROUP_WEIGHT)
 
     strongest = max((abs(value) for value in tally.values()), default=0.0)
     weights = (
         {facet: value / strongest for facet, value in tally.items() if value} if strongest else {}
     )
-    return AffinityProfile(weights=weights, likes=len(liked), hides=len(hidden))
+    return AffinityProfile(
+        weights=weights, likes=len(liked), hides=len(hidden), dislikes=len(disliked)
+    )
 
 
 def affinity(profile: AffinityProfile, facets: Sequence[str]) -> float:

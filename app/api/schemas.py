@@ -29,7 +29,19 @@ class ArtworkResponse(BaseModel):
     """CC BY 4.0. If this is shown, AIC must be attributed alongside it."""
 
     iiif_base: str
+    """Empty for a source with no IIIF service. Cleveland has none — three fixed URLs per
+    record and no ladder — so the display falls back to `image_url`. ADR-0013."""
+
     image_id: str
+    image_url: str | None = None
+    """A ready-made image URL, for a source that cannot build one from a base and an id.
+    When this is set the browser uses it as-is: there is no width to choose and no proxy
+    to fall back to."""
+
+    museum: str = "aic"
+    """Which museum this came from. Distinct from `source`, which says which *tier*
+    answered. The attribution line and the feedback key both depend on it."""
+
     lqip: str | None
     alt_text: str | None
     source_width: int | None
@@ -41,10 +53,14 @@ class ArtworkResponse(BaseModel):
     """Which tier produced this: index, aic, or fallback. The display shows a quiet
     offline indicator when it is not the live API."""
 
+    feedback: Literal["like", "dislike", "hide"] | None = None
+    """The verdict already recorded for this artwork, if any. Sent with the artwork rather
+    than fetched separately, because the display needs it on every rotation and it is one
+    indexed lookup — a second round trip per artwork to draw a heart is not worth it."""
+
     liked: bool = False
-    """Whether this artwork has been liked. Sent with the artwork rather than fetched
-    separately, because the display needs it on every rotation and it is one indexed
-    lookup — a second round trip per artwork to draw a heart is not worth it."""
+    """Kept alongside `feedback` because it is what the heart binds to, and because a
+    boolean is what a stored e2e expectation and any older client reads."""
 
     personalised: bool = False
     """Whether "For you" actually personalised this one, or fell back to curated ranking
@@ -53,7 +69,12 @@ class ArtworkResponse(BaseModel):
 
     @classmethod
     def from_domain(
-        cls, artwork: Artwork, iiif_base: str, source: str = "aic"
+        cls,
+        artwork: Artwork,
+        iiif_base: str,
+        source: str = "aic",
+        museum: str = "aic",
+        image_url: str | None = None,
     ) -> "ArtworkResponse":
         if artwork.image_id is None:  # pragma: no cover — guarded by is_displayable
             raise ValueError("artwork has no image_id and should not have been selected")
@@ -79,6 +100,8 @@ class ArtworkResponse(BaseModel):
             color=({"h": colour.h, "s": colour.s, "l": colour.l} if colour is not None else None),
             is_boosted=artwork.is_boosted,
             source=source,
+            museum=museum,
+            image_url=image_url,
         )
 
 
@@ -93,6 +116,14 @@ MAX_EXCLUSIONS: Final[int] = 20
 """How many facets one selection may exclude. Twenty is far more than anyone will use and
 still bounds the `NOT IN (...)` this becomes."""
 
+MAX_INCLUSIONS: Final[int] = 20
+"""And how many one group may include. Same reasoning, applied to the other half of the
+filter once M13 made inclusion multi-valued."""
+
+MUSEUMS: Final[tuple[str, ...]] = ("aic", "cma")
+"""The sources the display can be pointed at. `aic` is the indexed corpus; `cma` is served
+live. ADR-0013."""
+
 
 class PreferencesResponse(BaseModel):
     """The preferences the user can actually set.
@@ -106,17 +137,19 @@ class PreferencesResponse(BaseModel):
     # shortest one it offers. 30s / 1m / 5m / 15m / 30m.
     interval_seconds: Literal[30, 60, 300, 900, 1800] = 300
     mode: Literal["random", "curated", "personal"] = "random"
-    # Canonical facet keys since M10 — `type.print`, not `Print` (ADR-0009). One chosen
-    # value per group, not a list: the panel offers radio buttons, because "landscape AND
-    # portraits" narrows to almost nothing and reads as a bug rather than as a filter.
-    artwork_type: str | None = Field(default=None, max_length=100)
-    style: str | None = Field(default=None, max_length=100)
-    subject: str | None = Field(default=None, max_length=100)
-    # Exclusion, and the one filter that *is* multi-valued. Excluding several things at
-    # once is ordinary and does not collapse the result set, which is the whole reason
-    # inclusion is a radio and this is not. Capped so a saved preference cannot grow into
-    # a query with a thousand placeholders in it.
+    # Canonical facet keys since M10 — `type.print`, not `Print` (ADR-0009). Lists since
+    # M13: several values inside a group are ORed, which is what ticking two boxes means.
+    # Radios were right while inclusion was ANDed and are wrong now — ADR-0014.
+    artwork_type: list[str] = Field(default_factory=list, max_length=MAX_INCLUSIONS)
+    style: list[str] = Field(default_factory=list, max_length=MAX_INCLUSIONS)
+    subject: list[str] = Field(default_factory=list, max_length=MAX_INCLUSIONS)
+    # Exclusion. NOT-ed over every group at once, so unlike the three above it is one flat
+    # list. Capped so a saved preference cannot grow into a query with a thousand
+    # placeholders in it.
     exclude: list[str] = Field(default_factory=list, max_length=MAX_EXCLUSIONS)
+    # Which museum the display is drawing from. Persisted like any other choice: a display
+    # left on Cleveland should still be on Cleveland after a reload.
+    museum: Literal["aic", "cma"] = "aic"
     # Only the languages frontend/locales/ actually has strings for. The default is
     # overridden by `default_language` when nothing has been saved yet.
     language: Literal["en", "pl"] = "en"
@@ -153,6 +186,10 @@ class FiltersResponse(BaseModel):
     choosing a style updates the subject and type counts without collapsing the style list
     the user is standing in.
     """
+
+    museum: str = "aic"
+    """Which source this vocabulary describes. A live source has one small list and no
+    style, subject or exclusion at all, so the panel needs to know which shape it got."""
 
     artwork_types: list[FilterOption] = []
 
@@ -191,10 +228,11 @@ class ScoringResponse(BaseModel):
 
 
 class FeedbackItem(BaseModel):
-    """One liked or hidden artwork, with enough of it to list and to show again."""
+    """One judged artwork, with enough of it to list and to show again."""
 
+    museum: str = "aic"
     artwork_id: int
-    kind: Literal["like", "hide"]
+    kind: Literal["like", "dislike", "hide"]
     title: str | None = None
     artist: str | None = None
     image_id: str | None = None
@@ -202,14 +240,18 @@ class FeedbackItem(BaseModel):
 
 
 class FeedbackRequest(BaseModel):
-    """A like or a hide, with the snapshot the display already has on screen.
+    """A verdict, with the snapshot the display already has on screen.
 
     The snapshot travels with the request because the server may never have seen this
-    artwork: it can have come from AIC or from the bundled set and not be in the index.
-    See migration 009.
+    artwork: it can have come from AIC live, from Cleveland or from the bundled set and
+    not be in the index. See migration 009.
+
+    `dislike` arrived with M13 and sits between the other two: a ranking signal that does
+    not remove the artwork from the rotation. Migration 010.
     """
 
-    kind: Literal["like", "hide"]
+    kind: Literal["like", "dislike", "hide"]
+    museum: Literal["aic", "cma"] = "aic"
     title: str | None = Field(default=None, max_length=500)
     artist: str | None = Field(default=None, max_length=300)
     image_id: str | None = Field(default=None, max_length=100)
@@ -219,6 +261,7 @@ class FeedbackSummary(BaseModel):
     """What the display needs to know about the personal mode without asking twice."""
 
     likes: int
+    dislikes: int = 0
     hides: int
     personalising: bool
     """Whether there are enough likes for "For you" to mean anything. Below the threshold

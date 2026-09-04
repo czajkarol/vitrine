@@ -22,6 +22,8 @@ from app.core.logging import configure as configure_logging
 from app.domain.rate_limit import RateLimiter
 from app.providers.ai.factory import create_provider
 from app.providers.aic.client import AicClient
+from app.providers.cma.client import CMA_KEY, CmaClient
+from app.providers.source import ArtworkSource
 from app.repositories.ai_usage import AiUsageRepository
 from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.credentials import create_credential_store
@@ -111,6 +113,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     await app.state.ai_credentials.restore()
 
+    # Museums served live, with no index behind them. One entry today; the dict rather
+    # than a field because the whole point of `ArtworkSource` is that the count can change
+    # without anything above it caring. ADR-0013.
+    live_sources: dict[str, ArtworkSource] = {CMA_KEY: CmaClient(settings)}
+    app.state.live_sources = live_sources
+
     app.state.selection = SelectionService(
         index=index,
         history=HistoryRepository(database),
@@ -118,6 +126,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         fallback=fallback,
         client=app.state.aic_client,
         feedback=FeedbackRepository(database),
+        live_sources=live_sources,
     )
     # Seed the proxy's base from whatever we already know, so an index-only start can
     # still serve images without waiting for a live AIC response.
@@ -127,6 +136,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await app.state.aic_client.aclose()
+        for source in live_sources.values():
+            await source.aclose()
         # Whichever provider is live by now — the one built from .env, or one built from
         # a key saved while the app was running. A real provider holds an HTTP client of
         # its own; the mock does not.

@@ -243,7 +243,7 @@ class TestMerge:
         pool = await index.sample(limit=5, curated=True)
         assert len(pool) == 5
         # Facet filtering reads artwork_facets, which is derived and easy to leave behind.
-        filtered = await index.sample(limit=5, facets=["type.painting"])
+        filtered = await index.sample(limit=5, facets=[["type.painting"]])
         assert filtered
 
 
