@@ -175,7 +175,17 @@ export function present(elements, artwork, image) {
   }
 
   // Tint the page behind the letterboxing with the artwork's dominant colour, heavily
-  // desaturated and darkened so it reads as a ground rather than a colour cast.
+  // desaturated and *lightened* so it reads as a ground rather than a colour cast.
+  //
+  // The ground was near-black until M17 and is now a warm dark wall rather than a void.
+  // Four values were tried in a browser to get here: ecru was too bright, a dark brown
+  // was muddy, and a neutral grey at the right lightness was legible and dead. The
+  // lightness and the saturation below are what carries warmth without mud.
+  //
+  // **The hue is the artwork's own, and that is the point of doing it here rather than
+  // in CSS.** The wall shifts with what is hanging on it — cool behind a blue print,
+  // umber behind a bronze — which is the one thing about this that reads as deliberate
+  // rather than as a colour someone picked.
   //
   // The same colour's lightness also decides how hard the overlay scrim has to work: a
   // white-ground print needs a stronger and taller gradient than an oil painting, and
@@ -184,7 +194,7 @@ export function present(elements, artwork, image) {
   // The threshold is a judgement, not a measurement — see LIGHT_GROUND_L.
   if (artwork.color) {
     const { h, s, l } = artwork.color;
-    body.style.backgroundColor = `hsl(${h}deg ${Math.min(s, 30)}% 7%)`;
+    body.style.backgroundColor = `hsl(${h}deg ${Math.min(s, 22)}% 33%)`;
     body.dataset.ground = l > LIGHT_GROUND_L ? 'light' : 'dark';
   } else {
     body.style.backgroundColor = '';

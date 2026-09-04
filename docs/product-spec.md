@@ -10,7 +10,9 @@ If a feature would make it feel more like a dashboard, it does not belong.
 ## The display
 
 - One artwork at a time, centred, aspect ratio preserved, `object-fit: contain`.
-- Background is near-black, not pure black — pure black makes dark artworks lose their edges.
+- Background is a **warm dark ground**, not near-black and not white. Near-black read as absence
+  rather than as a room; a true ecru made the frame the brightest thing on screen and the
+  artwork a hole in it. See Colour below.
 - Optimised for 16:9. Other ratios must not break, but do not get bespoke layouts.
 - No visible controls at rest. Everything appears on interaction and fades out again.
 
@@ -56,14 +58,26 @@ this app is idle 99% of the time and the GPU should know it.
 
 ### Colour
 
-Tint the page background with the artwork's dominant colour, heavily desaturated and darkened,
-and transition it alongside the crossfade. It makes the letterboxing feel intentional rather
-than empty. Source it from the API `color` field, which is confirmed present and carries HSL
+Tint the page background with the artwork's dominant colour, heavily desaturated, and
+transition it alongside the crossfade. It makes the letterboxing feel intentional rather
+than empty.
+
+**The ground is a warm dark wall, and it took four values in a browser to find.** It was
+near-black until M17 and read as absence rather than as a room, which is what prompted the
+change. A true ecru was tried next and is wrong for the opposite reason: it makes the frame
+the brightest thing on screen, turns the artwork into a hole in it, and stops white caption
+text being readable. A dark warm brown was muddy. A neutral grey at the right lightness was
+legible and dead. What works is that lightness with the warmth left in — `hsl(hue 22% 33%)`,
+the wall of a dimly lit gallery.
+
+**The hue is the artwork's own, and that is the whole point.** The wall shifts with what is
+hanging on it — cooler behind a blue print, umber behind a bronze. It is the one thing about
+the ground that reads as deliberate rather than as a colour somebody picked, and it is why
+this is set from the API field in `display.js` rather than written in CSS. Source it from the API `color` field, which is confirmed present and carries HSL
 plus a population count (`docs/aic-api.md`). It is `null` on works without an image, so keep the
 `lqip` derivation as the fallback for that case only.
 
-The same field's `l` also picks the overlay scrim: above 60, the artwork gets a stronger and
-taller gradient. **It is a hint, not a measurement, and the design must not depend on it.** AIC
+The same field's `l` also picks the overlay scrim: above 60, the artwork gets a stronger one. **It is a hint, not a measurement, and the design must not depend on it.** AIC
 reports the dominant colour of the whole image, and a Winslow Homer watercolour drawn in
 graphite on tan paper comes back at `l = 6` — as dark as anything in the collection — while
 reading as a bright cream ground under the caption. So the default scrim is strong enough on its
@@ -126,6 +140,13 @@ Esc        close settings if open, else close overlay if open, else exit fullscr
 Plus one mouse gesture, and only one: **a left click on the artwork while in fullscreen** hides
 the overlay entirely, and movement does not bring it back. A second click restores it. Both say
 so once on the status line, because a click that hides every control also hides the way back.
+**Restoring has to actually restore.** Clearing the suppressed flag is not the same as putting
+the overlay back: it used to only clear the flag, and the overlay then stayed hidden until the
+next pointer *movement*. A click does not move the mouse, so the gesture meant to bring the
+controls back brought nothing back — the status line said they had returned and the screen did
+not change — and it appeared to work only on whichever press the user happened to jog the mouse
+on. A press now counts as presence everywhere the overlay listens for movement.
+
 Only in fullscreen — windowed there is chrome around the page already, and the gesture would be
 a click that silently changed a mode. Clicks that land on the overlay's own buttons, or on an
 expanded description, are not this.
@@ -205,6 +226,24 @@ glanced at across a room are not right for four hundred words.
 The scrim strengthens with it. The gradient is relative to the overlay's own box, so an overlay
 expanded to most of the screen stretches the same gradient over 700px and stops being a scrim —
 measured on a gilded triptych, where the title sat over gold leaf.
+
+**The scrim is a column, not a bar across the frame.** The caption is left-aligned inside a
+measure and never uses the right half of the screen, so darkening that half was hiding artwork
+for nothing. Expanded it is the same shape, wider — which makes the change between the two
+states a change of width rather than of shape. It cross-fades, and it has to be built as two
+layers at different opacities to do that: a gradient does not interpolate into a different
+gradient, so the old approach of swapping the gradient's numbers was a step change across most
+of the screen.
+
+That old approach drove the vertical gradient almost to opaque when the details opened. It
+worked, and it blacked out the entire frame to read one paragraph — the wrong trade on a
+display whose whole job is the picture.
+
+**Nothing on the display outlasts the mouse, including the pointer itself.** It hides after six
+seconds of stillness and returns on any movement or press. Slower than the overlay's own 3.5s,
+because a cursor that vanishes while somebody is still deciding where to click is a different
+kind of annoyance — and never while the settings panel is open, where they may be reading a
+form rather than aiming at anything.
 
 Expansion is per artwork and temporary. It collapses when the artwork rotates, on `Esc`, and
 when the overlay fades. While it is open **the rotation is held** and the idle fade stretches

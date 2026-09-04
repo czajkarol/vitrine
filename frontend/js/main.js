@@ -763,6 +763,61 @@ async function onFullscreenChange() {
 
 document.addEventListener('fullscreenchange', () => void onFullscreenChange());
 
+// --- The pointer is chrome, and it goes away like the rest of it --------------------
+//
+// Slower than the overlay's own 3.5s fade on purpose. The overlay reappears on the next
+// mouse movement and costs nothing to bring back; a cursor that vanishes while somebody
+// is still deciding where to click is a different kind of annoyance, so it waits until
+// the movement has genuinely stopped.
+const CURSOR_IDLE_MS = 6000;
+
+let cursorTimer = null;
+let cursorHidden = false;
+
+/**
+ * One self-rescheduling timer, not a new one per mousemove.
+ *
+ * `pointermove` fires dozens of times a second and this display runs for hours; churning
+ * a timer per event is the accumulation `frontend/CLAUDE.md` warns about, and it is the
+ * same shape `overlay.js` uses for the same reason.
+ *
+ * This lives here rather than beside that one because it has to know whether the settings
+ * panel is open, and `overlay.js` has no business knowing that. A cursor that disappears
+ * while somebody is reading a form is worse than one that never disappears at all.
+ */
+function cursorTick() {
+  const idle = Date.now() - lastPointerAt;
+  if (idle < CURSOR_IDLE_MS) {
+    cursorTimer = setTimeout(cursorTick, CURSOR_IDLE_MS - idle);
+    return;
+  }
+  cursorTimer = null;
+  if (panel.isOpen()) return;
+  document.body.classList.add('cursor-idle');
+  cursorHidden = true;
+}
+
+let lastPointerAt = Date.now();
+
+function wakeCursor() {
+  lastPointerAt = Date.now();
+  if (cursorHidden) {
+    document.body.classList.remove('cursor-idle');
+    cursorHidden = false;
+  }
+  if (cursorTimer === null) cursorTimer = setTimeout(cursorTick, CURSOR_IDLE_MS);
+}
+
+// `pointermove` rather than `mousemove`: a touch or a pen should bring it back too.
+// Passive, because nothing here calls preventDefault and the listener is on every move.
+document.addEventListener('pointermove', wakeCursor, { passive: true });
+// A press is presence too, and a click with a hidden pointer should put it back.
+document.addEventListener('pointerdown', wakeCursor, { passive: true });
+// Opening the panel with `S` must put the pointer back, or the first thing the user has
+// to do in a form they just opened is find their mouse.
+document.addEventListener('keydown', wakeCursor);
+wakeCursor();
+
 nextButton?.addEventListener('click', advance);
 backButton?.addEventListener('click', () => void travel(-1));
 likeButton?.addEventListener('click', () => void setVerdict('like'));

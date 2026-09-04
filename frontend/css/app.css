@@ -41,8 +41,16 @@
 }
 
 :root {
-  /* Near-black, not pure black: pure black makes dark artworks lose their edges. */
-  --bg: #0e0e10;
+  /* A warm dark ground, and it took four tries in a browser to land on.
+     Near-black was a void: the letterboxing read as absence rather than as a room, which
+     is what prompted the change. A true ecru was too bright — it makes the frame the
+     brightest thing on screen and the artwork a hole in it. A dark warm brown was muddy.
+     A neutral grey at the right lightness was legible and dead. What works is the same
+     lightness with the warmth left in: the wall of a dimly lit gallery.
+
+     This is only the fallback. What is normally on screen is this lightness and
+     saturation carrying the *artwork's own* dominant hue — see display.js. */
+  --bg: #675742;
   --fg: #e8e6e3;
   /* Raised from #9a9793. The dim colour carries the description, the date and the
      medium — the text most likely to be sitting over a pale part of an artwork —
@@ -60,15 +68,17 @@
   /* The overlay scrim, as three numbers so the ground rule below can restate them
      without swapping a whole gradient.
 
-     These are the *default*, and they are stronger than the 0.82 / 0.55 / 45% they
-     replace, because the artwork-driven variant below cannot be relied on. AIC's `color`
+     Raised again when the ground went from near-black to ecru: the letterboxing is now
+     the brightest thing on screen rather than the darkest, so a caption that overlaps it
+     has no dark ground to fall back on and the scrim is doing all of the work. The
+     artwork-driven variant below is still insurance rather than the mechanism. AIC's `color`
      is the dominant colour of the whole image, and a Winslow Homer watercolour on tan
      paper comes back at l=6 — as dark as anything in the collection — while reading as a
      bright cream ground under the caption. So the default has to be legible on its own
      and the light variant is insurance, not the mechanism. Measured on that Homer. */
-  --scrim-bottom: 0.88;
-  --scrim-mid: 0.66;
-  --scrim-mid-stop: 55%;
+  --scrim-bottom: 0.9;
+  --scrim-mid: 0.8;
+  --scrim-mid-stop: 68%;
 
   /* Overlay text sits directly on a photograph. The shadow costs nothing at rest and
      rescues the case the scrim alone does not — a white-ground print, where the
@@ -82,8 +92,18 @@
    that is already sufficient rather than rescuing one that is not. */
 body[data-ground='light'] {
   --scrim-bottom: 0.94;
-  --scrim-mid: 0.78;
-  --scrim-mid-stop: 68%;
+  --scrim-mid: 0.86;
+  --scrim-mid-stop: 76%;
+}
+
+/* The scrim is a column, at rest and expanded, and these are its two widths. Held solid
+   across the measure the text actually occupies, then faded out — in rem so they track
+   the type, capped in per cent so a narrow window never gets a column wider than itself. */
+:root {
+  --caption-hold: min(36rem, 44%);
+  --caption-end: min(54rem, 66%);
+  --reading-hold: min(50rem, 56%);
+  --reading-end: min(68rem, 80%);
 }
 
 * { box-sizing: border-box; }
@@ -150,12 +170,6 @@ body {
   right: 0;
   bottom: 0;
   padding: 2rem 2.5rem;
-  background: linear-gradient(
-    to top,
-    rgba(0, 0, 0, var(--scrim-bottom)),
-    rgba(0, 0, 0, var(--scrim-mid)) var(--scrim-mid-stop),
-    transparent
-  );
   opacity: 0;
   /* visibility, not only opacity: the overlay now holds real buttons, and a button at
      opacity 0 is still in the tab order. Transitioning it alongside opacity means it
@@ -177,17 +191,73 @@ body {
   visibility: visible;
 }
 
-/* Expanded, the overlay is most of the screen tall, and the gradient is relative to its
-   own box — so the title ends up near the transparent top of it, over whatever the artwork
-   has there. At rest that is fine, because the caption sits in the bottom fifth where the
-   scrim is at its strongest. Reading a paragraph is a different situation, and the same
-   gradient stretched over 700px is not a scrim any more. Seen in a browser on a gilded
-   triptych, where the title was over gold leaf. */
-.overlay:has(.facts.expanded) {
-  --scrim-bottom: 0.94;
-  --scrim-mid: 0.86;
-  --scrim-mid-stop: 92%;
+/* **Two scrims, cross-faded, rather than one gradient that changes shape.**
+   A gradient does not interpolate into a different gradient, so the old approach — swap
+   the three custom properties when the details open — was a step change on a surface
+   covering most of the screen. Two stacked pseudo-elements at different opacities do
+   transition, and the whole thing now dissolves from one shape to the other.
+   They are pseudo-elements and not the overlay's own background because the second one
+   needs a mask, and a mask on `.overlay` would take the text with it. */
+.overlay::before,
+.overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: opacity var(--fade-ui) ease-in-out;
 }
+
+/* At rest: a column too, and it has to be.
+   This was a vertical ramp across the full width, which worked while the ground behind it
+   was near-black — the caption was white on dark whether the scrim reached it or not. On
+   an ecru ground it is white on cream at the top of the gradient, which is unreadable, and
+   that showed up in the browser on the first artwork. A column is also the honest shape:
+   the caption is left-aligned inside a 68ch measure and never uses the right half of the
+   screen, so darkening it was only ever hiding artwork for nothing. */
+.overlay::before {
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, var(--scrim-bottom)) 0,
+    rgba(0, 0, 0, var(--scrim-mid)) var(--caption-hold),
+    rgba(0, 0, 0, 0) var(--caption-end)
+  );
+  -webkit-mask-image: linear-gradient(to top, #000 84%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 84%, transparent 100%);
+  opacity: 1;
+}
+
+/* Expanded: a reading column, and only what is under the words gets darkened.
+   Blacking out the whole frame to read a paragraph hides the artwork the paragraph is
+   about, which is the wrong trade on a display whose entire job is the picture. The
+   column is held solid across the measure and fades out to the right; the mask softens
+   its top edge, because a hard horizontal cut across a picture reads as a rectangle laid
+   on top of it rather than as light. */
+.overlay::after {
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.93) 0,
+    rgba(0, 0, 0, 0.9) var(--reading-hold),
+    rgba(0, 0, 0, 0) var(--reading-end)
+  );
+  -webkit-mask-image: linear-gradient(to top, #000 72%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 72%, transparent 100%);
+  opacity: 0;
+}
+
+.overlay:has(.facts.expanded)::before { opacity: 0; }
+.overlay:has(.facts.expanded)::after { opacity: 1; }
+
+/* Above both scrims. Without this the panel sits in the same stacking order as the
+   pseudo-elements and the later one paints over the words. */
+.overlay-panel { position: relative; z-index: 1; }
+
+/* The problem this used to solve, and why the answer changed. Expanded, the overlay is
+   most of the screen tall and the vertical gradient is relative to its own box, so the
+   title ended up near the transparent top of it — over gold leaf, on the triptych where
+   this was first seen. The fix then was to drive that gradient almost to opaque, which
+   worked and blacked out the entire frame to read one paragraph. The reading column above
+   solves the same problem by darkening the words' own width instead, and leaves the
+   artwork visible beside them. */
 
 /* Measured, not full-bleed: prose set across a 2560px monitor is unreadable. Widened
    from 62ch with the type scale below — the same measure at a larger size is a
@@ -256,6 +326,19 @@ body {
    and 1.0625rem is small for that. The whole panel steps up together - a description that
    grew while its title stayed put would look like a rendering fault - and the measure
    widens with it so the line length stays about the same count of words. */
+/* The step up in size is transitioned, not snapped. It is the same act as the scrim
+   cross-fade above and looked wrong finishing at a different moment from it. */
+.overlay-panel,
+.ov-title,
+.ov-artist,
+.ov-meta,
+.ov-description {
+  transition:
+    font-size var(--fade-ui) ease-in-out,
+    max-width var(--fade-ui) ease-in-out,
+    color var(--fade-ui) ease-in-out;
+}
+
 .facts.expanded { max-width: 76ch; }
 .facts.expanded .ov-title { font-size: 2rem; }
 .facts.expanded .ov-artist { font-size: 1.25rem; }
@@ -388,6 +471,13 @@ body {
 }
 
 .status.visible { opacity: 1; }
+
+/* The pointer is chrome too, and it was the one piece that never went away. An arrow
+   parked over a painting for six hours is exactly the kind of thing this display is
+   supposed not to have on it. `*` as well as `body`, because every button under it sets
+   its own cursor and would otherwise put the arrow back. */
+body.cursor-idle,
+body.cursor-idle * { cursor: none; }
 
 /* Nothing should animate at rest, and reduced motion means cut, not fade. */
 @media (prefers-reduced-motion: reduce) {

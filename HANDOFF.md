@@ -313,6 +313,23 @@ All found the hard way, in a browser or against the live API. Each is documented
     Verified by holding an artwork on a 30-second rotation and watching it stay for 48 seconds,
     then watching the next one rotate normally at 26.
 
+32. **Clearing a "hidden" flag is not the same as showing the thing again.** `setSuppressed`
+    hid the overlay on the way in and, on the way out, only set `suppressed = false` — leaving
+    it to reappear on the next pointer *movement*. A click is not a movement, so the fullscreen
+    gesture that restores the chrome restored nothing while the status line said it had. It
+    looked intermittent because it worked whenever the hand happened to jog the mouse.
+    `setSuppressed(false)` now nudges, and `pointerdown` counts as presence alongside
+    `pointermove` — which also stops an ordinary click being lost when the overlay has merely
+    faded, since a hidden overlay is `visibility: hidden` and its buttons are not hit-testable.
+33. **Playwright's `mouse.click()` moves the pointer first, so it cannot see any of that.**
+    Both halves of 32 are about a press with *no* preceding movement, and `click()` always
+    supplies one. Park the pointer once with `mouse.move()`, then use `mouse.down()` /
+    `mouse.up()`. Same family as gotcha 25: the test's own convenience was hiding the bug.
+34. **A ground colour has to be chosen in front of an artwork, not in a palette.** It took four
+    values — near-black read as absence, ecru made the frame the brightest thing on screen, a
+    dark brown was muddy, a neutral grey was legible and dead. Only the last of those was
+    predictable from a swatch. Screenshot it against a real work before believing it.
+
 ## Outstanding, and only the owner can close it
 
 *(The first of these is closed. Kept below, struck through, because the way it was closed is

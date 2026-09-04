@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 vitrine — an ambient digital-art display. It shows one public-domain artwork at a time,
-full-bleed on a dark background, rotating on a timer. The Art Institute of Chicago is the
+full-bleed on a warm dark ground, rotating on a timer. The Art Institute of Chicago is the
 primary source and the only indexed one; the Cleveland Museum of Art is selectable and served
 live (ADR-0013). Python/FastAPI backend, vanilla-JS frontend, SQLite. Runs locally on the
 developer's machine.

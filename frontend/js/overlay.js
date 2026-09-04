@@ -164,6 +164,12 @@ export function createOverlay(elements, handlers = {}) {
   }
 
   window.addEventListener('pointermove', onPointerMove, { passive: true });
+  // A press counts as presence too. Without this a click that lands while the overlay has
+  // faded is simply lost — the overlay is `visibility: hidden`, so its buttons are not
+  // hit-testable — and the display looks unresponsive to somebody whose hand never left
+  // the mouse. Now the first click brings the controls back, which is what every media
+  // player does and what the fullscreen toggle above already assumed happened.
+  window.addEventListener('pointerdown', onPointerMove, { passive: true });
   expandButton?.addEventListener('click', onExpandClick);
   description.addEventListener('scroll', onDescriptionScroll, { passive: true });
 
@@ -265,7 +271,17 @@ export function createOverlay(elements, handlers = {}) {
      */
     setSuppressed(next) {
       suppressed = next;
-      if (!suppressed) return;
+      if (!suppressed) {
+        // **Clearing the flag is not the same as putting the overlay back.**
+        // It used to be just the `return`, and the overlay then stayed hidden until the
+        // next pointer *movement* happened to call nudge(). A click does not move the
+        // mouse, so the gesture that is supposed to restore the chrome restored nothing:
+        // the status line said "controls shown" and nothing appeared, and it only ever
+        // worked on whichever press the user happened to jog the mouse on. Reported as
+        // the left button taking several presses to do anything.
+        nudge();
+        return;
+      }
       pinned = false;
       visible = false;
       clearTimeout(hideTimer);
@@ -290,6 +306,7 @@ export function createOverlay(elements, handlers = {}) {
 
     destroy() {
       window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerdown', onPointerMove);
       expandButton?.removeEventListener('click', onExpandClick);
       description.removeEventListener('scroll', onDescriptionScroll);
       clearTimeout(hideTimer);
