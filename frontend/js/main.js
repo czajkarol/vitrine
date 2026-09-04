@@ -541,6 +541,9 @@ const panel = createPanel(
       search: document.querySelector(`[data-search="${group}"]`),
     })),
     summary: document.getElementById('panel-summary'),
+    // The sentence describing what a click does. It is `data-i18n` in the markup, but a
+    // live source runs a two-state cycle and the panel rewrites it — see setExcludable.
+    stateHint: document.getElementById('panel-filter-hint'),
     resetButton: document.getElementById('panel-reset-filters'),
     aiProviderInputs: [...document.querySelectorAll('input[name="ai-provider"]')],
     aiKeyInput: document.getElementById('panel-ai-key'),

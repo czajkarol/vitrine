@@ -30,6 +30,9 @@ or before a release. They are also how fixtures get refreshed.
 5. With AI disabled, the overlay shows museum data and no error
 6. `L` adds a favourite and it survives a reload
 7. A facet clicked twice excludes it, and the display stops serving that type
+   — with two further parts, added in M17 and argued for below: 7b, that clearing an
+   exclusion survives its own answer arriving late, and 7c, that a live source offers no
+   state it cannot honour
 8. The spoken description reaches the screen with its grounding line
 9. The rotation is actually held while somebody is reading
 
@@ -49,6 +52,19 @@ rule that only exists in the browser is either an e2e flow or it is untested.
   immediately: on its first run it found that the artwork-type group is called `artwork-type`
   while its facets are `type.*`, and that code matching the shared exclusion list on the group's
   own name silently dropped every exclusion in that group.
+- **7b and 7c** (M17) are parts of the seventh rather than flows ten and eleven, because they
+  are the same control and the same argument. Both cover a state the panel offered and could not
+  return from. **7b** is the reported bug: an excluded facet that could not be re-enabled. Every
+  click re-asks `/api/filters` and the answers do not arrive in the order they were asked for —
+  an exclusion is a NOT over the whole facet table and is measurably the slower query — so the
+  answer saying "excluded" could land after the answer to the click that cleared it. The panel
+  drew the stale one, and a count of zero on a row that had just gone back to `off` is exactly
+  the pair `buildRow` disables. Flow 7 could not see it: its `expect()` between clicks waits for
+  each answer, so two are never in flight. 7b puts them in flight on purpose. **7c** is the same
+  shape on Cleveland, where the third click produced an exclusion no live source can honour.
+  Both hold their timing inside the page — a sync `page.route` handler sleeps on pytest's own
+  thread and so serialises the very requests the flow needs to overlap, which makes the flow
+  pass against the bug.
 - The **eighth** (M14) covers the one feature whose failure the person it is for cannot see. A
   sighted user notices an empty panel; somebody relying on the spoken description notices
   silence, which is indistinguishable from having pressed the wrong key. So it asserts the three

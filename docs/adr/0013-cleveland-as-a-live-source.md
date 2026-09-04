@@ -99,6 +99,11 @@ feature's honesty depends on being able to say exactly where the words came from
 - **Switching source clears the filters and the history.** The two vocabularies have nothing in
   common and the two id spaces overlap, so carrying either across would show a filter that
   silently matches nothing, or offer to go back to an artwork the current source cannot serve.
+- **The filter control has two states on Cleveland, not three.** Exclusion is a NOT over the
+  canonical facet layer, which a live source does not have, so offering it was offering a state
+  the server would reject and the panel would drop on the next redraw. `setExcludable` on the
+  filter group makes the cycle off → include → off, and the hint above the groups says so.
+  Found in a browser, M17; ADR-0014 carries the other half of it.
 - **Cleveland's filter counts cost ten requests, once per hour per process.** There is no facet
   endpoint and deriving one would mean the walk this ADR exists to avoid. Cached in the client.
 - **What would make us revisit this:** wanting Curated or "For you" across both collections,

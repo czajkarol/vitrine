@@ -249,6 +249,7 @@
   "filter_state_include": "Pokazuj",
   "filter_state_exclude": "Pomijaj",
   "filter_state_hint": "Kliknij, żeby pokazywać. Drugi raz — żeby pomijać. Trzeci — żeby wyczyścić.",
+  "filter_state_hint_include_only": "Kliknij, żeby pokazywać. Drugi raz — żeby wyczyścić.",
   "filter_badge_included": "pokazuje: {count}",
   "filter_badge_excluded": "pomija: {count}",
   "filters_summary_live": "Do wyboru około {total} dzieł.",

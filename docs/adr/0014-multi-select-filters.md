@@ -100,6 +100,20 @@ obviously broken the moment it is used.
   three** — `artwork-type` versus `type.` — and code that matched the shared exclusion list on
   the wrong one silently dropped every exclusion in that group. Found by the Playwright flow
   written for this control, on its first run. The namespace is now carried explicitly.
+- **Three states is a property of the source, not of the control.** Exclusion is a NOT over the
+  canonical facet layer and only the indexed corpus has one, so on a live source the cycle is
+  two states: off → include → off (ADR-0013). It was three there for two milestones, and the
+  third click produced a state the server rejected and the next redraw dropped — a control with
+  a state that silently did nothing, which is the failure this whole panel is written to avoid.
+  The group is told whether its source can exclude, and the sentence above the groups says which
+  cycle is running. Amended M17.
+- **Every click re-asks for the counts, and the answers race.** The counts are dependent, so a
+  changed selection means a new `/api/filters`; nothing sequenced those requests, and an
+  exclusion is a NOT over the whole facet table and is reliably the slower query. So the answer
+  saying "excluded" could land *after* the answer to the click that cleared it, and the panel
+  drew the stale one. A count of zero on a row whose state had just gone back to `off` is
+  exactly the pair the row disables — the facet went inert and could not be turned back on.
+  Requests are numbered now and an answer that is not the newest is dropped. Amended M17.
 - **What would make us revisit this:** somebody wanting AND *within* a group — "tagged both
   landscape and winter" — which is a real query the subject vocabulary could support and which
   this design has no room for. It would need a fourth state or a per-group operator toggle, and

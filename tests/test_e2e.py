@@ -18,6 +18,13 @@ wholesale in M13. The eighth covers the one feature whose failure the person it 
 cannot see. The ninth covers a promise made since M3 that broke silently in M16 and that
 587 unit tests and eight flows all missed.
 
+The seventh grew two more parts in M17, and they are parts of it rather than flows ten and
+eleven because they are the same control and the same argument: both cover a state the panel
+offered and could not return from. One is the reported bug — an excluded facet that could not
+be re-enabled, because two `/api/filters` answers came back out of order and the panel drew
+the stale one. The other is the same shape on a live source, which has no facet layer to
+exclude over at all.
+
 **The ninth is slow on purpose and is the only slow one.** It waits out a real rotation
 interval, because the bug it covers is precisely that the clock keeps running when it has
 been told not to, and nothing shorter can observe that. Forty seconds is the price of the
@@ -36,6 +43,7 @@ bundled set is metadata only (`app/services/fallback.py`); that is the one thing
 touches the network, and it is what flow 1 is actually testing.
 """
 
+import json
 import re
 import socket
 import subprocess
@@ -361,6 +369,121 @@ class TestSmokeFlows:
         )
         assert "Print" not in served, served
 
+        facet.click()
+        expect(facet).to_have_attribute("data-state", "off")
+
+    def test_clearing_an_exclusion_survives_its_own_answer_arriving_late(self, display: Page):
+        """Flow 7, second half. The reported bug: an excluded facet could not be turned
+        back on.
+
+        Every click re-asks `/api/filters`, and the answers do not come back in the order
+        they were asked for. An exclusion is a NOT over the whole facet table and is
+        measurably the slower query — about 50ms slower on this index — so the answer that
+        says "excluded" can land *after* the answer to the click that cleared it. The
+        panel drew the stale one: count zero, on a row whose state had just gone back to
+        off, which is exactly the pair `buildRow` disables. The row went inert and there
+        was no way to click the facet on again.
+
+        The first half of this flow cannot see it, because `expect()` between clicks waits
+        for each answer and so never lets two be in flight. This half puts them in flight
+        on purpose, by holding the exclusion's answer back until the next one has landed.
+        The delay is the mechanism, not the assertion: what is asserted is that the row is
+        still a live control afterwards.
+
+        The holding is done in the page rather than with `page.route`, and that is not a
+        preference. A sync route handler runs on this thread, so sleeping in one stops
+        pytest issuing the second click as well as the first response — the two requests
+        never overlap and the flow passes against the bug. Patching `fetch` delays one
+        response inside the browser and leaves everything else running.
+        """
+        display.evaluate(
+            """() => {
+              const original = window.fetch;
+              window.fetch = async (...args) => {
+                const url = typeof args[0] === 'string' ? args[0] : args[0].url;
+                const response = await original(...args);
+                if (url.includes('/api/filters') && url.includes('exclude=type.print')) {
+                  await new Promise((done) => setTimeout(done, 1500));
+                }
+                return response;
+              };
+            }"""
+        )
+
+        display.keyboard.press("s")
+        expect(display.locator("#panel")).to_have_class(VISIBLE)
+        group = display.locator('[data-group="artwork-type"]')
+        group.locator("summary").click()
+        facet = group.locator('.facet[data-value="type.print"]')
+
+        facet.click()  # include
+        expect(facet).to_have_attribute("data-state", "include")
+        # No waiting between these two: the second click has to leave while the first
+        # one's request is still out, which is the whole point.
+        facet.click()  # exclude — its answer is held
+        facet.click()  # clear
+
+        expect(facet).to_have_attribute("data-state", "off")
+        # The late answer has landed by now, and must have been dropped rather than drawn.
+        display.wait_for_timeout(2_500)
+        expect(facet).to_have_attribute("data-state", "off")
+        expect(facet).to_be_enabled()
+        # And it is a control again, not just a row that looks enabled.
+        facet.click()
+        expect(facet).to_have_attribute("data-state", "include")
+
+    def test_a_live_source_offers_no_state_it_cannot_honour(self, display: Page):
+        """Flow 7, third part, and the same bug family as the second.
+
+        Exclusion is a NOT over the canonical facet layer, and only the indexed corpus has
+        one (ADR-0009, ADR-0013). On Cleveland the third click produced a state the server
+        would not accept, `applySelection` then dropped on the next redraw, and the row
+        snapped back to off — a control with a state that silently did nothing. The cycle
+        is two states there, and the sentence above the groups says which one is running.
+
+        Cleveland's own vocabulary is stubbed rather than fetched. What is under test is
+        the control, not the museum, and the rest of this file stays off the network for
+        everything except the one image in flow 1. The shape of the stub is what
+        `_live_filters` returns: bare artwork types with live totals, and no facet keys —
+        which is the very difference the two-state cycle exists to express.
+        """
+        display.route(
+            re.compile(r"/api/filters\?.*museum=cma"),
+            lambda route: route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "museum": "cma",
+                        "artwork_types": [
+                            {"value": "Painting", "count": 1234, "label": "Painting"},
+                            {"value": "Print", "count": 567, "label": "Print"},
+                        ],
+                        "styles": [],
+                        "subjects": [],
+                        "minimum_count": 0,
+                        "maximum_options": 2,
+                        "indexed_total": 1801,
+                    }
+                ),
+            ),
+        )
+        # Switching source also asks for a Cleveland artwork. Refused rather than fetched:
+        # the display shows its own "could not reach the source" line, which is not what
+        # this flow is looking at, and no request leaves the machine.
+        display.route(re.compile(r"/api/artwork/.*museum=cma"), lambda route: route.abort())
+
+        display.keyboard.press("s")
+        expect(display.locator("#panel")).to_have_class(VISIBLE)
+        expect(display.locator("#panel-filter-hint")).to_contain_text("exclude")
+
+        display.locator('input[name="museum"][value="cma"]').check()
+        expect(display.locator("#panel-filter-hint")).not_to_contain_text("exclude")
+
+        group = display.locator('[data-group="artwork-type"]')
+        facet = group.locator('.facet[data-value="Painting"]')
+        facet.click()
+        expect(facet).to_have_attribute("data-state", "include")
         facet.click()
         expect(facet).to_have_attribute("data-state", "off")
 

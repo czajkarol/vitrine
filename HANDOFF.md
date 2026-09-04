@@ -231,6 +231,29 @@ All found the hard way, in a browser or against the live API. Each is documented
     clones this. Look at what `git add -A` is about to stage in a repository that has a committed
     template file in it.
 
+25. **Two requests for the same thing do not come back in the order you asked.** Every facet
+    click re-asks `/api/filters`, nothing sequenced them, and an exclusion is a NOT over the
+    whole facet table — about 50ms slower than the same query without one on this index. So the
+    answer saying "excluded" could land *after* the answer to the click that cleared it, and the
+    panel drew the stale one. A count of zero on a row whose state had just gone back to `off`
+    is exactly the pair `buildRow` disables: the facet went dead and there was no way to click
+    it on again. `loadFilters` numbers its requests and drops any answer that is not the newest.
+    Flow 7 could not see this — its `expect()` between clicks waits for each answer, so two are
+    never in flight — and neither could a route handler that sleeps, which stops pytest issuing
+    the second click as well. The delay has to happen inside the page. `frontend/js/panel.js`.
+26. **A control offered a state its source could not honour.** The tri-state facet control was
+    the same control on Cleveland, where exclusion is a NOT over a facet layer that does not
+    exist: the third click produced a value the server rejected, `applySelection` dropped it on
+    the next redraw, and the row snapped back to off. Whether a group can exclude is now set
+    from the source before its options are, and the hint above the groups says which cycle is
+    running. ADR-0013, ADR-0014.
+27. **A dev server left running from an earlier session serves the code it started with.**
+    Started without `--reload`, `uvicorn` on port 8000 answered every request with a pre-M13
+    `PreferencesResponse` — `artwork_type` as a `str`, so every save 422'd and every read fell
+    through to the defaults. It looks exactly like a frontend that has stopped persisting
+    anything. Check what is actually listening before believing a bug: the stale process here
+    was six hours old and the port was busy, so a fresh `uvicorn` never bound at all.
+
 ## Outstanding, and only the owner can close it
 
 *(The first of these is closed. Kept below, struck through, because the way it was closed is

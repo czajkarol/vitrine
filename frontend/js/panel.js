@@ -20,8 +20,9 @@ import { INTERVAL_SECONDS } from './rotation.js';
 
 export function createPanel(elements, handlers) {
   const { panel, modeInputs, museumInputs, languageInputs, ambientInput, ambientGroup,
-    intervalList, filterGroups, summary, resetButton, aiProviderInputs, aiKeyInput,
-    aiSaveButton, aiClearButton, aiStatusLine, aiStorageLine, modeGroup } = elements;
+    intervalList, filterGroups, summary, stateHint, resetButton, aiProviderInputs,
+    aiKeyInput, aiSaveButton, aiClearButton, aiStatusLine, aiStorageLine,
+    modeGroup } = elements;
 
   let open = false;
   let loaded = false;
@@ -39,6 +40,15 @@ export function createPanel(elements, handlers) {
   // The filter vocabulary as fetched. Kept so a language change can relabel the list
   // without asking the server for it again.
   let filters = null;
+  // Every /api/filters request this panel makes, numbered. A selection can change faster
+  // than the server answers, and the answers do not come back in the order they were
+  // asked for — an exclusion costs a NOT over the whole facet table and is reliably the
+  // slower query, so the request that says "excluded" can land *after* the one that says
+  // "cleared". Drawing that stale answer put a count of zero on a row whose state had
+  // just gone back to off, and `buildRow` disables exactly that pair: the row went inert
+  // and there was no way to click the facet back on. A response that is not the newest
+  // is dropped rather than drawn.
+  let filterRequest = 0;
   // The panel's idea of the current settings, kept because the filter list is built lazily
   // on first open — long after preferences were restored at boot. Without this the panel
   // showed nothing selected while the rotation was actually filtered.
@@ -93,6 +103,17 @@ export function createPanel(elements, handlers) {
     void loadFilters();
   }
 
+  /**
+   * Whether the current source is the indexed corpus.
+   *
+   * Three things hang off this and they used to spell it out separately: the modes that
+   * rank against a score, the sentence under the filters, and — since the Cleveland
+   * exclusion bug — whether a facet control has a third state at all. ADR-0013.
+   */
+  function isIndexed() {
+    return current.museum === 'aic';
+  }
+
   function currentSelection() {
     return {
       museum: current.museum,
@@ -138,7 +159,12 @@ export function createPanel(elements, handlers) {
    * answers this from its own cache — see `providers/cma/client.py`.
    */
   async function loadFilters() {
-    filters = await fetchFilters(currentSelection());
+    const ticket = ++filterRequest;
+    const next = await fetchFilters(currentSelection());
+    // Someone clicked again while this was in flight. Its counts describe a selection
+    // that is no longer the one on screen, and the newer request will draw the right ones.
+    if (ticket !== filterRequest) return;
+    filters = next;
     loaded = true;
     renderFilters();
   }
@@ -206,6 +232,14 @@ export function createPanel(elements, handlers) {
     };
     const anyOffered = Object.values(source).some((options) => (options ?? []).length > 0);
 
+    // How many states a control has follows from the source, not from whether its
+    // vocabulary arrived — so it is settled before anything can return early. Exclusion
+    // is a NOT over the canonical facet layer and only the indexed corpus has one
+    // (ADR-0009, ADR-0013); a live source gets two states, and the sentence above the
+    // groups says which cycle is running.
+    for (const group of groups) group.setExcludable(isIndexed());
+    if (stateHint) stateHint.textContent = t(groups[0]?.hintKey() ?? 'filter_state_hint');
+
     if (!filters || !anyOffered) {
       for (const group of groups) group.setOptions([], facetLabel);
       summary.textContent = filters?.indexed_total
@@ -214,10 +248,9 @@ export function createPanel(elements, handlers) {
       return;
     }
 
-    summary.textContent =
-      current.museum === 'aic'
-        ? t('filters_summary', { total: filters.indexed_total })
-        : t('filters_summary_live', { total: filters.indexed_total });
+    summary.textContent = isIndexed()
+      ? t('filters_summary', { total: filters.indexed_total })
+      : t('filters_summary_live', { total: filters.indexed_total });
     for (const group of groups) group.setOptions(source[group.group] ?? [], facetLabel);
     // The lists were just rebuilt from scratch and know nothing about what is selected.
     applySelection();
@@ -438,7 +471,7 @@ export function createPanel(elements, handlers) {
    * index. Offering them anyway would be offering a mode that silently is not one.
    */
   function syncModes() {
-    const indexed = current.museum === 'aic';
+    const indexed = isIndexed();
     for (const input of modeInputs) {
       if (input.value === 'random') continue;
       input.disabled = !indexed;

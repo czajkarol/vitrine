@@ -21,9 +21,15 @@ const SEARCHABLE_FROM = 12;
 
 export const STATES = ['off', 'include', 'exclude'];
 
-/** What clicking a row does: off → include → exclude → off. */
-function nextState(state) {
-  return STATES[(STATES.indexOf(state) + 1) % STATES.length];
+/** The cycle where exclusion is not on offer: off → include → off. */
+export const INCLUDE_ONLY_STATES = ['off', 'include'];
+
+/** What clicking a row does, given the cycle this group is running. */
+function nextState(state, cycle) {
+  // A state that is not in this cycle — an exclusion carried over from a source that had
+  // one — leaves at the start of it rather than staying put.
+  const at = cycle.indexOf(state);
+  return cycle[(at + 1) % cycle.length];
 }
 
 /**
@@ -42,6 +48,15 @@ export function createFilterGroup({ group, prefix, field, elements }, handlers) 
   let options = [];
   let states = new Map();
   let query = '';
+  // Whether this group's source can honour an exclusion at all.
+  //
+  // Only the indexed corpus has a facet layer, and exclusion is a NOT over it (ADR-0009,
+  // ADR-0013). A live source has neither, so the third click on Cleveland produced a
+  // state the server would not accept, `applySelection` then dropped on the next redraw,
+  // and the row snapped back to off — a control with a state that silently does nothing,
+  // which is the one thing this panel is written not to do. Where exclusion is not on
+  // offer the control has two states rather than three, and the hint says so.
+  let excludable = true;
 
   function matches(option, label) {
     if (!query) return true;
@@ -105,10 +120,10 @@ export function createFilterGroup({ group, prefix, field, elements }, handlers) 
     // "Painting, 2,614" alone does not say whether it is on.
     button.setAttribute(
       'aria-label',
-      `${label}. ${t(`filter_state_${state}`)}. ${t('filter_state_hint')}`,
+      `${label}. ${t(`filter_state_${state}`)}. ${t(hintKey())}`,
     );
     button.addEventListener('click', () => {
-      const next = nextState(states.get(option.value) ?? 'off');
+      const next = nextState(states.get(option.value) ?? 'off', cycle());
       states.set(option.value, next);
       handlers.onChange(field, option.value, next);
     });
@@ -129,6 +144,15 @@ export function createFilterGroup({ group, prefix, field, elements }, handlers) 
     if (parts.length > 0) root.open = true;
   }
 
+  function cycle() {
+    return excludable ? STATES : INCLUDE_ONLY_STATES;
+  }
+
+  /** Which sentence describes the cycle this group is actually running. */
+  function hintKey() {
+    return excludable ? 'filter_state_hint' : 'filter_state_hint_include_only';
+  }
+
   search?.addEventListener('input', () => {
     query = search.value.trim();
     handlers.onSearch?.();
@@ -140,6 +164,21 @@ export function createFilterGroup({ group, prefix, field, elements }, handlers) 
     // group's facets are `type.*`. `panel.js` sorts the shared exclusion list by this.
     prefix,
     field,
+
+    hintKey,
+
+    /**
+     * Say whether this group's source can exclude. Set before the options, because it
+     * decides how many states a row has and therefore what the rows say.
+     */
+    setExcludable(value) {
+      excludable = value === true;
+      // An exclusion left over from a source that had one would otherwise sit there
+      // unreachable: the cycle that produced it no longer exists to undo it.
+      if (!excludable) {
+        for (const [key, state] of states) if (state === 'exclude') states.set(key, 'off');
+      }
+    },
 
     /** Replace the offered options. Does not change what is selected. */
     setOptions(next, labelFor) {
