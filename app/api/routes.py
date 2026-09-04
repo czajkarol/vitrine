@@ -37,7 +37,13 @@ from app.domain.affinity import MIN_LIKES_FOR_PROFILE
 from app.domain.artwork import CACHED_IIIF_WIDTHS, PREFERRED_IIIF_WIDTH
 from app.domain.rate_limit import RateLimiter
 from app.domain.scoring import WEIGHTS
-from app.domain.vocabulary import FACET_GROUPS, FacetGroup, facet_for, label_for
+from app.domain.vocabulary import (
+    DEFAULT_EXCLUDED_FACETS,
+    FACET_GROUPS,
+    FacetGroup,
+    facet_for,
+    label_for,
+)
 from app.providers.ai.base import AiError
 from app.providers.aic.client import AicClient, AicError, AicUnavailableError
 from app.providers.source import SourceError
@@ -511,8 +517,17 @@ async def read_preferences(
         (SUBJECT_KEY, "subject", _included_facets),
         (EXCLUDE_KEY, "exclude", _valid_facets),
     ):
-        stored = await preferences.get(key) or ""
-        fields[name] = clean([part for part in stored.split(EXCLUDE_SEPARATOR) if part])
+        stored = await preferences.get(key)
+        if key == EXCLUDE_KEY and stored is None:
+            # Never written, which on this table means no preference has ever been saved:
+            # a PUT writes every key at once, so the row is absent only on a fresh install.
+            # That is what separates "has not started yet" from "cleared the list", and an
+            # empty string is the second of those and is honoured as one. Without the
+            # distinction the default would come back every time somebody turned it off.
+            fields[name] = list(DEFAULT_EXCLUDED_FACETS)
+            continue
+        parts = [part for part in (stored or "").split(EXCLUDE_SEPARATOR) if part]
+        fields[name] = clean(parts)
     if (stored_museum := await preferences.get(MUSEUM_KEY)) is not None:
         fields["museum"] = stored_museum
     # Nothing saved yet means the deployment's own default, not the schema's — this is

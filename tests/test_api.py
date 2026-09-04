@@ -349,6 +349,31 @@ class TestPreferences:
         assert body["artwork_type"] == ["type.painting", "type.print"]
         assert body["language"] == "pl"
 
+    def test_a_fresh_install_starts_with_coins_excluded(self, client):
+        """The one default exclusion, and it has to arrive as an exclusion.
+
+        Seeded into the preference rather than compiled into the query, so it reaches the
+        panel as an ordinary filter: badge, struck-through row, one click to undo. A
+        constant in the selection path would hide 1,220 artworks with nothing on screen
+        saying so.
+        """
+        from app.domain.vocabulary import DEFAULT_EXCLUDED_FACETS
+
+        assert client.get("/api/preferences").json()["exclude"] == list(DEFAULT_EXCLUDED_FACETS)
+        assert "type.coin" in DEFAULT_EXCLUDED_FACETS
+
+    def test_clearing_the_exclusions_is_not_undone_by_the_default(self, client):
+        """The half that makes it a default rather than a rule.
+
+        An empty list that was *saved* is a decision and outranks the seed. Only a row that
+        has never been written at all gets the default, which on this table means no
+        preference has ever been saved — a PUT writes every key at once.
+        """
+        client.put("/api/preferences", json={"interval_seconds": 300, "exclude": []})
+        assert client.get("/api/preferences").json()["exclude"] == []
+        # And it stays cleared across as many reads as you like.
+        assert client.get("/api/preferences").json()["exclude"] == []
+
     def test_a_museum_choice_survives_a_reload(self, client):
         """A display left pointed at Cleveland is still pointed at it after a reload."""
         assert client.get("/api/preferences").json()["museum"] == "aic"

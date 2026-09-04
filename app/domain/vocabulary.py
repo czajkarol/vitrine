@@ -252,6 +252,28 @@ DROPPED: Final[Mapping[FacetGroup, Mapping[str, str]]] = {
 }
 
 
+# --- Excluded unless asked for -------------------------------------------------------
+#
+# What a fresh install starts with in its exclusion list. Not dropped from the facet layer
+# — these are real objects, correctly typed, and the filter offers them like any other.
+# They are simply not what somebody who leaves an art display running wants a fifth of an
+# hour of.
+#
+# **This is a default, not a rule, and the difference is the whole of the design.** It is
+# seeded into the `exclude` *preference* on first run rather than compiled in anywhere, so
+# it arrives in the panel as an ordinary exclusion: the artwork-type badge says "1 out",
+# the row is struck through, and one click undoes it for good. A constant in the code that
+# quietly removed 1,220 artworks would be none of those things. The scoring layer was the
+# other candidate and is the wrong tool — it ranks Curated and does nothing at all in
+# Random, so "excluded by default" would not be true in the mode most people are in.
+#
+# Coins are 1,220 of the 57,607 indexed works, and they are the clearest case: small, dark,
+# two-sided, photographed identically, and one every few minutes is what an ambient display
+# of *art* is least served by. Nothing else meets that bar today. Adding to this list means
+# hiding something from someone who never asked, so it stays short and each entry says why.
+DEFAULT_EXCLUDED_FACETS: Final[tuple[str, ...]] = ("type.coin",)
+
+
 # --- Derivation --------------------------------------------------------------------
 
 _BY_MEMBER: Final[dict[tuple[str, str], Facet]] = {

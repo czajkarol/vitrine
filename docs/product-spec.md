@@ -252,6 +252,26 @@ the API supports and produce empty result sets.
 Only expose a filter if the local index has enough artworks behind it to sustain rotation.
 A filter that yields four artworks is worse than no filter. Show the count.
 
+**One thing is excluded before anybody asks: coins.** A fresh install starts with `type.coin`
+in its exclusion list — 1,220 of the 57,607 indexed works. They are small, dark, two-sided,
+photographed identically, and one arriving every few minutes is what an ambient display of art
+is least served by. Nothing else meets that bar, and the list is meant to stay this short:
+adding to it is hiding something from somebody who never asked.
+
+**It is a default, and it has to arrive looking like one.** It is seeded into the `exclude`
+*preference* on first run, not compiled into the query, so it comes into the panel as an
+ordinary exclusion — the artwork-type badge reads "1 out", the group opens itself because
+something in it is set, the Coin row is struck through, and one click clears it for good. A
+constant in the selection path would remove 1,220 artworks with nothing on screen saying so,
+which is the failure this whole section is written against. Scoring was the other candidate and
+is the wrong tool: it ranks Curated and does nothing in Random, so "excluded by default" would
+not be true in the mode most people are in.
+
+The seed applies only when the `exclude` row has never been written, which on this table means
+no preference has ever been saved — a `PUT` writes every key at once. A saved empty list is a
+decision and outranks the default; without that distinction, clearing the exclusion would undo
+itself on the next reload. `domain/vocabulary.py` holds the list and the reason.
+
 Filter on `artwork_type_title`, the vocabulary behind `/artwork-types`. Do **not** filter on
 AIC's `classification_title`, which sounds like the same thing and is not — it is closer to a
 medium (`oil on canvas`). See the table in `docs/aic-api.md`.
