@@ -332,6 +332,52 @@ export async function savePreferences(preferences) {
   }
 }
 
+/** Every saved filter combination. An unreachable server is an empty list, not an error. */
+export async function fetchPresets() {
+  try {
+    const response = await fetch('/api/presets', { headers: { Accept: 'application/json' } });
+    if (!response.ok) return [];
+    return await response.json();
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Save a selection under a name, replacing any preset already using it.
+ *
+ * Throws with a `code`, unlike `savePreferences` above, which swallows: a preference that
+ * did not save is one setting the user can set again, while a preset that did not save is
+ * work they think they have kept.
+ */
+export async function savePreset(name, selection) {
+  const response = await fetch('/api/presets', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name,
+      museum: selection.museum ?? 'aic',
+      artwork_type: selection.artworkType ?? [],
+      style: selection.style ?? [],
+      subject: selection.subject ?? [],
+      exclude: selection.exclude ?? [],
+    }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw withCode(new Error(`HTTP ${response.status}`), body.detail ?? 'preset_failed');
+  }
+  return response.json();
+}
+
+/** Forget one. Already gone is the outcome the caller wanted, so 404 is not a failure. */
+export async function deletePreset(id) {
+  const response = await fetch(`/api/presets/${id}`, { method: 'DELETE' });
+  if (!response.ok && response.status !== 404) {
+    throw withCode(new Error(`HTTP ${response.status}`), 'preset_failed');
+  }
+}
+
 function withCode(error, code, cause) {
   error.code = code;
   if (cause) error.cause = cause;

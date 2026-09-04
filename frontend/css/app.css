@@ -616,6 +616,71 @@ body {
 .facet[data-state="exclude"] .facet-mark { color: #e39b9b; }
 .facet[data-state="exclude"] .facet-label { text-decoration: line-through; opacity: 0.75; }
 
+/* Saved filter combinations. A list of names, each with a way to forget it. Styled off
+   the facet rows rather than off the buttons, because that is what they behave like:
+   one click, one thing happens, no confirm step. */
+.panel-presets {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.panel-subhead {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+.panel-preset-list {
+  display: grid;
+  gap: 1px;
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.preset {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.preset-apply,
+.preset-remove {
+  border: 0;
+  background: transparent;
+  color: var(--fg-dim);
+  font: inherit;
+  font-size: 0.83rem;
+  padding: 0.28rem 0.4rem;
+  border-radius: 3px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.preset-apply { width: 100%; }
+
+.preset-apply:hover,
+.preset-remove:hover { background: rgba(255, 255, 255, 0.06); color: var(--fg); }
+
+.preset-remove { color: rgba(255, 255, 255, 0.35); }
+.preset-remove:hover { color: #e39b9b; }
+
+.preset-apply:focus-visible,
+.preset-remove:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.45);
+  outline-offset: -1px;
+}
+
+.panel-preset-save {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.4rem;
+}
+
 .panel-filter-hint {
   font-size: 0.72rem;
   opacity: 0.7;

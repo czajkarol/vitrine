@@ -350,6 +350,47 @@ re-deciding it under the selection would make options appear and vanish as the u
 option whose constrained count is zero stays, at zero, shown disabled. A list that reshuffles
 under the cursor is worse than a greyed row.
 
+#### Saved filters
+
+A combination worth returning to can be saved under a name and put back with one click.
+A saved combination is a **museum plus the three inclusion lists plus the exclusion list** —
+exactly what the panel already assembles — and deliberately nothing else. Not the mode and
+not the interval: those are how the display behaves rather than what it is showing, and a
+name that quietly changed the rotation speed would be a surprise filed under the wrong
+heading.
+
+**Naming.** The user types one, and the field is pre-filled with the labels of the first
+three chosen facets ("Print, Japanese, Men") so that saving is one action for somebody who
+does not want to invent a name. It is a placeholder and not a value: it never has to be
+cleared, and it never overwrites a name somebody is halfway through typing. Names are
+unique, and saving over one replaces it — re-saving a preset you have just adjusted is the
+ordinary case, not a conflict to report. Thirty is the cap, which bounds a list somebody
+has to read rather than any storage; a replacement is never refused by it.
+
+**A preset whose facets no longer exist is kept, applied, and reported.** A saved key can
+stop being offered — a rebuilt index, a change to the merge rules in `domain/vocabulary.py`,
+a different museum. Nothing drops it: not the table, not the route, not the panel. Dropping
+an inclusion would quietly *widen* what the preset means, turning "Japanese prints" into
+"prints", and a filter that silently stops filtering is the one failure this whole section
+is written against — `_included_facets` takes the same position for the same reason. So it
+is applied exactly as saved, matches nothing, and the panel says how many of the preset's
+filters the index no longer offers. A preset that has stopped meaning what its name says is
+worse than one that says it has.
+
+They live in their own table, `filter_presets`. `preferences` is single-valued by design —
+one string per key, and the typed shape at the API boundary exists to keep it that way —
+while a preset is plural, has an identity and a name, is listed and deleted individually,
+and a JSON blob holding all of them would be rewritten in full on every save. Every other
+plural thing this app remembers is already a table. Being a new table also keeps them out
+of a published export for free: `repositories/corpus.py` copies an allow-list of corpus
+tables into a fresh file, so personal data is excluded by not being named (ADR-0011).
+
+**No ADR for this, and that is the finding rather than an omission.** Every hard call it
+makes was already taken somewhere else: the facet encoding by ADR-0014, staying out of the
+export by ADR-0011, and the stale-facet stance by the rule above, which predates presets.
+What is left is a table, a small repository, three routes and a list of buttons. An ADR
+here would record a decision nobody made.
+
 ### Curated
 
 Transparent weighted scoring over the local index. No machine learning. Signals, all of which

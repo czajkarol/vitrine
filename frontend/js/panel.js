@@ -8,11 +8,14 @@
 
 import {
   deleteAiKey,
+  deletePreset,
   fetchAiKey,
   fetchFeedbackSummary,
   fetchFilters,
+  fetchPresets,
   fetchScoring,
   saveAiKey,
+  savePreset,
 } from './api.js';
 import { createFilterGroup } from './filters.js';
 import { t } from './i18n.js';
@@ -22,7 +25,11 @@ export function createPanel(elements, handlers) {
   const { panel, modeInputs, museumInputs, languageInputs, ambientInput, ambientGroup,
     intervalList, filterGroups, summary, stateHint, resetButton, aiProviderInputs,
     aiKeyInput, aiSaveButton, aiClearButton, aiStatusLine, aiStorageLine,
-    modeGroup } = elements;
+    modeGroup, presetList, presetEmpty, presetNameInput,
+    presetSaveButton } = elements;
+  // Named apart from the `presetNote` state below on purpose: one is the element, the
+  // other is what it should say.
+  const presetNoteLine = elements.presetNote;
 
   let open = false;
   let loaded = false;
@@ -49,6 +56,14 @@ export function createPanel(elements, handlers) {
   // and there was no way to click the facet back on. A response that is not the newest
   // is dropped rather than drawn.
   let filterRequest = 0;
+  // Saved filter combinations, as the server last listed them. Read on every open rather
+  // than cached for the life of the page: they are small, and a stale list is a button
+  // that applies something that is no longer there.
+  let presets = [];
+  // A key for a line under the preset list — what was saved, what could not be, or which
+  // of an applied preset's facets the index no longer offers. Kept as a key with its
+  // substitutions rather than as text, so a language change can say it again.
+  let presetNote = null;
   // The panel's idea of the current settings, kept because the filter list is built lazily
   // on first open — long after preferences were restored at boot. Without this the panel
   // showed nothing selected while the rotation was actually filtered.
@@ -148,6 +163,7 @@ export function createPanel(elements, handlers) {
       );
     }
     syncResetButton();
+    syncPresetName();
   }
 
   /**
@@ -254,6 +270,206 @@ export function createPanel(elements, handlers) {
     for (const group of groups) group.setOptions(source[group.group] ?? [], facetLabel);
     // The lists were just rebuilt from scratch and know nothing about what is selected.
     applySelection();
+  }
+
+  // --- Saved filter combinations -----------------------------------------------------
+  //
+  // A preset is a museum plus the three inclusion lists plus the exclusion list — exactly
+  // `currentSelection()`, under a name. Not a mode and not an interval: those are how the
+  // display behaves rather than what it is showing.
+
+  /**
+   * What to call a selection nobody has named yet.
+   *
+   * Prefilled rather than left blank so that saving is one action for somebody who does
+   * not want to invent a name, and it is a plain overwritable suggestion rather than a
+   * generated identity: the field is a text input and whatever is in it is what gets
+   * saved. Three labels is where a name stops being a name and starts being the filter
+   * written out again.
+   */
+  function suggestedName() {
+    const chosen = [];
+    for (const group of groups) {
+      const { include } = group.selection();
+      for (const value of include) chosen.push(facetLabel(offeredOption(value)));
+    }
+    if (chosen.length === 0) return '';
+    const head = chosen.slice(0, 3).join(', ');
+    return chosen.length > 3 ? t('presets_name_more', { names: head, count: chosen.length - 3 })
+      : head;
+  }
+
+  /**
+   * The option the server sent for a facet key, or a bare stand-in for one it did not.
+   *
+   * `facetLabel` needs the whole option, not the key: English has no `facet_*` strings at
+   * all and falls through to the label the server derived from the raw vocabulary. Handed
+   * only a key it falls through to the key, and a name suggested as "type.print,
+   * style.japanese" is a slug, not a name.
+   */
+  function offeredOption(value) {
+    for (const list of [filters?.artwork_types, filters?.styles, filters?.subjects]) {
+      const found = (list ?? []).find((option) => option.value === value);
+      if (found) return found;
+    }
+    return { value };
+  }
+
+  /** Every facet in a preset, flat, for asking what the index still offers. */
+  function presetFacets(preset) {
+    return [
+      ...(preset.artwork_type ?? []),
+      ...(preset.style ?? []),
+      ...(preset.subject ?? []),
+      ...(preset.exclude ?? []),
+    ];
+  }
+
+  /**
+   * Which of a preset's facets the current vocabulary no longer offers.
+   *
+   * Nothing drops them — not the repository, not the route, not this. Dropping an
+   * inclusion would quietly *widen* what the preset means, turning "Japanese prints" into
+   * "prints", and that is the one failure the whole Explore path is written to avoid. So
+   * they are applied as saved and counted here, and the panel says how many, because a
+   * preset that has silently stopped meaning what its name says is worse than one that
+   * says it has.
+   */
+  function staleFacets(preset) {
+    if (!filters) return [];
+    const offered = new Set(
+      [
+        ...(filters.artwork_types ?? []),
+        ...(filters.styles ?? []),
+        ...(filters.subjects ?? []),
+      ].map((option) => option.value),
+    );
+    return presetFacets(preset).filter((facet) => !offered.has(facet));
+  }
+
+  function renderPresets() {
+    if (!presetList) return;
+    presetList.textContent = '';
+    if (presetEmpty) presetEmpty.hidden = presets.length > 0;
+    for (const preset of presets) {
+      const row = document.createElement('div');
+      row.className = 'preset';
+
+      const apply = document.createElement('button');
+      apply.type = 'button';
+      apply.className = 'preset-apply';
+      apply.textContent = preset.name;
+      apply.dataset.presetId = String(preset.id);
+      // The count of filters is what tells two similarly named presets apart, and it is
+      // the only thing about a preset that is not its name.
+      const count = presetFacets(preset).length;
+      apply.setAttribute('aria-label', t('presets_apply_label', { name: preset.name, count }));
+      apply.addEventListener('click', () => void applyPreset(preset));
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'preset-remove';
+      remove.textContent = '\u00d7';
+      remove.setAttribute('aria-label', t('presets_remove_label', { name: preset.name }));
+      remove.addEventListener('click', () => void removePreset(preset));
+
+      row.append(apply, remove);
+      presetList.appendChild(row);
+    }
+    renderPresetNote();
+  }
+
+  function renderPresetNote() {
+    if (!presetNoteLine) return;
+    presetNoteLine.hidden = presetNote === null;
+    if (presetNote) presetNoteLine.textContent = t(presetNote.key, presetNote.values);
+  }
+
+  function say(key, values) {
+    presetNote = key === null ? null : { key, values };
+    renderPresetNote();
+  }
+
+  /**
+   * Put a saved selection back on screen.
+   *
+   * Routed through `onMuseumChange` when the source differs and `onFilterChange` when it
+   * does not, rather than through a handler of its own: switching source also clears the
+   * back stack, because the two museums have two id spaces and a stack that crossed them
+   * would offer to return to an artwork the current source cannot show. The panel's own
+   * museum radio clears the filters on the way; this does not go through that radio,
+   * which is the whole reason a preset can carry a museum at all.
+   */
+  async function applyPreset(preset) {
+    const changedMuseum = preset.museum !== current.museum;
+    current = {
+      ...current,
+      museum: preset.museum,
+      artworkType: [...(preset.artwork_type ?? [])],
+      style: [...(preset.style ?? [])],
+      subject: [...(preset.subject ?? [])],
+      exclude: [...(preset.exclude ?? [])],
+    };
+    if (changedMuseum) handlers.onMuseumChange(current.museum, currentSelection());
+    else handlers.onFilterChange(currentSelection());
+    syncModes();
+    await loadFilters();
+    const stale = staleFacets(preset);
+    say(stale.length ? 'presets_applied_stale' : 'presets_applied', {
+      name: preset.name,
+      count: stale.length,
+    });
+  }
+
+  async function storePreset() {
+    const name = presetNameInput?.value.trim() || suggestedName();
+    if (!name) {
+      say('presets_needs_name');
+      return;
+    }
+    presetSaveButton.disabled = true;
+    try {
+      await savePreset(name, currentSelection());
+      presets = await fetchPresets();
+      if (presetNameInput) presetNameInput.value = '';
+      renderPresets();
+      say('presets_saved', { name });
+    } catch (error) {
+      console.warn('Could not save the preset.', error);
+      say(error?.code === 'preset_limit_reached' ? 'presets_limit' : 'presets_failed');
+    } finally {
+      presetSaveButton.disabled = false;
+    }
+  }
+
+  async function removePreset(preset) {
+    try {
+      await deletePreset(preset.id);
+      presets = await fetchPresets();
+      renderPresets();
+      say('presets_removed', { name: preset.name });
+    } catch (error) {
+      console.warn('Could not remove the preset.', error);
+      say('presets_failed');
+    }
+  }
+
+  async function loadPresets() {
+    presets = await fetchPresets();
+    renderPresets();
+  }
+
+  /**
+   * Keep the suggested name in step with what is actually selected.
+   *
+   * A placeholder rather than a value, so it never has to be cleared and never overwrites
+   * a name somebody is halfway through typing. Recomputed on every selection change
+   * rather than only when the panel opens: after applying a preset and adjusting it, the
+   * suggestion for "save this as well" should describe what is on screen now.
+   */
+  function syncPresetName() {
+    if (!presetNameInput) return;
+    presetNameInput.placeholder = suggestedName() || t('presets_name_placeholder');
   }
 
   function syncResetButton() {
@@ -419,6 +635,15 @@ export function createPanel(elements, handlers) {
 
   resetButton?.addEventListener('click', clearFilters);
 
+  presetSaveButton?.addEventListener('click', () => void storePreset());
+  // Enter in the name field is what anyone who has just typed a name will press.
+  presetNameInput?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      void storePreset();
+    }
+  });
+
   ambientInput.addEventListener('change', () => {
     current = { ...current, ambient: ambientInput.checked };
     handlers.onAmbientChange(current.ambient);
@@ -509,6 +734,10 @@ export function createPanel(elements, handlers) {
       // another tab, or the provider taken away by a restart.
       keyMessage = null;
       await loadAiKey();
+      // Read on every open: another tab may have saved one, and a list of buttons that
+      // apply things that are no longer there is worse than no list.
+      say(null);
+      await loadPresets();
       applySelection();
       handlers.onOpen();
     },
@@ -556,6 +785,7 @@ export function createPanel(elements, handlers) {
       if (loaded) renderFilters();
       else for (const group of groups) group.refresh(facetLabel);
       renderAiKey();
+      renderPresets();
       applySelection();
     },
   };

@@ -28,6 +28,7 @@ holds an API key in plain text. Publish `dist/vitrine-index.sqlite` — the outp
 | `preferences` | User state | Mode, interval, language, filters, the remembered IIIF base | Mildly annoying |
 | `history` | User state | The last ~50 artwork ids, for the repeat penalty | Mildly annoying |
 | `artwork_feedback` | **User data** | Likes, dislikes and hides, per museum, with a title/artist/image snapshot ([ADR-0010](adr/0010-personalisation-from-explicit-feedback.md)) | Your favourites, and "For you" goes back to cold |
+| `filter_presets` | **User data** | Saved filter combinations under names you chose: a museum, the three inclusion lists and the exclusion list | The names; the filters themselves can be picked again |
 | `credentials` | **A secret** | A pasted API key, unencrypted, when no OS keyring is available | Your API key |
 | `schema_migrations` | Bookkeeping | Which migrations have run | Migrations would re-run and fail |
 
@@ -64,6 +65,21 @@ Cleveland adds nothing here at all. It is never indexed ([ADR-0013](adr/0013-cle
 so no Cleveland artwork is in the corpus and an export does not have to say which sources it
 carries — item 8 of ADR-0012's eight, dodged. The only Cleveland rows in the database are in
 `artwork_feedback`, which is user data and is never exported.
+
+### What M17 changed
+
+`filter_presets` (migration 012) is the first table added since the export was written, and
+it needed no change there to stay out of a published file. That is the allow-list working
+as designed: `repositories/corpus.py` copies named corpus tables into a fresh database, so
+anything new is personal until somebody says otherwise. A deny-list would have shipped these
+in the first export after they were added ([ADR-0011](adr/0011-distribute-the-index-as-a-release-asset.md)).
+
+`preferences` gained two entries worth knowing about. `ambient_by_hand` records whether the
+ambient toggle was last set by a person, which is what lets going fullscreen turn ambient on
+without overruling somebody who turned it off. And `exclude` is now *absent* rather than
+empty on a fresh install: absent means "seeded with the default", which is `type.coin`,
+while an empty string means "the user cleared it" and is honoured. Deleting the `exclude`
+row by hand therefore brings the coin exclusion back.
 
 ## Is the corpus publishable? Yes, with attribution
 

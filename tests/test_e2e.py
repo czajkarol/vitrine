@@ -62,6 +62,35 @@ from playwright.sync_api import Page, expect
 
 pytestmark = pytest.mark.e2e
 
+
+def clear_filters(page):
+    """Start a filter flow from nothing selected.
+
+    A fresh install is not empty: since M17 it starts with `type.coin` excluded, which is
+    a product default with its own tests and is not what these flows are about. Without
+    this, the badge assertion below reads "2 out" and the flow is testing the default as
+    well as the control.
+    """
+    reset = page.locator("#panel-reset-filters")
+    if not reset.is_hidden():
+        reset.click()
+        expect(reset).to_be_hidden()
+
+
+def open_group(page, group: str):
+    """Make sure a filter group is expanded, and return its root.
+
+    Not a bare `summary.click()`, which is a *toggle*. A group opens itself as soon as
+    anything in it is set (`syncCount` in `filters.js`), and since M17 a fresh install
+    starts with `type.coin` excluded — so the artwork-type group arrives already open and
+    a click on its summary shuts it. Two flows failed exactly that way when the default
+    exclusion landed, and neither of them is about the disclosure triangle.
+    """
+    root = page.locator(f'[data-group="{group}"]')
+    if not root.evaluate("element => element.open"):
+        root.locator("summary").click()
+    return root
+
 # Generous: the first paint waits on an image from artic.edu, over the internet, possibly
 # through the proxy fallback. Everything after the first one is local.
 FIRST_PAINT_MS = 30_000
@@ -343,8 +372,8 @@ class TestSmokeFlows:
         display.keyboard.press("s")
         expect(display.locator("#panel")).to_have_class(VISIBLE)
 
-        group = display.locator('[data-group="artwork-type"]')
-        group.locator("summary").click()
+        clear_filters(display)
+        group = open_group(display, "artwork-type")
         facet = group.locator('.facet[data-value="type.print"]')
         expect(facet).to_have_attribute("data-state", "off")
 
@@ -412,8 +441,8 @@ class TestSmokeFlows:
 
         display.keyboard.press("s")
         expect(display.locator("#panel")).to_have_class(VISIBLE)
-        group = display.locator('[data-group="artwork-type"]')
-        group.locator("summary").click()
+        clear_filters(display)
+        group = open_group(display, "artwork-type")
         facet = group.locator('.facet[data-value="type.print"]')
 
         facet.click()  # include
@@ -480,7 +509,7 @@ class TestSmokeFlows:
         display.locator('input[name="museum"][value="cma"]').check()
         expect(display.locator("#panel-filter-hint")).not_to_contain_text("exclude")
 
-        group = display.locator('[data-group="artwork-type"]')
+        group = open_group(display, "artwork-type")
         facet = group.locator('.facet[data-value="Painting"]')
         facet.click()
         expect(facet).to_have_attribute("data-state", "include")

@@ -240,6 +240,27 @@
         <button type="button" id="panel-reset-filters" hidden
                 data-i18n="filters_reset">Clear all filters</button>
       </div>
+
+      <!-- Saved combinations. A list of buttons rather than a <select>, because the panel
+           has no selects and because a select needs an apply step: here the name is the
+           button. The name field is pre-filled from whatever is currently selected, so
+           saving is one action for somebody who does not want to think of a name, and
+           overwritable for somebody who does. -->
+      <div class="panel-presets">
+        <h3 class="panel-subhead" data-i18n="presets_legend">Saved filters</h3>
+        <p id="panel-preset-empty" class="panel-summary" data-i18n="presets_empty">
+          Nothing saved yet. Choose some filters and give them a name.
+        </p>
+        <div id="panel-preset-list" class="panel-preset-list"></div>
+        <p id="panel-preset-note" class="panel-summary" hidden></p>
+        <div class="panel-preset-save">
+          <input type="text" id="panel-preset-name" class="panel-input"
+                 maxlength="60" autocomplete="off"
+                 data-i18n-placeholder="presets_name_placeholder" placeholder="Name these filters">
+          <button type="button" id="panel-preset-save"
+                  data-i18n="presets_save">Save</button>
+        </div>
+      </div>
     </fieldset>
 
     <!-- Removed outright where the Screen Wake Lock API is missing, rather than shown

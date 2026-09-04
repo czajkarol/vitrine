@@ -25,6 +25,8 @@ from app.api.schemas import (
     HealthResponse,
     InterpretationResponse,
     PreferencesResponse,
+    PresetRequest,
+    PresetResponse,
     ProviderStats,
     ScoringResponse,
     ScoringWeight,
@@ -52,6 +54,7 @@ from app.repositories.artwork_index import ArtworkIndexRepository
 from app.repositories.credentials import CredentialStoreError
 from app.repositories.feedback import FeedbackRepository
 from app.repositories.preferences import PreferencesRepository
+from app.repositories.presets import Preset, PresetError, PresetRepository
 from app.services.ai_credentials import AiCredentialService, AiKeyStatus
 from app.services.interpretation import (
     ArtworkNotFoundError,
@@ -139,6 +142,10 @@ def get_feedback(request: Request) -> FeedbackRepository:
     return FeedbackRepository(request.app.state.database)
 
 
+def get_presets(request: Request) -> PresetRepository:
+    return PresetRepository(request.app.state.database)
+
+
 def enforce_rate_limit(request: Request) -> None:
     """An advance. Spends a token and grants the credit its image will use."""
     _rate_limit(request, dependent=False)
@@ -171,6 +178,7 @@ InterpretationDep = Annotated[InterpretationService, Depends(get_interpretation)
 AiCredentialsDep = Annotated[AiCredentialService, Depends(get_ai_credentials)]
 UsageDep = Annotated[AiUsageRepository, Depends(get_usage)]
 FeedbackDep = Annotated[FeedbackRepository, Depends(get_feedback)]
+PresetsDep = Annotated[PresetRepository, Depends(get_presets)]
 
 # Below this, a filter cannot sustain a rotation and is not offered at all.
 MIN_FILTER_COUNT: Final[int] = 40
@@ -574,6 +582,60 @@ async def write_preferences(
     await preferences.set(AMBIENT_KEY, "1" if body.ambient else "0")
     await preferences.set(AMBIENT_BY_HAND_KEY, "1" if body.ambient_by_hand else "0")
     return body
+
+
+@router.get("/presets", response_model=list[PresetResponse])
+async def read_presets(presets: PresetsDep) -> list[PresetResponse]:
+    """Every saved filter combination, by name.
+
+    No validation against the current vocabulary on the way out. A saved facet key can
+    stop being offered — a rebuilt index, a change to the merge rules, a different museum
+    — and dropping it here would quietly *widen* what the preset means, turning "Japanese
+    prints" into "prints". The panel is where that is noticed and said out loud, because
+    the panel is the only place that knows what is on offer right now.
+    """
+    return [_preset_response(preset) for preset in await presets.list_all()]
+
+
+@router.put("/presets", response_model=PresetResponse)
+async def write_preset(body: PresetRequest, presets: PresetsDep) -> PresetResponse:
+    """Save a selection under a name, replacing any preset already using that name.
+
+    A replace rather than a conflict: re-saving one you have just adjusted is the ordinary
+    case, and a panel that refused it would be asking the user to delete and retype.
+    """
+    try:
+        saved = await presets.save(
+            body.name,
+            museum=body.museum,
+            artwork_type=_included_facets(body.artwork_type),
+            style=_included_facets(body.style),
+            subject=_included_facets(body.subject),
+            exclude=_valid_facets(body.exclude),
+        )
+    except PresetError as exc:
+        raise HTTPException(status_code=409, detail=exc.code) from exc
+    return _preset_response(saved)
+
+
+@router.delete("/presets/{preset_id}", status_code=204)
+async def remove_preset(preset_id: Annotated[int, Path(gt=0)], presets: PresetsDep) -> Response:
+    """Forget one. Already gone is the outcome the caller wanted, so it is not a 404."""
+    await presets.delete(preset_id)
+    return Response(status_code=204)
+
+
+def _preset_response(preset: Preset) -> PresetResponse:
+    return PresetResponse(
+        id=preset.id,
+        name=preset.name,
+        museum=preset.museum,
+        artwork_type=list(preset.artwork_type),
+        style=list(preset.style),
+        subject=list(preset.subject),
+        exclude=list(preset.exclude),
+        updated_at=preset.updated_at,
+    )
 
 
 @router.get("/interpretation/{artwork_id}", response_model=InterpretationResponse)

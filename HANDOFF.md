@@ -268,6 +268,15 @@ All found the hard way, in a browser or against the live API. Each is documented
     fullscreen rule was verified with a throwaway headed script rather than by eye or by a
     tenth flow.
 
+30. **A default exclusion opens a filter group, and a test that clicks the summary closes it.**
+    `syncCount()` opens a group as soon as anything in it is set, so seeding `type.coin`
+    (M17) made the artwork-type group arrive already open — and two Playwright flows that
+    began with `summary.click()` were toggling it shut and then failing on an invisible
+    facet. A third failed on the badge reading "2 out" instead of "1". Both are the same
+    lesson: a flow that starts from "a fresh install" starts from whatever the product
+    defaults are that week. `open_group()` and `clear_filters()` in `tests/test_e2e.py`
+    make the starting state explicit rather than assumed.
+
 ## Outstanding, and only the owner can close it
 
 *(The first of these is closed. Kept below, struck through, because the way it was closed is

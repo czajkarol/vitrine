@@ -126,6 +126,11 @@ MAX_INCLUSIONS: Final[int] = 20
 """And how many one group may include. Same reasoning, applied to the other half of the
 filter once M13 made inclusion multi-valued."""
 
+MAX_PRESET_NAME: Final[int] = 60
+"""How long a preset's name may be. Mirrors `repositories/presets.MAX_NAME_LENGTH`, which
+truncates rather than refusing — this is where a name that long is refused at the edge, so
+the repository's truncation is a backstop and not the user-facing rule."""
+
 MUSEUMS: Final[tuple[str, ...]] = ("aic", "cma")
 """The sources the display can be pointed at. `aic` is the indexed corpus; `cma` is served
 live. ADR-0013."""
@@ -169,6 +174,33 @@ class PreferencesResponse(BaseModel):
     # who has thought about it and said no — a stored `false` cannot tell those apart on
     # its own, because every save writes every field.
     ambient_by_hand: bool = False
+
+
+class PresetRequest(BaseModel):
+    """A selection to save under a name. The same shape the panel already assembles.
+
+    A mode and an interval are not in it: those are how the display behaves, not what it
+    is showing, and a preset that silently changed the rotation speed would be a surprise
+    filed under the wrong heading.
+    """
+
+    name: str = Field(min_length=1, max_length=MAX_PRESET_NAME)
+    museum: Literal["aic", "cma"] = "aic"
+    artwork_type: list[str] = Field(default_factory=list, max_length=MAX_INCLUSIONS)
+    style: list[str] = Field(default_factory=list, max_length=MAX_INCLUSIONS)
+    subject: list[str] = Field(default_factory=list, max_length=MAX_INCLUSIONS)
+    exclude: list[str] = Field(default_factory=list, max_length=MAX_EXCLUSIONS)
+
+
+class PresetResponse(PresetRequest):
+    """A saved one, with the id the panel deletes by.
+
+    Deleted by id rather than by name: a name is user text and can hold a slash, and a
+    path parameter is the wrong place to find that out.
+    """
+
+    id: int
+    updated_at: str
 
 
 class FilterOption(BaseModel):

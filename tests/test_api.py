@@ -1,6 +1,7 @@
 """Integration tests for the HTTP routes, with AIC intercepted by respx."""
 
 import logging
+from typing import ClassVar
 
 import httpx
 import pytest
@@ -510,6 +511,84 @@ class TestPreferences:
             "ambient",
             "ambient_by_hand",
         }
+
+
+class TestPresets:
+    """Saved filter combinations. A museum, three inclusion lists and an exclusion list,
+    under a name — and nothing about a mode or an interval, which are how the display
+    behaves rather than what it is showing."""
+
+    SELECTION: ClassVar[dict[str, object]] = {
+        "museum": "aic",
+        "artwork_type": ["type.print"],
+        "style": ["style.japanese"],
+        "subject": [],
+        "exclude": ["type.coin"],
+    }
+
+    def test_saves_and_lists_a_selection(self, client):
+        assert client.get("/api/presets").json() == []
+        saved = client.put("/api/presets", json={"name": "Japanese prints", **self.SELECTION})
+        assert saved.status_code == 200
+
+        listed = client.get("/api/presets").json()
+        assert len(listed) == 1
+        assert listed[0]["name"] == "Japanese prints"
+        assert listed[0]["artwork_type"] == ["type.print"]
+        assert listed[0]["exclude"] == ["type.coin"]
+
+    def test_saving_over_a_name_replaces_it(self, client):
+        """Re-saving an adjusted preset is the ordinary case, not a conflict.
+
+        A panel that refused it would be asking the user to delete and retype a name they
+        have already chosen.
+        """
+        client.put("/api/presets", json={"name": "Mine", **self.SELECTION})
+        client.put(
+            "/api/presets",
+            json={**self.SELECTION, "name": "Mine", "artwork_type": ["type.painting"]},
+        )
+        listed = client.get("/api/presets").json()
+        assert len(listed) == 1
+        assert listed[0]["artwork_type"] == ["type.painting"]
+
+    def test_keeps_a_facet_the_vocabulary_no_longer_offers(self, client):
+        """The decision that makes a preset trustworthy, and it is a decision to *not* act.
+
+        Dropping a saved facet that is no longer in the index would quietly widen what the
+        preset means — "Japanese prints" becoming "prints" — which is the one failure the
+        whole Explore path is written to avoid. So it comes back exactly as saved, matches
+        nothing, and the panel is where somebody is told how many of them there are.
+        """
+        client.put(
+            "/api/presets",
+            json={**self.SELECTION, "name": "Stale", "style": ["style.no-such-thing"]},
+        )
+        assert client.get("/api/presets").json()[0]["style"] == ["style.no-such-thing"]
+
+    def test_deleting_one_that_is_already_gone_is_not_an_error(self, client):
+        saved = client.put("/api/presets", json={"name": "Mine", **self.SELECTION}).json()
+        assert client.delete(f"/api/presets/{saved['id']}").status_code == 204
+        # Already gone is the outcome the caller asked for.
+        assert client.delete(f"/api/presets/{saved['id']}").status_code == 204
+        assert client.get("/api/presets").json() == []
+
+    def test_refuses_a_new_one_past_the_limit_but_never_a_replacement(self, client):
+        from app.repositories.presets import MAX_PRESETS
+
+        for n in range(MAX_PRESETS):
+            client.put("/api/presets", json={"name": f"preset {n}", **self.SELECTION})
+
+        refused = client.put("/api/presets", json={"name": "one too many", **self.SELECTION})
+        assert refused.status_code == 409
+        assert refused.json()["detail"] == "preset_limit_reached"
+
+        # The cap bounds a list somebody has to read, not what they may change in it.
+        again = client.put("/api/presets", json={"name": "preset 0", **self.SELECTION})
+        assert again.status_code == 200
+
+    def test_refuses_a_nameless_preset(self, client):
+        assert client.put("/api/presets", json={"name": "", **self.SELECTION}).status_code == 422
 
 
 class TestHealth:

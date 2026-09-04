@@ -550,6 +550,11 @@ const panel = createPanel(
     // live source runs a two-state cycle and the panel rewrites it — see setExcludable.
     stateHint: document.getElementById('panel-filter-hint'),
     resetButton: document.getElementById('panel-reset-filters'),
+    presetList: document.getElementById('panel-preset-list'),
+    presetEmpty: document.getElementById('panel-preset-empty'),
+    presetNote: document.getElementById('panel-preset-note'),
+    presetNameInput: document.getElementById('panel-preset-name'),
+    presetSaveButton: document.getElementById('panel-preset-save'),
     aiProviderInputs: [...document.querySelectorAll('input[name="ai-provider"]')],
     aiKeyInput: document.getElementById('panel-ai-key'),
     aiSaveButton: document.getElementById('panel-ai-save'),
