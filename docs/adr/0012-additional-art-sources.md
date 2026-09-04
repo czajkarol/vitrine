@@ -1,11 +1,20 @@
 # 0012. Additional art sources: Cleveland if ever, and what it would actually cost
 
-Status: Proposed
+Status: Superseded by [ADR-0013](0013-cleveland-as-a-live-source.md)
 Date: 2026-09-04
 
-**Proposed, not Accepted. Nothing here is built, and this ADR does not authorise building
-it.** It exists because "add another museum" sounds like writing a second API client, and
-it is not. The value of the record is the list of things that are not the client.
+**Superseded the same day, and the research is why.** This was written as Proposed, saying no
+and pricing the no: eight things a second source costs, of which one is an API client. The owner
+then asked for Cleveland with the constraint "do not aim for AIC feature parity yet", which does
+not dispute the price — it buys a different thing. Most of the eight items below are consequences
+of *indexing* a source rather than of having two museums, and ADR-0013 does not index Cleveland.
+Three of the eight were paid, three were dodged by not indexing, and two were accepted as
+narrowed or degraded features.
+
+**Everything below stands as measured** and was re-checked against the live API before ADR-0013
+was built. Read this one for the facts about Cleveland's API and for the full list of what a
+*fully integrated* second source would cost — which is still the bill if anyone ever wants
+Curated across both collections. Read ADR-0013 for what was actually done.
 
 ## Context
 
@@ -52,6 +61,9 @@ and each one is a feature rather than a nicety:
 | `color` | The overlay scrim's strength, tuned per artwork (M8) |
 
 ## Decision
+
+*(Superseded — see the header. ADR-0013 builds Cleveland as a live source. The reasoning below
+is why it is Cleveland rather than one of the other five, and that part still holds.)*
 
 **No second source is built. If one ever is, it is Cleveland, and it is a milestone rather
 than a module.**
@@ -103,6 +115,14 @@ than anyone exhausts. The refactor is real work in exchange for range nobody has
 second tier. Rejected: it dodges items 1 and 8 and none of the rest, and it makes the display
 depend on a network call for some artworks and not others, which ADR-0003 exists to avoid.
 
+> **This is what ADR-0013 does, and this paragraph was wrong about the arithmetic.** Not
+> indexing dodges 5, 6 and 8 as well — scoring, the facet vocabulary and the export are all
+> consequences of being *in the index*, and a source that never enters it incurs none of them.
+> Item 1 is paid in one table (`artwork_feedback`, migration 010) rather than across every read
+> path. The objection about a network call for some artworks and not others stands and was
+> accepted: ADR-0003 is about the *default* source being local, and choosing Cleveland is an
+> explicit act with a panel line saying it is fetched live.
+
 **Accept degraded fields silently** — no blur, no alt text, no tuned scrim, and say nothing.
 Rejected explicitly. The alt-text half is the sharp one: `CLAUDE.md` grounds the AI prompt in
 `alt_text` precisely so the model describes the artwork rather than inventing it, and a source
@@ -116,11 +136,13 @@ good, which is part of why this ADR says no.
 ## Consequences
 
 - **`ArtworkSource` stays an interface with one implementation**, and `docs/architecture.md`
-  should be read as describing an intended seam rather than a tested one.
+  should be read as describing an intended seam rather than a tested one. *(Reversed by
+  ADR-0013: it now has two, and the seam describes live sources specifically.)*
 - **The corpus keeps AIC's shape**, and everything calibrated on it — the scoring weights, the
   facet map, the width ladder, the attribution line — stays simpler than it would otherwise be.
 - **The research does not go stale quietly.** The Cleveland facts above are dated and were
   measured; if this is revisited, re-measure rather than re-read, because the table this ADR
   corrects was wrong on two of five columns after about a year.
 - **What would make us revisit this:** wanting range badly enough to pay for the eight items,
-  or AIC changing its terms. Nothing else.
+  or AIC changing its terms. Nothing else. *(The owner wanted range, and ADR-0013 pays about
+  three of the eight by declining to index.)*

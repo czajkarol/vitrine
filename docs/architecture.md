@@ -11,7 +11,7 @@ app/services/        Orchestration. Rotation, selection, interpretation, index b
     │
 app/domain/          Models and pure logic: scoring, filtering, cache keys, counters. No I/O.
     │
-app/providers/       Outbound: AIC client, AI provider implementations.
+app/providers/       Outbound: museum clients, AI provider implementations.
 app/repositories/    SQLite persistence, and the OS keyring when there is one.
 ```
 
@@ -20,8 +20,9 @@ Rules that matter more than the diagram:
 - **`domain/` imports nothing outward.** No `httpx`, no `sqlite3`, no `fastapi`. If you need to
   import one of those into `domain/`, the logic is in the wrong layer. This is the boundary that
   makes the scoring and cache-key logic testable without mocks.
-- **Only `providers/aic/` knows AIC's JSON shape.** It parses into domain models and everything
-  downstream sees only those. When AIC changes a field name, exactly one module changes.
+- **Only `providers/aic/` knows AIC's JSON shape, and only `providers/cma/` knows Cleveland's.**
+  Each parses into domain models and everything downstream sees only those. When a museum changes
+  a field name, exactly one module changes.
 - **Only `providers/ai/` names an AI vendor.** No `if provider == "openai"` outside that package.
 - **Editorial judgement lives in `domain/vocabulary.py` and nowhere else.** Which of AIC's terms
   are the same thing, and which are not terms at all, is a product decision — pure, testable and
@@ -38,25 +39,46 @@ let the router call the repository. Add the service when there is orchestration 
 
 ## The interfaces that actually matter
 
-Three. Everything else can be a plain function.
+Four, since M14 and M15 added one each. Everything else can be a plain function.
 
 ```python
-class ArtworkSource(Protocol):
-    async def get(self, artwork_id: int) -> Artwork | None: ...
-    async def search(self, spec: ArtworkQuery) -> list[Artwork]: ...
+class ArtworkSource(Protocol):            # providers/source.py
+    key: str
+    async def random(self, artwork_type: str | None = None) -> SourceArtwork | None: ...
+    async def get(self, artwork_id: int) -> SourceArtwork | None: ...
+    async def artwork_types(self) -> list[SourceFilter]: ...
 
-class InterpretationProvider(Protocol):
+class InterpretationProvider(Protocol):   # providers/ai/base.py
     name: str
     model: str
     async def interpret(self, req: InterpretationRequest) -> InterpretationResult: ...
 
+class VisualDescriptionProvider(Protocol):   # runtime_checkable
+    async def describe(self, req: InterpretationRequest) -> VisualDescriptionResult: ...
+
 class InterpretationCache(Protocol):
-    async def get(self, key: CacheKey) -> Interpretation | None: ...
-    async def put(self, key: CacheKey, value: Interpretation) -> None: ...
+    async def get(self, key: CacheKey) -> CachedValue | None: ...
+    async def put(self, key: CacheKey, value: CachedValue) -> None: ...
 ```
 
+`ArtworkSource` has two implementations since M15 and is **the interface for a live source**,
+which is why it is this small. AIC deliberately does not implement it: AIC is indexed, scored and
+faceted, and that surface — `SelectionService`, `ArtworkIndexRepository`, `domain/vocabulary.py`
+— is much larger than any second museum is worth. A live source answers two questions instead:
+give me one artwork, and what may I filter on. `SourceArtwork` carries either a IIIF base or a
+finished image URL, because how an image URL is built is the one thing the two museums genuinely
+disagree about. ADR-0013.
+
+`VisualDescriptionProvider` is a **capability**, not a second tier: a provider either satisfies it
+or does not, and the service asks with `isinstance`. Anthropic and the mock do; OpenAI does not.
+That is how "Anthropic only, for now" is expressed without a vendor name appearing above
+`providers/`, which `CLAUDE.md` forbids. ADR-0015.
+
 `InterpretationCache` has two implementations from day one: `SqliteCache` and `NullSharedCache`.
-The second exists so the resolution chain is real code rather than a promise. See ADR-0004.
+The second exists so the resolution chain is real code rather than a promise. See ADR-0004. It
+stores two *kinds* since M14 — an interpretation and a visual description — chosen by `kind` on
+the key and validated into the matching model on the way out. It keeps its name: renaming the
+Protocol and both implementations would have been a wide, purely cosmetic change.
 
 `interpret` returns an `InterpretationResult` — the interpretation plus the token usage the
 provider reported — rather than a bare `Interpretation`, which is what this file said first.
@@ -75,11 +97,19 @@ GET /api/artwork/random
         → ArtworkIndexRepository.sample(pool)                 [SQLite, no network]
         → domain.selection.choose_next(candidates, history)   [pure]
         → HistoryRepository.push(id)
-    → ArtworkResponse { id, title, artist, iiif_base, image_id, lqip, alt_text, …, source }
+    → ArtworkResponse { id, title, artist, iiif_base, image_id, lqip, alt_text, …,
+                        source, museum, image_url, feedback }
 ```
 
 Three tiers, in order: the local index, then AIC, then the bundled fallback set. `source` on
 the response says which one answered, so the UI can show a quiet offline indicator.
+
+`?museum=cma` takes a different path entirely — one call to a live `ArtworkSource`, with no
+index, no scoring, no history and no tier below it. `museum` on the response says which museum;
+`source` still says which tier, so a live Cleveland artwork is `source="live"`, `museum="cma"`.
+The two questions are separate and the field names keep them that way. A live source that cannot
+answer returns nothing rather than falling through to the Art Institute: the user chose a museum,
+and quietly showing them a different one is what makes a source selector untrustworthy.
 
 The index carries no IIIF base — that is a property of AIC's deployment, not of an artwork —
 so the last one AIC reported is kept in `preferences` and reused. It is never hardcoded.
@@ -104,11 +134,11 @@ artwork_index        id, image_id, title, artist, date_display, medium_display,
                      score, indexed_at
 artwork_terms        artwork_id, kind ('style' | 'subject'), value    — PK all three
 artwork_facets       artwork_id, facet                                — PK both
-artwork_feedback     artwork_id PK, kind ('like' | 'hide'), title, artist,
-                     image_id, created_at
+artwork_feedback     museum, artwork_id, kind ('like' | 'dislike' | 'hide'), title,
+                     artist, image_id, created_at   — PK (museum, artwork_id)
 history              artwork_id, shown_at
 interpretations      cache_key PK, artwork_id, language, provider, model,
-                     prompt_version, payload_json, created_at
+                     prompt_version, kind, payload_json, created_at
 preferences          key, value
 ai_usage             day, provider, requests, tokens_in, tokens_out
 credentials          provider PK, api_key, updated_at
@@ -134,12 +164,23 @@ three groups instead of a column special case plus a join table — which is wha
 and dependent counts affordable at all. Derived and rebuildable: `build_index.py --retag` writes
 it from the raw values in seconds with no network. ADR-0009.
 
-`artwork_feedback` is likes and hides, one row per artwork so `kind` is a state rather than a
-log. It carries a small snapshot — title, artist, `image_id` — and **no foreign key to
-`artwork_index`**, because an artwork can be on screen without being indexed at all: the second
-and third tiers serve straight from AIC and from the bundled set. A foreign key would turn
-"like the artwork I am looking at" into an `IntegrityError` on exactly the setup a new user has.
-Migration 009, ADR-0010.
+`artwork_feedback` is likes, dislikes and hides, one row per artwork per museum so `kind` is a
+state rather than a log. It carries a small snapshot — title, artist, `image_id` — and **no
+foreign key to `artwork_index`**, because an artwork can be on screen without being indexed at
+all: the second and third tiers serve straight from AIC and from the bundled set, and Cleveland
+is never indexed. A foreign key would turn "like the artwork I am looking at" into an
+`IntegrityError` on exactly the setup a new user has. Migration 009, ADR-0010.
+
+Migration 010 added `museum` and made the key composite, which is the one item of ADR-0012's
+eight that a live second source could not defer: artwork id 1 is a real record at both museums,
+and a favourite keyed on `artwork_id` alone would let a Cleveland print un-like an Art Institute
+painting. It also added `dislike` — a ranking signal with no exclusion behind it, which is the
+verdict the original pair had no room for. ADR-0013, ADR-0014.
+
+`interpretations` gained `kind` in migration 011, for the same reason it has a `prompt_version`
+column as well as a key part: retiring one kind wholesale is a bulk operation, and doing it by
+string surgery on a primary key is how you delete the wrong rows. Neither table is a corpus
+table, so `repositories/corpus.py`'s allow-list is unaffected by both migrations — checked.
 
 `credentials` is the fallback tier for a bring-your-own API key, used only when the OS keyring is
 unavailable, and it is unencrypted. It is the reason `data/vitrine.db` can never be published:
@@ -199,10 +240,14 @@ frontend/
     js/
         main.js         wiring, and the only place the pieces below know about each other
         display.js      the transition pipeline — the one genuinely tricky file
-        rotation.js     timer, visibility handling, preload scheduling
-        overlay.js      metadata, and the container the AI section renders into
+        rotation.js     timer, visibility handling, preload scheduling, the interval floor
+        overlay.js      metadata, and the container the AI sections render into
         interpretation.js  the AI request, its states, and the labelled section itself
+        access.js       the accessibility description: its section, states and controls
+        speech.js       text to speech, over the browser's own speechSynthesis
+        history.js      the last twenty artworks, for going back
         panel.js        settings — named for what it is, not for what it holds
+        filters.js      one filter group: tri-state rows, search, the selection badge
         i18n.js         locale loading, {placeholder} substitution, data-i18n in markup
         ambient.js      the Screen Wake Lock, and re-taking it when the tab comes back
         state.js        the plain object described below

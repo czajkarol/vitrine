@@ -12,6 +12,6 @@ Loaded when working inside `tests/`. Strategy is in `docs/testing.md`.
   timeout, provider down, budget exhausted, corrupt cache.
 - Scoring tests assert relative ordering, not exact float values, so weight tuning does not
   break the suite.
-- Playwright covers six smoke flows only. Push everything else down to unit tests. A seventh
-  has to argue for itself the way the sixth did: it earns a slot only by crossing layers no
-  smaller test can.
+- Playwright covers eight smoke flows only. Push everything else down to unit tests. A ninth has
+  to argue for itself the way the sixth, seventh and eighth did: it earns a slot only by covering
+  a rule that exists nowhere but in the browser, or by crossing layers no smaller test can.

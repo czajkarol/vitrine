@@ -6,8 +6,10 @@ of what was decided and why, so nobody relitigates them.
 All twelve are now closed: **#5** was confirmed by hand on 2026-09-03.
 
 Two entries have since been reopened deliberately and amended in place, with the date and the
-reason — **#2** and **#3**, both on 2026-09-03 as part of M7. An amendment is how a ruling
-changes here. Contradicting one in the code while leaving this file saying the opposite is not.
+reason — **#2** and **#3**, both on 2026-09-03 as part of M7. **#3 carries a second amendment
+from 2026-09-04 (M13)**, where the `i` control became a details toggle shown on every artwork.
+An amendment is how a ruling changes here. Contradicting one in the code while leaving this file
+saying the opposite is not.
 
 ---
 
@@ -65,6 +67,26 @@ only, and the reasoning behind the first survives it intact:
   was protecting.
 
 Design in `docs/plan-improvements.md` Phase 1.3; built in M8.
+
+**Amended again 2026-09-04 (M13).** The owner asked for the `i` control to be shown consistently,
+"including artworks without descriptions". That reverses the "appears only when the text is
+actually clamped" clause above, and the reason is worth keeping: measuring `scrollHeight` was the
+right way to decide whether the *clamp* was hiding anything and the wrong way to decide whether
+the *control* should exist. Roughly seven artworks in eight have no description at all, and on
+those the button vanished — which reads as a rendering fault rather than as an absence, and left
+no way to discover from the screen that the affordance was there.
+
+So `i` is a **details** toggle rather than an expand button. It opens the description where there
+is one, and either way it opens four catalogue facts the overlay has no room for at rest, all of
+which were already on the response and on screen nowhere.
+
+Two clauses of the original ruling survive and are strengthened rather than weakened:
+
+- The resting state is still the five-line clamp, and still what an untouched display shows.
+- An expanded panel is still never where an unattended display settles: it collapses on rotation,
+  on `Esc` and when the overlay fades, exactly as before. M13 also **holds the rotation** while it
+  is open, which is the other half of the problem the stretched idle fade only half solved — text
+  staying put while the picture underneath it changes is no better than the text going away.
 
 ---
 

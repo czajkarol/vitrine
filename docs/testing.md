@@ -21,7 +21,7 @@ interpretation chain against `MockProvider`. Fast, no network.
 from the default run and from CI. Run them by hand when a contract test starts looking suspicious
 or before a release. They are also how fixtures get refreshed.
 
-**E2E** — Playwright, six flows, no more:
+**E2E** — Playwright, eight flows, no more:
 
 1. App loads and an image appears
 2. Space advances to a different artwork
@@ -29,20 +29,46 @@ or before a release. They are also how fixtures get refreshed.
 4. Language switches to Polish and back
 5. With AI disabled, the overlay shows museum data and no error
 6. `L` adds a favourite and it survives a reload
+7. A facet clicked twice excludes it, and the display stops serving that type
+8. The spoken description reaches the screen with its grounding line
 
 Playwright is slow and flaky in proportion to how much you ask of it. Everything not in that
 list belongs in a unit or integration test.
 
-The sixth was added in M11 and had to argue for itself. It is here because it is the one
-feature that crosses every layer in a way no smaller test can: a keypress, an HTTP write, a
-SQLite row with no foreign key behind it, and the state read back onto a fresh page. Each half
-has a unit test; only this proves they meet.
+**A new flow has to argue for its slot**, and the last three each did. The argument is the same
+one every time: **there is no frontend test runner here and there will not be** (ADR-0005), so a
+rule that only exists in the browser is either an e2e flow or it is untested.
+
+- The **sixth** (M11) is the one feature that crosses every layer in a way no smaller test can:
+  a keypress, an HTTP write, a SQLite row with no foreign key behind it, and the state read back
+  onto a fresh page. Each half has a unit test; only this proves they meet.
+- The **seventh** (M13) is the only check that a facet control cycles through three states and
+  that the third one narrows what is served. That control is the panel's largest surface and was
+  rewritten wholesale, and the states exist nowhere but in the browser. It earned its place
+  immediately: on its first run it found that the artwork-type group is called `artwork-type`
+  while its facets are `type.*`, and that code matching the shared exclusion list on the group's
+  own name silently dropped every exclusion in that group.
+- The **eighth** (M14) covers the one feature whose failure the person it is for cannot see. A
+  sighted user notices an empty panel; somebody relying on the spoken description notices
+  silence, which is indistinguishable from having pressed the wrong key. So it asserts the three
+  things that make it usable: the region appears, the text arrives, and the line saying where the
+  words came from is on screen with it.
 
 The fixture starts its own uvicorn on a free port, against a temporary database seeded from the
 bundled fallback set, and strips `AI_*` and every vendor key out of the environment it inherits —
 a key in the developer's shell would turn AI on and flow 5 would silently stop testing what it
 says it tests. Metadata therefore needs no AIC call; the images still come from artic.edu, which
 is the one thing in the suite that touches the network and is exactly what flow 1 checks.
+
+**Two things the last two flows needed, and both are worth knowing.** The seeded index is padded
+with copies of the bundled records under synthetic ids, because a facet is not offered below
+forty artworks and the bundled set is thirty — without it the panel correctly reports that there
+is nothing worth filtering on and flow 7 has nothing to click. That is the narrowest departure
+from "fixtures are recorded, not invented" that makes the flow possible, and what is under test
+is the panel rather than AIC's shape. And flow 8 runs against a **second server** with
+`AI_PROVIDER=mock`, because flow 5 asserts the exact opposite — that with nothing configured the
+feature is not offered — and one process changing its mind halfway through the module would make
+one of the two a lie.
 
 Wait on `naturalWidth`, never on `load` or `complete`: an `<img>` with no src at all reports
 complete, and so does one whose src has already 404'd.
@@ -58,8 +84,14 @@ Each of these has a named test. They are the ones that matter, because they are 
 running the app for eight hours will actually hit:
 
 - Liking an artwork the index has never seen — the ordinary case on a fresh clone
-- A hidden artwork never coming back, in any mode
+- A hidden artwork never coming back, in any mode; a *disliked* one still coming round
+- The same artwork id at two museums being two separate verdicts
 - "For you" with too few likes to personalise, saying so rather than pretending
+- A live source that is down, failing without falling through to the Art Institute
+- A live source whose filter list cannot be fetched, coming back empty rather than 500
+- An artwork with no alt text and no description being refused a spoken description, before
+  any provider call is made
+- A provider that cannot write a spoken description saying so, rather than failing
 - AIC returns 500, then succeeds on retry
 - AIC times out
 - AIC returns valid JSON with `image_id: null`

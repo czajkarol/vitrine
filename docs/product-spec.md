@@ -109,14 +109,29 @@ fallback stack: a readable caption in Georgia beats an invisible one in Garamond
 
 ```
 Space      next artwork
+← →        back and forward through what you have seen
 F          toggle fullscreen
 I          toggle metadata overlay
+A          describe this artwork aloud
 L          add to favourites, or remove
+D          show me less like this, or take it back
 X          hide this artwork — never show it again, in any mode
 1 2 3 4 5  set interval to 30 sec / 1 / 5 / 15 / 30 min
 S          toggle settings
+?          the keyboard map, in the settings panel
 Esc        close settings if open, else close overlay if open, else exit fullscreen
 ```
+
+Plus one mouse gesture, and only one: **a left click on the artwork while in fullscreen** hides
+the overlay entirely, and movement does not bring it back. A second click restores it. Both say
+so once on the status line, because a click that hides every control also hides the way back.
+Only in fullscreen — windowed there is chrome around the page already, and the gesture would be
+a click that silently changed a mode. Clicks that land on the overlay's own buttons, or on an
+expanded description, are not this.
+
+`?` exists because thirteen shortcuts documented only in this file are thirteen shortcuts nobody
+using the app knows about. It opens the settings panel with the keyboard map expanded, and the
+map is translated like every other string.
 
 Esc priority is exactly that order — most transient thing first. Shortcuts are disabled while
 focus is inside a text input — except Esc itself, which always closes. The panel holds one text
@@ -145,32 +160,82 @@ not merely a smaller font. A user glancing at the screen must never mistake gene
 for a museum caption. They are also set in different faces: the museum speaks in the serif, the
 machine in the interface sans.
 
-### The description, and expanding it
+### The details, and expanding them
 
 The description clamps to five lines. That is the resting state and does not change.
 
-A small `i` button beside it expands it in place, bounded to 45vh and scrollable past that. It
-appears only when the clamp is actually hiding something — measured from `scrollHeight`, not
-guessed from how many characters the text has, because five *lines* depends on the viewport and
-on which font won the `font-display: swap` race.
+A small `i` button beside it opens the details in place, bounded to 45vh and scrollable past
+that. **It is shown on every artwork.** It used to appear only when the clamp was actually
+hiding something, measured from `scrollHeight` — which was right about the clamp and wrong about
+the control. Roughly seven artworks in eight have no description at all, and on those the button
+vanished, which reads as a rendering fault rather than as an absence, and left no way to learn
+from the screen that the affordance existed.
+
+So it is a *details* toggle rather than an expand button. Where there is a description it opens
+it; either way it opens the catalogue facts the overlay has no room for at rest — place of
+origin, artwork type, reference number, and which collection the work is in. All four were
+already on the response and were on screen nowhere. `QUESTIONS.md` #3, amended twice.
+
+**Expanded is a different size**, because it is a different act. The whole panel steps up
+together — a description that grew while its title stayed put would look like a fault — the
+measure widens with it so the line length stays about the same count of words, and the
+description brightens from `--fg-dim` to `--fg`. A size and a colour chosen for a caption
+glanced at across a room are not right for four hundred words.
+
+The scrim strengthens with it. The gradient is relative to the overlay's own box, so an overlay
+expanded to most of the screen stretches the same gradient over 700px and stops being a scrim —
+measured on a gilded triptych, where the title sat over gold leaf.
 
 Expansion is per artwork and temporary. It collapses when the artwork rotates, on `Esc`, and
-when the overlay fades. While it is open the idle fade stretches from 3.5s to 20s, because
-reading is not moving the mouse and 3.5s takes the text away mid-paragraph; scrolling the
-description counts as activity for the same reason. An unattended display still returns to the
-artwork on its own, which is what the original ruling protects. `QUESTIONS.md` #3, amended.
+when the overlay fades. While it is open **the rotation is held** and the idle fade stretches
+from 3.5s to 20s. Those were two halves of the same problem and only one of them had been
+solved: text staying put while the picture underneath it changes is no better than the text
+going away. Scrolling the description counts as activity for the same reason. An unattended
+display still returns to the artwork on its own, which is what the original ruling protects.
 
 `I` keeps its own meaning — pin or unpin the whole overlay. Two affordances, two meanings.
 
 ### Controls on the display
 
-The two buttons above are the only clickable controls outside the settings panel, and they live
-inside the overlay, which is hidden at rest. "No visible controls at rest" is unaffected.
+Six buttons, and they are the only clickable controls outside the settings panel: back, next,
+details, like, dislike, and — when a provider can write one — describe aloud. They live inside
+the overlay, which is hidden at rest, so "no visible controls at rest" is unaffected.
+
+`X` has no button. "Never show this again" is not a thing to put one click away from a cursor.
 
 The overlay itself keeps `pointer-events: none` so it cannot swallow the movement that reveals
-it; the buttons and the expanded description take the pointer back one element at a time.
+it; the buttons, the expanded description and the accessibility section take the pointer back
+one element at a time.
 
 ---
+
+## Sources
+
+Two museums, chosen in the settings panel. See ADR-0013.
+
+**The Art Institute of Chicago** is the indexed one and everything above applies to it.
+
+**The Cleveland Museum of Art** is fetched live, one request per artwork, and is deliberately a
+much smaller feature: Random only, one filter — its own artwork types, in its own vocabulary,
+with counts asked of the museum. Curated and "For you" rank against a score only the local index
+carries, so they are disabled while Cleveland is selected, with a line in the panel saying why.
+
+Three things degrade on a Cleveland artwork and each has a defined fallback, because "it looks
+slightly worse and nobody wrote it down" is the failure to avoid. There is no `lqip`, so the
+crossfade starts from the previous artwork rather than from a blur. There is no `color`, so the
+overlay uses its default scrim — which is strong enough alone, as M8 established. And there is
+no `alt_text`, which is what grounds both AI prompts, so **the AI features are not offered on a
+Cleveland artwork at all**; the controls are hidden rather than offered and then refused.
+
+There is also no IIIF service — three fixed image URLs per record, one of them a TIFF — so the
+width ladder and the ADR-0008 proxy fallback are skipped and the URL is used as sent.
+
+Switching source clears the filters as well as the history. The two vocabularies have nothing in
+common, so carrying a selection across would show a filter that silently matches nothing.
+
+Attribution is per artwork rather than per app, because it is a licence condition rather than a
+label. Cleveland's metadata and images are CC0; the Art Institute's CC BY 4.0 clause stays on
+its own half, where it applies.
 
 ## Modes
 
@@ -193,9 +258,12 @@ be offered, while style and subject run to hundreds of facets, so only the most 
 are — on top of the same "enough behind it" rule. A group with nothing to offer is hidden rather
 than shown empty.
 
-The three combine with AND, and each takes one value rather than several. "Landscape **and**
-portraits" narrows to almost nothing and reads as a bug rather than as a filter, so the panel
-offers radio buttons and not checkboxes.
+The three groups combine with AND. **Inside a group, several values combine with OR** — see
+"One control per facet" below, and ADR-0014. The original rule here was radio buttons on the
+reasoning that "landscape **and** portraits" narrows to almost nothing, which is true and is an
+argument about the *operator* rather than about how many values a group may hold. ANDing two
+artwork types is not merely narrow, it is empty by construction: nothing is both a painting and
+a print. ORing them is what anybody means by ticking two boxes, and it is not narrow at all.
 
 A filtered request is answerable only from the local index. AIC and the bundled set cannot
 honour the filter, so a filter matching nothing returns nothing rather than quietly falling
@@ -215,14 +283,35 @@ English the server sends — so an untranslated facet reads as a word, never as 
 `locales/en.json` deliberately carries no facet keys at all: the server's label *is* the English
 label, and a second copy would only be somewhere for it to drift.
 
-#### Exclusion
+#### One control per facet
 
-Each group also offers a collapsed **Exclude** sub-list, and it is checkboxes where inclusion is
-radios. That is not an inconsistency: the reasoning above applies to inclusion and simply is not
-true of exclusion. Ruling several things out at once is ordinary and leaves plenty behind.
+A facet has three states with respect to a filter, so its control has three. One button per
+facet, cycling **off → include → exclude → off**, one list per group. Until M13 there were two
+controls per vocabulary — a list of radios for inclusion and a collapsed second list of
+checkboxes for exclusion — which meant the sixty style facets appeared twice in the panel, in
+two lists, meaning two different things, and ruling one out meant finding it a second time
+further down.
+
+The state is carried three ways at once, deliberately: a glyph (`✓` / `✕` / nothing), a colour,
+and a word in the `aria-label`. Any one alone is a guess — the glyph is `aria-hidden`, and
+green-versus-red is the worst possible colour pair for the people most likely to be excluded by
+it.
+
+Groups collapse. A collapsed group carries a badge in its heading saying what is on inside it,
+and opens itself when something is set, so a live filter can never be hidden behind a heading
+somebody has to remember to check. A group with more than twelve options gets a search box; a
+selected row always shows regardless of the search text, because hiding a selection makes it
+invisible rather than absent. An excluded facet shows no count — it is always zero, and a
+struck-through row with a `0` beside it reads as a broken filter rather than a working one.
 
 Including and excluding the same facet is contradictory rather than empty, and returns the usual
 "nothing matches those filters" — never a silently dropped exclusion.
+
+Inclusion and exclusion are sanitised differently on the way in, and the asymmetry is the point:
+an exclusion that cannot be parsed is dropped, because that shows the user *more* than they
+asked for and they can see it; an inclusion that cannot be parsed is **kept**, matches nothing,
+and the display says nothing matched. A dropped inclusion would be a filter that silently
+stopped filtering, which is the one failure this whole section is written to avoid.
 
 #### Counts follow the selection
 
@@ -256,9 +345,16 @@ come from real API data:
 
 A third mode, and deliberately not a change to Curated — see ADR-0010.
 
-`L` and `X` are the entire input. No dwell time, no skips, no inference from silence: an
+`L`, `D` and `X` are the entire input. No dwell time, no skips, no inference from silence: an
 ambient display is left running in an empty room, and "watched for nine minutes" usually means
 nobody was there.
+
+**Three verdicts, and the middle one is the point.** `L` and `X` are the two ends of a scale
+with nothing between them: `X` is a hard exclusion, so it could never also mean "less of this".
+`D` is that middle — a ranking signal and nothing else, and the artwork stays in the rotation.
+Because the nudge is all the user gets for pressing it, a dislike counts against the profile
+harder than a hide does; hiding is usually about one artwork rather than a category, and its
+real force is the exclusion. Pressing the same key twice takes the verdict back.
 
 Ranking is `curated × (1 + α · affinity)`, so curated quality still bounds it: a blurry
 favourite subject does not beat a well-photographed one. The affinity is frequency over the
@@ -281,9 +377,27 @@ sentence why artwork A outranked artwork B, the scoring is too clever.
 
 ## History
 
-Keep the last ~50 artwork IDs in SQLite. Use it to avoid near-term repeats, as a soft penalty
-in scoring rather than a hard exclusion. An artwork seen two hours ago should be unlikely, not
-impossible.
+Two different things share the word, and they are not the same feature.
+
+**The repeat penalty.** Keep the last ~50 artwork IDs in SQLite. Use it to avoid near-term
+repeats, as a soft penalty in scoring rather than a hard exclusion. An artwork seen two hours ago
+should be unlikely, not impossible.
+
+**Going back.** The display also keeps the last twenty artworks it has shown, in the browser, and
+`←` and `→` walk them. This is not the SQLite table: that one holds ids so a query can penalise
+them, and re-fetching an artwork by id to redisplay it would be a second endpoint answering a
+question the browser already knows the answer to.
+
+It stores payloads rather than decoded images — a decoded 1686px bitmap is several megabytes and
+this app runs for hours — and the image is requested again on the way back, where the browser's
+own HTTP cache normally answers instantly. It lives only as long as the page, which is the right
+lifetime: "the one before" is a question about the last few minutes, and a stack restored across
+a reload would offer to return to something nobody remembers seeing.
+
+Moving through it re-arms the rotation clock, the same way a manual advance does. Going back to
+look at something and having it rotate away two seconds later is the opposite of the point. It is
+cleared when the source changes, because a stack crossing museums would offer to return to an
+artwork the current source cannot show — and the two id spaces overlap.
 
 ---
 
@@ -302,8 +416,9 @@ display feature and the README describes it as one.
 
 ## Settings
 
-A small panel, not a page. Interval, language, mode, filters, AI on/off, AI provider, metadata
-visibility, ambient mode. Persisted locally. Opening settings pauses rotation; closing resumes.
+A small panel, not a page. Source, mode, interval, filters, ambient mode, AI provider and key,
+language, and the keyboard map. Persisted locally. Opening settings pauses rotation; closing
+resumes.
 
 Changing the interval while the panel is open must not restart the clock under it — set the new
 interval, keep the clock held, and let closing the panel start it.
@@ -378,6 +493,39 @@ still displays something. It makes the first run work and it makes the offline s
 
 ## Accessibility
 
-Keyboard reachable throughout — including the overlay's two buttons, which are real `<button>`
+Keyboard reachable throughout — including the overlay's buttons, which are real `<button>`
 elements in the tab order, and which leave the tab order with the overlay when it fades.
-`alt` text from `thumbnail.alt_text`. Sufficient contrast on the overlay. Honour `prefers-reduced-motion` by cutting instead of crossfading.
+`alt` text from `thumbnail.alt_text`. Sufficient contrast on the overlay. Honour
+`prefers-reduced-motion` by cutting instead of crossfading.
+
+### Described for listening
+
+`A` asks for a spoken visual description of the artwork on screen, and reads it aloud. It has
+its own labelled region below the interpretation — `role="region"` with a name, `aria-live`, and
+real buttons — because a listener needs to be able to find it, not merely to have it exist.
+
+**The description is written from the museum's own words, and the display says so.** No model
+sees the image: everything visual comes from `thumbnail.alt_text`, which a person at the Art
+Institute wrote while looking at the artwork. Every screen showing a description also shows which
+field it came from and the sentence "No AI has seen the artwork itself."
+
+That line is the feature's honesty, not a disclaimer attached to it. Everywhere else in this app
+a wrong generated sentence is recoverable, because the artwork is on screen disagreeing with it.
+Here the reader is the one person who cannot check. So the prompt's strongest rules are about
+restraint — take everything visual from the museum's text, and *match the length of your source*,
+because padding a one-clause alt text is inventing and a listener cannot tell the difference —
+and an artwork with no visual metadata at all is refused rather than described. ADR-0015.
+
+Playback is the browser's own speech synthesis. It costs nothing, needs no key and works
+offline, which matters more here than voice quality does. **Replaying is free and is its own
+control**: the text is on screen and the server has it cached, so hearing it again is not a
+second request and not a second bill.
+
+Asking for a description holds the rotation at five minutes or slower for the rest of the
+session, without changing the interval the user chose. A description takes most of a minute to
+hear, and at the 30-second rung the artwork would be gone before the end of it. The user's own
+setting comes back when the floor lifts.
+
+The feature is offered only where a configured provider can actually produce one — `/api/health`
+reports the capability and the control is hidden otherwise. A control that is offered and then
+refuses is worse than one that is not offered.

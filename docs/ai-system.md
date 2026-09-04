@@ -25,6 +25,32 @@ The provider is instructed to return JSON matching this and nothing else. Parse,
 reject on failure. A rejected response is a cache miss, not an error shown to the user, and
 "provider returned unparseable JSON" is a test case, not a surprise in production.
 
+### The second kind: an accessibility description
+
+M14 added a second thing the AI produces, for a different reader. See ADR-0015.
+
+```python
+class VisualDescription(BaseModel):
+    summary: str                 # one sentence: what the artwork is
+    description: str             # 3-8 sentences, read aloud
+    language: Literal["en", "pl"]
+```
+
+**No model sees the image.** Everything visual comes from `thumbnail.alt_text` — written by a
+person at the Art Institute who did look at the artwork, and present on all 57,607 indexed
+works — plus `description` and `medium` where those describe appearance. The prompt's second
+strongest rule is *match the length of your source*: a one-clause alt text should produce two or
+three sentences and stop, because padding a thin source is inventing and the reader is the one
+person who cannot tell the difference.
+
+An artwork with neither alt text nor a description is refused before a call is made
+(`is_describable`, HTTP 422 `access_not_describable`). The audit has to happen upstream of the
+money, because it cannot happen downstream of it.
+
+The response carries `grounded_in`, and the display prints which museum field the words came
+from and that no AI has seen the artwork. That line is not a disclaimer bolted on — it is what
+makes the feature honest, so it renders with the text rather than behind a fold.
+
 ### Prompt construction
 
 Separate the instruction from the data. Museum metadata goes in as clearly delimited *content*,
@@ -47,11 +73,16 @@ the prompt changes in a way that would change the output meaningfully. Do not bu
 fix — that just throws away a cache for nothing. Keep a short changelog in the prompts module
 saying what changed at each version.
 
+`VISUAL_PROMPT_VERSION` is a second constant, versioned independently. Retuning the
+interpretation must not discard every accessibility description: those are the more expensive of
+the two to regenerate and the ones a returning listener is most likely to want again.
+
 ---
 
 ## Cache
 
-Key: `artwork_id | language | provider | model | prompt_version`
+Key: `artwork_id | language | provider | model | prompt_version`, plus `| kind` for
+anything that is not an interpretation — see below.
 
 Resolution order:
 
@@ -66,6 +97,13 @@ implemented and should not be. See ADR-0004.
 If a cache lookup raises, log it and fall through to the next tier. A corrupt cache must never
 take the app down.
 
+Since M14 the cache holds two kinds, distinguished by `kind` on the `CacheKey`
+(`"interpretation"` or `"visual"`). It joins the key string **only when it is not the default**,
+so every interpretation cached before M14 kept the key it was written under — adding a field to
+a cache key is otherwise a silent, total invalidation. Migration 011 also adds `kind` as a
+column, for the same reason `prompt_version` is one: retiring a kind wholesale is a bulk
+operation and doing it by string surgery on a primary key is how you delete the wrong rows.
+
 ---
 
 ## Providers
@@ -76,7 +114,7 @@ providers/ai/
     http.py       the POST, the timeout and the error map both real providers share
     mock.py       deterministic, used by the entire test suite
     factory.py    the only place a configured name becomes a class
-    anthropic.py  built first
+    anthropic.py  built first; also implements VisualDescriptionProvider
     openai.py     built second, to test the abstraction
     gemini.py     not built
 ```
@@ -100,6 +138,22 @@ implements the Protocol without it and nothing else has to know.
 
 No test in the default suite may hit a paid API. Real providers are exercised only under
 `-m live`, which is excluded from CI.
+
+### Capabilities, not configuration flags
+
+Not every provider does everything, and M14 made that structural rather than conditional.
+`VisualDescriptionProvider` is a second, `runtime_checkable` Protocol beside
+`InterpretationProvider`. Anthropic implements it; `MockProvider` implements it, so the whole
+accessibility path is testable with no key and no network; OpenAI does not.
+
+The alternatives were both worse. A vendor name compared above `providers/` is forbidden outright
+by `CLAUDE.md`. A `describe()` method on the shared Protocol would have forced OpenAI to
+implement it by raising, and a capability a provider claims and then refuses is worse than one it
+visibly lacks. `/api/health` reports `ai.describes`, and the display does not offer a control
+that would refuse.
+
+Making OpenAI eligible later is adding one method in one file. There is no second place to
+remember.
 
 ### Two configuration modes
 
@@ -153,6 +207,82 @@ AI enabled will make 1,440 API calls a day.
 - Never generate on rotation. Generate on demand — when the user actually opens the overlay.
   This one decision cuts AI cost by an order of magnitude, because most artworks are never
   asked about.
+
+---
+
+## What it actually costs
+
+Measured on 2026-09-04 against 300 randomly sampled indexed artworks, by building the real
+prompts with `build_prompt` and `build_visual_prompt` and counting characters.
+
+**These are estimates, and the estimate is stated so it can be replaced.** Token counts are
+derived from characters at roughly 3.6 chars/token, which is the usual ratio for English prose
+with punctuation and embedded JSON. Nobody has run `client.messages.count_tokens` against these
+prompts, because nobody has run this app with a real key at all — see the outstanding items in
+`HANDOFF.md`. Confirming these numbers is one call and should happen the first time a key exists.
+
+| | System instruction | Median prompt | p90 prompt | Approx. input tokens (median / p90) |
+|---|---|---|---|---|
+| Interpretation | 1,411 ch | 1,734 ch | 2,085 ch | ~480 / ~580 |
+| Visual description | 1,962 ch | 2,214 ch | 2,555 ch | ~615 / ~710 |
+
+Output is capped at `AI_MAX_OUTPUT_TOKENS` (600). A realistic interpretation is 250-350 tokens
+across its four fields; a realistic description is 150-350.
+
+At `claude-sonnet-5`, the default model in `providers/ai/anthropic.py` ($2.00 / $10.00 per
+million tokens in / out):
+
+| | Typical | At the output cap |
+|---|---|---|
+| One interpretation | ~$0.0040 | ~$0.0072 |
+| One visual description | ~$0.0037 | ~$0.0074 |
+
+So **under half a cent each**, and the two are within a rounding error of one another — the
+description's longer prompt is offset by its shorter answer.
+
+**The daily ceiling.** `AI_DAILY_REQUEST_LIMIT` defaults to 200, and since M14 the two kinds
+share it. Fully spent, every day:
+
+| | Per day | Per 30 days |
+|---|---|---|
+| 200 requests, typical | ~$0.75 | ~$22 |
+| 200 requests, at the cap | ~$1.48 | ~$45 |
+
+That is the worst case for a budget nothing has ever come close to spending, because generation
+is on demand: most artworks are shown and never asked about. `claude-haiku-4-5` ($1.00 / $5.00)
+halves it again if the ceiling ever becomes real.
+
+### Text to speech costs nothing, and that is a structural choice
+
+Playback is the browser's own `speechSynthesis` (`frontend/js/speech.js`). No key, no network,
+no per-word charge, and it works with both museums unreachable — which matters more here than
+voice quality does, because the point of the feature is that somebody can rely on it.
+
+A cloud neural voice would sound better, particularly in Polish. It was rejected on **structure**
+rather than on price: cloud TTS bills per character *per playback*, where the model call bills
+once and is then cached. Replay — which the owner asked for by name — would be the expensive
+operation.
+
+At neural-tier rates, which the major providers publish in the region of $15-20 per million
+characters, a ~750-character description is roughly **1-1.5¢ every time it is played**, against
+~0.4¢ once to write it. Ask for a description and listen to it three times and the speech has
+cost an order of magnitude more than the intelligence did. The exact rate does not change the
+shape of that argument.
+
+Two `speechSynthesis` traps are handled in `speech.js` and are worth knowing about: voices load
+asynchronously and `getVoices()` returns `[]` on first call in Chrome, so the list is primed at
+boot; and a long utterance is truncated in some builds, so the text is split at sentence
+boundaries — which also makes `cancel()` take effect at the next boundary rather than after the
+whole thing.
+
+### The one cost control that is not a number
+
+Generation stays on demand — `I` for an interpretation, `A` for a description. This is still the
+single decision worth an order of magnitude, and it now applies to two features rather than one.
+
+Asking for a description also puts a five-minute floor under the rotation. That is not a cost
+control, but it interacts with one: at the 30-second rung an unattended display with generation
+on rotation would be the 2,880-calls-a-day scenario this section exists to prevent.
 
 ---
 

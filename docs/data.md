@@ -23,11 +23,11 @@ holds an API key in plain text. Publish `dist/vitrine-index.sqlite` — the outp
 | `artwork_index` | Rebuildable corpus | One row per indexed public-domain artwork: AIC's metadata, the blur placeholder, the curated score | Re-run the walk (~30 min) or fetch a published export |
 | `artwork_terms` | Rebuildable corpus | AIC's own style and subject values, verbatim | Same |
 | `artwork_facets` | Derived | The canonical facets every filter queries ([ADR-0009](adr/0009-canonical-facets.md)) | `build_index.py --retag`, no network, ~2s |
-| `interpretations` | Cache | AI-written interpretations, keyed by artwork, language, provider, model and prompt version | Costs money to regenerate; nothing breaks |
+| `interpretations` | Cache | AI-written interpretations **and accessibility descriptions**, keyed by artwork, language, provider, model, prompt version and kind | Costs money to regenerate; nothing breaks |
 | `ai_usage` | Counters | Requests and tokens per day per provider | Today's spend cap resets; nothing breaks |
 | `preferences` | User state | Mode, interval, language, filters, the remembered IIIF base | Mildly annoying |
 | `history` | User state | The last ~50 artwork ids, for the repeat penalty | Mildly annoying |
-| `artwork_feedback` | **User data** | Likes and hides, with a title/artist/image snapshot ([ADR-0010](adr/0010-personalisation-from-explicit-feedback.md)) | Your favourites, and "For you" goes back to cold |
+| `artwork_feedback` | **User data** | Likes, dislikes and hides, per museum, with a title/artist/image snapshot ([ADR-0010](adr/0010-personalisation-from-explicit-feedback.md)) | Your favourites, and "For you" goes back to cold |
 | `credentials` | **A secret** | A pasted API key, unencrypted, when no OS keyring is available | Your API key |
 | `schema_migrations` | Bookkeeping | Which migrations have run | Migrations would re-run and fail |
 
@@ -51,6 +51,19 @@ have genuinely different consequences:
 Either way the key never leaves the machine and is never sent to the frontend
 (`CLAUDE.md`), and it is redacted to its last four characters in every log line and error
 response.
+
+### What M13-M15 changed, and what it did not
+
+`artwork_feedback` gained a `museum` column and a `dislike` verdict (migration 010), and
+`interpretations` gained a `kind` column (migration 011). **Neither is a corpus table**, so
+`CORPUS_TABLES` in `app/repositories/corpus.py` is unchanged and still correct — checked rather
+than assumed, because the allow-list being right by construction is the whole reason it is an
+allow-list and not a deny-list.
+
+Cleveland adds nothing here at all. It is never indexed ([ADR-0013](adr/0013-cleveland-as-a-live-source.md)),
+so no Cleveland artwork is in the corpus and an export does not have to say which sources it
+carries — item 8 of ADR-0012's eight, dodged. The only Cleveland rows in the database are in
+`artwork_feedback`, which is user data and is never exported.
 
 ## Is the corpus publishable? Yes, with attribution
 

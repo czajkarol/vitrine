@@ -125,19 +125,20 @@ curl http://127.0.0.1:8000/api/stats
 `indexed_artworks` is the number that says step 4 worked. Zero means the app is serving
 from AIC and the bundled set, which looks fine on screen and is not what you wanted.
 
-Then open the browser and look at it. Press `S`: the artwork-type list should show real
-counts, and the header above it the same total as `indexed_artworks`.
+Then open the browser and look at it. Press `S` and open the "Artwork type" group: the facets
+should show real counts, and the line above them the same total as `indexed_artworks`. Press `?`
+in the same panel for the keyboard map.
 
 ## 7. The test suite
 
 ```bash
-uv run pytest                       # 539 tests, no network
+uv run pytest                       # 587 tests, no network
 uv run ruff check . && uv run ruff format --check . && uv run mypy app
 ```
 
 ```bash
 uv run playwright install chromium  # once
-uv run pytest -m e2e                # 6 flows; starts its own server
+uv run pytest -m e2e                # 8 flows; they start their own servers
 ```
 
 `uv run pytest -m live` hits the real AIC API, and a real AI provider if one is keyed. It is

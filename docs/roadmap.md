@@ -310,6 +310,170 @@ The largest milestone, and it needs **no AIC traffic**: the raw terms are alread
 
 ---
 
+## M13 — Navigation, filters, and a third verdict
+
+The UX round. Most of it is one idea applied five times: a control should say what it does and
+what state it is in, and there should be one of it.
+
+- [x] **One tri-state control per facet**, replacing three lists of radios plus three collapsed
+      lists of checkboxes — the same sixty facets written twice, in two places, meaning two
+      different things. Click to include, again to exclude, again to clear. State carried three
+      ways at once: a glyph, a colour, and a word in the `aria-label`, because any one alone is
+      a guess and green-versus-red is the worst possible pair. `frontend/js/filters.js` is new;
+      `panel.js` kept the orchestration
+- [x] **Inclusion is multi-valued and ORed inside a group**, ANDed between groups, with exclusion
+      NOT-ed over all of them. The operator had to change with the arity: `type.painting AND
+      type.print` is empty by construction. Painting-or-print is 26,120 indexed works where
+      painting alone is 1,816. ADR-0014
+- [x] Groups collapse, carry a badge saying what is on inside them, open themselves when
+      something is, and gain a search box past twelve options. A selected row always shows
+      whatever the search says, because hiding a selection makes it invisible rather than absent
+- [x] **Inclusion and exclusion sanitise differently**, and the asymmetry is the point: a dropped
+      exclusion shows you more than you asked for and you can see it, a dropped inclusion
+      silently stops filtering. `_included_facets` keeps an unrecognised key so it matches
+      nothing, rather than dropping it so it constrains nothing
+- [x] **Artwork history** — `frontend/js/history.js`, twenty deep, arrows and a button. Payloads
+      rather than decoded images: a decoded 1686px bitmap is several megabytes and this app runs
+      for hours, and the image comes back out of the browser's own HTTP cache. Cleared when the
+      source changes, because a stack crossing museums would offer to return to an artwork the
+      current one cannot show
+- [x] **`D` dislikes**, a third verdict between `L` and `X`. The original pair had nothing in the
+      middle: `hide` is a hard exclusion, so it could never also mean "less of this". A dislike
+      only ranks, so it counts against the affinity profile harder than a hide does — the nudge
+      is all the user gets for pressing the key. Migration 010
+- [x] **A left click in fullscreen takes everything but the artwork away**, and movement does not
+      bring it back — that last part is the whole request. A second click restores it, and both
+      say so once on the status line, because a click that hides every control also hides the
+      way back
+- [x] **Rotation pauses while the details are expanded.** The stretched idle fade was half of
+      this problem; the text staying put while the picture underneath it changed is no better
+      than the text going away
+- [x] **The `i` control is on every artwork**, and is a *details* toggle rather than an expand
+      button. It used to appear only when the description was clamped — right about the clamp,
+      wrong about the control: on the seven artworks in eight with no description at all it
+      vanished, which reads as a fault rather than as an absence. It now opens the description
+      where there is one and four catalogue facts either way, all of which were already on the
+      response and on screen nowhere. `QUESTIONS.md` #3, amended a second time
+- [x] **Expanded is a different size.** The whole panel steps up, the measure widens, and the
+      colour brightens: 1.0625rem at `--fg-dim` is right for a caption glanced at across a room
+      and wrong for four hundred words
+- [x] **`?` opens a translated keyboard map** in the settings panel. Thirteen shortcuts were
+      documented only in a file nobody using the app reads
+- [x] Polish "How Curated ranks" rewritten as UI copy rather than as translation — "Skąd się
+      biorą te dzieła", not a clause-for-clause rendering of the English beside it
+- [x] ADR-0014 — one tri-state control per facet, and OR inside a group
+- [x] **Four things the browser check changed, and one the tests did.** `display: grid` outranks
+      the user agent's bare `[hidden]` selector, so the catalogue facts sat on screen at rest
+      under a caption nobody had expanded — the same trap `.ov-button[hidden]` was already
+      patched for, which makes it the second instance and a `HANDOFF.md` gotcha. Switching to
+      Cleveland left Curated selected in the panel while the display served plain random picks.
+      The panel drew its interval menu before boot had loaded a locale, five missing-translation
+      warnings' worth. The scrim is a gradient over the overlay's own box, so expanded to most of
+      the screen it stopped being a scrim and the title sat over gold leaf on a triptych. And
+      Playwright flow 7 found, on its first run, that the artwork-type group is called
+      `artwork-type` while its facets are `type.*` — code matching the shared exclusion list on
+      the group's own name silently dropped every exclusion in that group
+- [x] Commit
+
+## M14 — Described for listening
+
+An accessibility feature on the existing AI system, and the one place in this app where a wrong
+sentence is not recoverable: the reader is the person who cannot check it against the screen.
+
+- [x] `VisualDescription` model, `VISUAL_INSTRUCTION` prompt, `VISUAL_PROMPT_VERSION` versioned
+      separately from `PROMPT_VERSION` — retuning the interpretation must not discard every
+      description, which is the more expensive of the two to regenerate
+- [x] **Grounded in `thumbnail.alt_text`, and the display says so.** No model sees the image. The
+      prompt's two strongest rules are take everything visual from the museum's own words, and
+      *match the length of your source* — padding a one-clause alt text is inventing, and a
+      listener cannot tell the difference. The context sent is narrower than the
+      interpretation's: `department` and `place_of_origin` are dropped, because they say nothing
+      about what an artwork looks like and are exactly what a model reaches for when it has
+      nothing else
+- [x] **Refused before the call when there is nothing to go on** — `is_describable`, 422
+      `access_not_describable`. Upstream of the money, because the audit cannot happen downstream
+      of it. All 57,607 indexed works have `alt_text`, so this bites only on the other tiers
+- [x] `grounded_in` on the response and a line on screen naming which museum field the words came
+      from. Not a disclaimer bolted on — it is the sentence that makes the feature honest, so it
+      renders with the text rather than behind a fold
+- [x] **Anthropic only as a capability, not a flag** — `VisualDescriptionProvider`, a second
+      `runtime_checkable` Protocol. Anthropic and the mock implement it; OpenAI does not.
+      `/api/health` reports `ai.describes` and the control is not offered when it is false. A
+      vendor name above `providers/` is forbidden by `CLAUDE.md`, and a method on the shared
+      Protocol would have made OpenAI implement it by raising
+- [x] **TTS is the browser's own `speechSynthesis`** — no key, no per-word bill, works offline.
+      Two API traps handled: voices load asynchronously and are empty on first call in Chrome, so
+      the list is primed at boot; and a long utterance is cut off in some builds, so the text is
+      split at sentence boundaries, which also makes `cancel()` responsive
+- [x] **Replay is a control, not a second request.** The text is on screen and the server has it
+      cached, so it costs nothing — which is what lets the display offer it without asking
+      anyone's permission
+- [x] Its own labelled region, `role="region"` with a name, `aria-live`, real buttons in the tab
+      order, reachable by `A` from the keyboard
+- [x] **Asking for one puts a five-minute floor under the rotation** without touching the saved
+      interval. A spoken description takes most of a minute; at the 30-second rung the artwork is
+      gone before the end of it. A floor rather than an assignment, so the user's own choice comes
+      back when it lifts
+- [x] Both kinds share one provider, budget, breaker, timeout and cache. Two budgets would have
+      been two numbers to reason about and one of them silently spent. `kind` joins the cache key
+      only when it is not the default, so nothing cached before this was invalidated; migration
+      011 adds it as a column too, for the same reason `prompt_version` is one
+- [x] **Costs measured and written down** — `docs/ai-system.md`. About 0.4¢ per description at
+      `claude-sonnet-5`, 0.7¢ at the output cap; the 200/day budget is $0.75–$1.48. Speech is
+      free, and a cloud voice would have been the *expensive* half, because it bills per playback
+      where the model call bills once and is then cached
+- [x] ADR-0015 — grounded in the museum's alt text, not in the image. The alternative that was
+      not taken is the interesting half of the record
+- [x] Commit
+
+## M15 — Cleveland, as a live source
+
+ADR-0012 said no and priced the no at eight items. The owner asked for Cleveland without feature
+parity, which is a different purchase: most of the eight are consequences of *indexing*.
+
+- [x] `app/providers/source.py` — `ArtworkSource` finally has a second implementation, and it is
+      deliberately small because it is the interface for a *live* source. AIC does not implement
+      it: indexed, scored and faceted is a much larger surface than a second museum is worth
+- [x] `app/providers/cma/client.py` — the only module that knows CMA's JSON. 41,512 CC0 records
+      with an image, no key, no published rate limit. Two requests per artwork: one for the
+      total, one for a sample around a random offset
+- [x] **No IIIF, so `SourceArtwork` carries a finished URL.** Three fixed URLs per record, of
+      which `full` is a TIFF browsers do not render and `print` is several megabytes. `web` is
+      the only usable one, and `chooseWidth()` and the ADR-0008 proxy are skipped entirely
+- [x] Selectable in the panel. Picking it clears the filters and the history and disables Curated
+      and "For you" with a line saying why — they rank against a score only the index carries
+- [x] **Migration 010: `artwork_feedback` gains `museum` and a composite key.** The one item of
+      ADR-0012's eight that could not be deferred: artwork id 1 is a real record at both museums,
+      and a favourite keyed on `artwork_id` alone would let a Cleveland print un-like an Art
+      Institute painting
+- [x] Per-museum attribution in both locales. CC0 for Cleveland; the CC BY clause stays on the
+      Art Institute's half, where the licence actually applies
+- [x] **The AI features are not offered on a Cleveland artwork**, and ADR-0012 asked for that to
+      be a decision taken out loud rather than arrived at by accident. Two reasons agree: the
+      server cannot look the artwork up, and there is no `alt_text` to ground either prompt
+- [x] One closed list of ten artwork types with live totals, cached an hour per process. No facet
+      endpoint exists and deriving one would mean the walk this milestone exists to avoid
+- [x] Fixtures in `tests/fixtures/cma/` are captured real responses, per the tests' own rule
+- [x] ADR-0013, superseding ADR-0012 and keeping its research
+- [x] Commit
+
+## M16 — Documentation
+
+- [x] ADR-0013, 0014, 0015 written; ADR-0012 marked superseded rather than left contradicting
+      the code, with a note on the one alternative it rejected that was then taken
+- [x] This roadmap, `docs/product-spec.md`, `docs/architecture.md`, `docs/ai-system.md`,
+      `docs/testing.md`, `docs/data.md`, `HANDOFF.md`, `README.md` reconciled with the code
+- [x] `QUESTIONS.md` #3 amended a second time — the `i` control is on every artwork now, which
+      is a further change to a ruling that already carried one amendment
+- [x] **Polish translations of museum descriptions: assessed, and deliberately not built.** See
+      "Not doing" below for the numbers and the reason
+- [x] **A personal address had got back into `.env.example`**, which M7 removed on purpose. It is
+      the file `docs/setup.md` step 3 tells you to copy, so a real address in it ships to whoever
+      clones this. Reverted
+- [x] Commit
+
+---
+
 ## Not doing
 
 Recorded here so it does not get relitigated. Each has an ADR or a line in `CLAUDE.md`.
@@ -321,3 +485,19 @@ Recorded here so it does not get relitigated. Each has an ADR or a line in `CLAU
 - OS-level power management — Screen Wake Lock covers it
 - Frontend framework or build step
 - Docker, Alembic, Redis, a DI framework
+- **Polish translations of the museum's `description`** — assessed 2026-09-04, deferred with
+  numbers rather than declined. 6,681 of 57,607 indexed artworks have a description (11.6%),
+  averaging 624 characters, so on-demand translation is roughly 350 input and 250 output tokens
+  per artwork per language — well under a cent each, cached, and not the reason to wait.
+
+  The reasons to wait are the other two. It is a *third* generated kind: a third prompt version,
+  a third cache kind, a third UI state, and a third thing sharing the one daily budget that M14
+  just gave a second claimant. And AIC's `description` is CC BY 4.0, so a translation is a
+  derivative work — it has to carry the attribution *and* be marked as a machine translation
+  rather than presented as the museum's own words, which is a licence question and a design
+  question before it is a prompt.
+
+  If it is built it is its own milestone, and the shape is known: `kind="translation"` on the
+  existing cache key, its own prompt version, and a line in the overlay saying the Polish is
+  generated. The owner asked for it to sound written rather than rendered, which is the same
+  instruction the facet labels and the scoring copy already follow.

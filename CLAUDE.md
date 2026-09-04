@@ -1,8 +1,10 @@
 # CLAUDE.md
 
-vitrine — an ambient digital-art display. It shows one public-domain artwork from the
-Art Institute of Chicago at a time, full-bleed on a dark background, rotating on a timer.
-Python/FastAPI backend, vanilla-JS frontend, SQLite. Runs locally on the developer's machine.
+vitrine — an ambient digital-art display. It shows one public-domain artwork at a time,
+full-bleed on a dark background, rotating on a timer. The Art Institute of Chicago is the
+primary source and the only indexed one; the Cleveland Museum of Art is selectable and served
+live (ADR-0013). Python/FastAPI backend, vanilla-JS frontend, SQLite. Runs locally on the
+developer's machine.
 
 The project name is provisional. If it is going to change, change it in M0 before any other work.
 
@@ -16,7 +18,9 @@ itself back constantly, so if you find a capital V, fix it.
 
 - Never commit secrets. API keys live in `.env`, which is gitignored.
 - Never send provider API keys to the frontend. All AI calls go through the backend.
-- Only display artworks where `is_public_domain == true`. This is a hard filter, not a preference.
+- Only display artworks the source flags as freely reusable — `is_public_domain == true` at the
+  Art Institute, `share_license_status == "CC0"` at Cleveland. A hard filter, not a preference,
+  and checked on the way out as well as asked for in the query.
 - The app must be fully usable with no AI provider configured. AI is an enhancement, never a dependency.
 - No frontend framework. No React, Vue, Svelte, or build step. Plain HTML/CSS/JS modules.
 - Do not invent AIC API fields. If a field is not confirmed in `docs/aic-api.md`, verify it against
@@ -64,8 +68,13 @@ frontend  →  api  →  services  →  domain  →  providers / repositories  �
 ```
 
 - `domain/` imports nothing from `providers/`, `repositories/`, `api/`, or `httpx`.
-- The AIC client is the only module that knows AIC's response shape. It returns domain models.
-- AI providers sit behind one interface. Nothing outside `providers/ai/` names a vendor.
+- Each museum's client is the only module that knows that museum's response shape. Both return
+  domain models.
+- AI providers sit behind one interface. Nothing outside `providers/ai/` names a vendor — a
+  vendor-specific *capability* is a second Protocol, not a name compared somewhere else.
+- **The AI features are grounded in AIC's `thumbnail.alt_text`, so they are offered on AIC
+  artworks only.** A source without it needs a different prompt or no AI, and that is a decision
+  to take out loud rather than arrive at (ADR-0013, ADR-0015).
 - Config is injected, never read from the environment deep inside a call stack.
 
 Read `docs/architecture.md` before adding a module or moving one between layers.
@@ -79,6 +88,7 @@ Do not read these upfront. Read the one that matches the task, when the task com
 | Working on | Read first |
 |---|---|
 | Anything touching AIC requests or fields | `docs/aic-api.md` |
+| A second museum, or the `ArtworkSource` seam | `docs/adr/0013-cleveland-as-a-live-source.md` |
 | Features, modes, UI behaviour, shortcuts | `docs/product-spec.md` |
 | Layers, module placement, interfaces | `docs/architecture.md` |
 | AI providers, caching, prompts, budgets | `docs/ai-system.md` |

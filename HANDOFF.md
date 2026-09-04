@@ -1,56 +1,65 @@
 # Handoff
 
 State of vitrine as of 2026-09-04. `CLAUDE.md` is the contract; this file is what you cannot
-derive from it. `docs/plan-improvements.md` was the agreed work and is now spent; read it
-for the reasoning behind M7–M12, not for what to do next.
+derive from it. `docs/plan-improvements.md` was the agreed work through M12 and is now spent;
+read it for the reasoning behind M7–M12, not for what to do next.
 
 ---
 
 ## Where the project is
 
-**Every milestone is complete, M3.5 included.** The roadmap is ticked against the code, not
-against intentions.
+**Every milestone through M16 is complete.** The roadmap is ticked against the code, not against
+intentions.
 
 The app works end to end. It serves an artwork from a local SQLite index in ~19ms with **no AIC
-call at all**, rotates on a timer, has a keyboard map, a metadata overlay set in a serif, a settings panel with
-Explore filters over artwork type, style and subject, and a Curated mode backed by transparent
-scoring. English and Polish, switchable without a reload. Ambient mode holds a Screen Wake Lock.
-
-AI is wired end to end and off by default. Pinning the overlay with `I` asks for an
-interpretation; it is cached, capped and breakered. Anthropic and OpenAI are both built behind
-one interface, and a key pasted into the settings panel takes effect without a restart. With
-nothing configured the feature is simply not offered — that is a `CLAUDE.md` non-negotiable and
-is worth re-checking after any change near it.
+call at all**, rotates on a timer, has a keyboard map, a metadata overlay set in a serif, a
+settings panel, and a Curated mode backed by transparent scoring. English and Polish, switchable
+without a reload. Ambient mode holds a Screen Wake Lock.
 
 The index holds **57,607 artworks**, all scored, plus 84,190 raw style/subject rows and
 131,264 canonical facet rows. `data/vitrine.db` is 67MB and gitignored; the publishable
 subset of it is 57.8MB.
 
-The two things still open are the owner's rather than the next agent's — see Outstanding.
-`docs/plan-improvements.md` holds the design and the decisions behind M7–M12. Of the six that
-needed a ruling, three were taken at the top of M8 (font,
-rate-limit numbers, how far to fold the facet vocabulary), two were proceeded on under a
-stated assumption and are one substitution to reverse, and one — "more like this" — stays a
-proposal that is deliberately not in the roadmap.
+**Three things arrived after M12 and each changed the shape of something.**
+
+*Filters became one control per facet* (M13, ADR-0014). A facet has three states — off, include,
+exclude — so its control cycles through three, and there is one list per group instead of two.
+Inclusion is multi-valued and **ORed inside a group**, ANDed between groups. That reverses one
+sentence of `docs/product-spec.md`, and the reversal is narrow: the old argument for radios was
+about the operator, not the arity. M13 also added a browser-side back stack, a third verdict
+(`D`, between like and hide), a fullscreen click that takes everything but the artwork away, and
+`?` for a keyboard map that previously existed only in a file nobody using the app reads.
+
+*The AI system grew a second thing it produces* (M14, ADR-0015). `A` asks for a spoken visual
+description and reads it aloud through the browser's own speech synthesis, which costs nothing.
+**No model sees the image**: it is written from AIC's own `alt_text`, and the display says so on
+every screen that shows one. An artwork with nothing visual in its metadata is refused before a
+call is made. Anthropic only, expressed as a capability Protocol rather than a vendor check.
+
+*There are two museums* (M15, ADR-0013). Cleveland is a live source — never indexed, never
+scored, never faceted — selectable in the panel, with Random only and one filter. ADR-0012 priced
+a second source at eight items and recommended against it; not indexing dodges or narrows five of
+the eight, which is why this was affordable and why ADR-0012 was not wrong.
+
+AI is still off by default and still an enhancement, never a dependency. With nothing configured
+neither feature is offered — that is a `CLAUDE.md` non-negotiable and is worth re-checking after
+any change near it.
+
+The two things still open are the owner's rather than the next agent's — see Outstanding. Both
+predate this round and one of them matters more now: nobody has ever called a provider with a
+working key, and the accessibility feature runs on the same unverified default model id.
 
 Since M10 the filters run on a canonical facet layer rather than AIC's raw terms (ADR-0009),
-there is a third mode built on likes and hides (ADR-0010), and the corpus can be exported to a
+there is a third mode built on explicit feedback (ADR-0010), and the corpus can be exported to a
 publishable file and merged back without disturbing anything personal (ADR-0011). That last
 one is what makes a second install cheap: 57,607 artworks in about a second, and no AIC
 traffic at all.
 
-ADR-0012 is the only Proposed one and is deliberately unbuilt: a second art source is eight
-things, of which one is an API client. It was written from Cleveland's live API rather than
-from the plan's table, which was wrong on two of five columns — and the fact that decides it
-is that Cleveland has no `lqip`, no `alt_text` and no `color`, which here are the crossfade,
-the AI prompt's grounding and the overlay scrim.
-
-M8 and M9 each changed more than their own list. Three bugs that a passing suite could not see
-turned up as soon as the app was opened and looked at, and all three are in the Gotchas below:
-AIC refusing to upscale made one indexed artwork in six unshowable; `color.l` turned out to be
-a hint about the whole image rather than a fact about the bottom of it; and the new rate
-limiter, on its first run in a browser, caused exactly the retry storm it was written to
-prevent.
+M8, M9 and M13 each changed more than their own list. Seven bugs that a passing suite could not
+see turned up as soon as the app was opened and looked at, and all of them are in the Gotchas
+below. The pattern is consistent enough to be worth stating: **every rendering bug in this
+project has been invisible to the test suite**, which is why the definition of done says to open
+it in a browser.
 
 ## Run it
 
@@ -59,9 +68,11 @@ uv sync --all-extras
 uv run uvicorn app.main:app --reload      # http://127.0.0.1:8000
 uv run pytest                             # unit + contract; excludes live and e2e
 uv run pytest -m live                     # the real AIC API, and the AI providers if keyed
-uv run pytest -m e2e                      # six Playwright flows; needs `playwright install chromium`
+uv run pytest -m e2e                      # eight Playwright flows; needs `playwright install chromium`
 uv run ruff check . && uv run ruff format --check . && uv run mypy app
 ```
+
+587 tests in the default run, 8 e2e flows, 15 live tests deselected.
 
 ```bash
 uv run python scripts/build_index.py             # full walk: 1,328 requests, ~30 min, resumable
@@ -86,9 +97,9 @@ A fresh clone has no index and serves from AIC, then from the bundled 30-record 
   handful of calls to check a field does not. `CLAUDE.md`, `QUESTIONS.md` #8.
 - **Public domain only**, enforced at index time and at display time. ADR-0007.
 - **No frontend framework, no build step.** ADR-0005.
-- **`domain/` imports nothing outward**, only `providers/aic/` knows AIC's JSON shape, only
-  `providers/ai/` names a vendor, config is injected. `ruff` enforces the `httpx` half of this.
-  `docs/architecture.md`.
+- **`domain/` imports nothing outward**, only `providers/aic/` knows AIC's JSON shape and only
+  `providers/cma/` knows Cleveland's, only `providers/ai/` names an AI vendor, config is
+  injected. `ruff` enforces the `httpx` half of this. `docs/architecture.md`.
 - **AI is an enhancement, never a dependency.** No key configured must mean the feature is not
   offered, not that anything fails.
 - **Never hardcode the IIIF base**; it arrives on every AIC response and is remembered in
@@ -96,11 +107,15 @@ A fresh clone has no index and serves from AIC, then from the bundled 30-record 
 - **Scoring weights are product heuristics, not claims about art.** Keep them tunable; tests
   assert ordering, never values. ADR-0006, `QUESTIONS.md` #11.
 - **The index is a cache, not truth.** AIC can unpublish an image at any time. ADR-0003.
+- **The AI features apply to indexed artworks only.** Both prompts are grounded in AIC's own
+  `alt_text`, and a source without one would need a different prompt or no AI at all. ADR-0013
+  takes that decision explicitly; `canInterpret()` in `frontend/js/main.js` enforces it.
 - `QUESTIONS.md` is a settled record of twelve rulings, not an open list. Read it before
   changing anything it covers. Two were reopened deliberately in M7 — #2 (`S` toggles) and #3
-  (the description gains an expand affordance) — and both carry a dated amendment in place. That
-  is how a ruling changes here. Contradicting one in the code and leaving this file saying the
-  opposite is not.
+  (the description gains an expand affordance) — and #3 again in M13, when the `i` control became
+  a details toggle shown on every artwork. Each carries a dated amendment in place. That is how a
+  ruling changes here. Contradicting one in the code and leaving this file saying the opposite is
+  not.
 
 ## Gotchas
 
@@ -144,9 +159,11 @@ All found the hard way, in a browser or against the live API. Each is documented
     *advance*: an allowed artwork request grants a credit its image spends.
     `app/domain/rate_limit.py`.
 12. **There is no way to unit-test the frontend here, and that is deliberate.** No bundler, no
-    `node_modules`, so no test runner (ADR-0005). Playwright covers six smoke flows and no
-    more. The bugs above were invisible to a passing suite and were found by opening the app
-    and looking at it, which is why the definition of done says to.
+    `node_modules`, so no test runner (ADR-0005). Playwright covers eight smoke flows and no
+    more, and a ninth has to argue for its slot. Most of the bugs in this list were invisible to
+    a passing suite and were found by opening the app and looking at it, which is why the
+    definition of done says to — but note that #18 was found by an e2e flow rather than by eye,
+    which is the case for a flow covering a rule that exists nowhere but in the browser.
 13. **`.gitignore` patterns without a leading slash match at any depth.** A bare `data/`
     silently excluded `app/data/fallback_artworks.json`, the bundled offline set.
     `QUESTIONS.md` #9.
@@ -167,6 +184,42 @@ All found the hard way, in a browser or against the live API. Each is documented
     Which is why an export is written in the default rollback journal mode rather than WAL:
     the deliverable is one self-contained file. `app/repositories/corpus.py`.
 
+17. **`display: grid` outranks the user agent's `[hidden] { display: none }`**, which is a bare
+    attribute selector and loses on specificity. This has now caught the same codebase twice —
+    `.ov-button[hidden]` in M8, and `.ov-extra[hidden]` in M13, where the catalogue facts sat on
+    screen at rest under a caption nobody had expanded. Any new element that both sets `display`
+    and is toggled with `hidden` needs its own `[hidden]` rule. `frontend/css/app.css`.
+18. **A group's name in the markup and its facet namespace are not the same string.** The
+    artwork-type filter group is `artwork-type`; its facets are `type.*`. Two of the three groups
+    have the same string for both, so style and subject worked and artwork type silently dropped
+    every exclusion — a facet clicked to "exclude" snapped back to "off" on the next redraw. The
+    namespace is now carried explicitly as `prefix` beside `group`. Found by Playwright flow 7 on
+    its first run, which is the whole argument for that flow existing.
+19. **The overlay scrim is a gradient over the overlay's own box, so it stops being a scrim when
+    the overlay grows.** At rest the caption sits in the bottom fifth, where the gradient is
+    strongest. Expanded, the panel is most of the screen tall and the same gradient is stretched
+    over 700px, putting the title in the transparent part of it — over gold leaf, on the triptych
+    where this was seen. `.overlay:has(.facts.expanded)` strengthens it. Anything that changes how
+    tall the overlay can get has to think about this.
+20. **The settings panel is constructed before `boot()` has loaded a locale.** Anything it draws
+    at construction time renders with missing translations and logs a warning per string. The
+    interval menu did exactly that until M13; it is now built on first open. A new list built in
+    `createPanel`'s body rather than in `show()` will do it again.
+21. **`speechSynthesis` has two traps and both are silent.** `getVoices()` returns `[]` on the
+    first call in Chrome and fills in later, announced by `voiceschanged` — so asking for a Polish
+    voice at page load gets the default one instead. And a long utterance is truncated in some
+    builds; the text is split at sentence boundaries, which also makes `cancel()` take effect at
+    the next boundary rather than after the whole thing. `frontend/js/speech.js`.
+22. **Cleveland reports image dimensions as strings.** `"width": "900"`, not `900`. Carried
+    through as integers by `_as_int`, because a scoring pass comparing a string to a number would
+    be wrong without saying so. Its records also carry no `lqip`, no `alt_text` and no `color`,
+    which is why the AI features are not offered on them at all — see ADR-0013.
+23. **A personal email address found its way back into `.env.example`**, which M7 had removed on
+    purpose, by way of a `git add -A` that swept up an unrelated working-tree edit. That file is
+    what `docs/setup.md` step 3 tells you to copy, so a real address in it ships to everyone who
+    clones this. Look at what `git add -A` is about to stage in a repository that has a committed
+    template file in it.
+
 ## Outstanding, and only the owner can close it
 
 **Publish the export, and put its `sha256` in the release notes.** `scripts/export_index.py`
@@ -180,6 +233,13 @@ ADR-0011 says a release asset; making one is the owner's to do.
 key. It is the only thing that can catch a wrong default model id, or `max_completion_tokens`
 being wrong for the model in use. A fake key was pushed through the whole path in a browser and
 came back a clean 401 — which proves the wiring and nothing about the model ids.
+
+**This matters more after M14 than it did before.** The accessibility description runs on the same
+provider and the same unverified `DEFAULT_MODEL`, and it rests on an assumption no mock can test:
+that the prompt's restraint rules actually hold — that a one-clause `alt_text` produces two honest
+sentences rather than a fluent invented paragraph. ADR-0015 says so explicitly. Check that first,
+on a thin alt text, in both languages. While there, `client.messages.count_tokens` will confirm or
+replace the character-derived token estimates in `docs/ai-system.md`, which is one call.
 
 ## Conventions worth matching
 
