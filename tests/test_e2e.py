@@ -1,14 +1,20 @@
-"""The six Playwright flows from `docs/testing.md`, and no more.
+"""The eight Playwright flows from `docs/testing.md`, and no more.
 
 Playwright is slow and flaky in proportion to how much you ask of it, so this file asks for
-six things: that the app loads a picture, that Space changes it, that `I` opens the overlay,
-that the language switches, that with no AI configured the overlay shows the museum's own
-facts and no error, and — added in M11 — that liking an artwork survives a reload.
-Everything else lives in a unit or integration test.
+eight things: that the app loads a picture, that Space changes it, that `I` opens the
+overlay, that the language switches, that with no AI configured the overlay shows the
+museum's own facts and no error, that liking an artwork survives a reload (M11), that a
+facet clicked twice excludes it (M13), and that the accessibility description reaches the
+screen with its grounding line (M14). Everything else lives in a unit or integration test.
 
-The sixth earns its place because it is the one feature that crosses every layer in a way
-no smaller test can: a keypress, an HTTP write, a SQLite row, and the state read back onto
-a fresh page. Each half of that has a unit test; only this one proves they meet.
+Each of the last three had to argue for its slot, and the argument is the same one:
+**there is no frontend test runner here and there will not be** (ADR-0005), so a rule that
+only exists in the browser is either an e2e flow or it is untested. The sixth crosses a
+keypress, an HTTP write, a SQLite row and the state read back onto a fresh page. The
+seventh is the only check that a facet control cycles through three states and that the
+third one narrows what the display serves — the panel's largest surface, rewritten
+wholesale in M13. The eighth covers the one feature whose failure the person it is for
+cannot see.
 
 These are `-m e2e`, excluded from the default run and from CI. They need Chromium:
 
@@ -73,9 +79,8 @@ def server(tmp_path_factory):
     database.migrate()
 
     bundled = FallbackSet.load()
-    ArtworkIndexRepository(database).upsert_many_sync(
-        [artwork for artwork in bundled.artworks if is_indexable(artwork)]
-    )
+    real = [artwork for artwork in bundled.artworks if is_indexable(artwork)]
+    ArtworkIndexRepository(database).upsert_many_sync(real + _padding(real))
     # Without this the image proxy has no base until a live AIC response arrives, and on
     # an index-only start one never does.
     PreferencesRepository(database).set_sync(IIIF_BASE_KEY, bundled.iiif_base or "")
@@ -101,6 +106,35 @@ def server(tmp_path_factory):
     finally:
         process.terminate()
         process.wait(timeout=10)
+
+
+def _padding(real: list) -> list:
+    """Enough copies of the bundled records to clear `MIN_FILTER_COUNT`.
+
+    The bundled set is thirty artworks, and a facet is not offered at all below forty — so
+    without this the filter panel correctly says there is nothing worth filtering on, and
+    flow 7 has nothing to click. The copies carry real metadata under synthetic ids, which
+    is the narrowest departure from "fixtures are recorded responses" that makes the flow
+    possible: what is being tested is the panel, not AIC's shape.
+
+    Two facets, deliberately, so excluding one leaves something behind to show.
+    """
+    from app.api.routes import MIN_FILTER_COUNT
+
+    if not real:  # pragma: no cover - the bundled set is committed
+        return []
+    padded = []
+    for index in range(MIN_FILTER_COUNT * 2):
+        source = real[index % len(real)]
+        padded.append(
+            source.model_copy(
+                update={
+                    "id": 900_000 + index,
+                    "artwork_type_title": "Painting" if index % 2 else "Print",
+                }
+            )
+        )
+    return padded
 
 
 def _clean_env() -> dict[str, str]:
@@ -129,6 +163,57 @@ def _wait_for_health(base_url: str, process: subprocess.Popen) -> None:
         except httpx.HTTPError:
             time.sleep(0.2)
     raise TimeoutError(f"the test server did not come up within {SERVER_BOOT_SECONDS}s")
+
+
+@pytest.fixture(scope="module")
+def ai_server(tmp_path_factory):
+    """A second server, with the mock provider, for flow 8.
+
+    Its own process rather than a flag on the first one, because flow 5 asserts the exact
+    opposite — that with nothing configured the feature is not offered — and a server that
+    changed its mind halfway through the module would make one of the two a lie. Thirteen
+    seconds of Playwright is the price, and the alternative is that the accessibility path
+    is proven only against a `TestClient`.
+    """
+    from app.domain.indexing import is_indexable
+    from app.repositories.artwork_index import ArtworkIndexRepository
+    from app.repositories.database import Database
+    from app.repositories.preferences import PreferencesRepository
+    from app.services.fallback import FallbackSet
+    from app.services.selection import IIIF_BASE_KEY
+
+    database_path = tmp_path_factory.mktemp("e2e-ai") / "vitrine.db"
+    database = Database(database_path)
+    database.migrate()
+    bundled = FallbackSet.load()
+    ArtworkIndexRepository(database).upsert_many_sync(
+        [artwork for artwork in bundled.artworks if is_indexable(artwork)]
+    )
+    PreferencesRepository(database).set_sync(IIIF_BASE_KEY, bundled.iiif_base or "")
+
+    port = free_port()
+    process = subprocess.Popen(
+        [sys.executable, "-m", "uvicorn", "app.main:app", "--port", str(port)],
+        cwd=Path(__file__).resolve().parent.parent,
+        env={
+            **_clean_env(),
+            "DATABASE_PATH": str(database_path),
+            # No key and no network: the mock implements `VisualDescriptionProvider` for
+            # exactly this reason.
+            "AI_ENABLED": "true",
+            "AI_PROVIDER": "mock",
+            "DEFAULT_LANGUAGE": "en",
+            "DEFAULT_INTERVAL_SECONDS": "1800",
+        },
+    )
+
+    base_url = f"http://127.0.0.1:{port}"
+    try:
+        _wait_for_health(base_url, process)
+        yield base_url
+    finally:
+        process.terminate()
+        process.wait(timeout=10)
 
 
 @pytest.fixture
@@ -225,3 +310,72 @@ class TestSmokeFlows:
         favourites = display.evaluate("async () => (await (await fetch('/api/favorites')).json())")
         assert len(favourites) == 1
         assert favourites[0]["title"], "the snapshot is what lets a favourite outlive the index"
+
+    def test_a_facet_clicked_twice_excludes_it(self, display: Page):
+        """Flow 7. The panel's largest surface, and the only place its three states exist.
+
+        Until M13 inclusion was a radio and exclusion was a checkbox in a second list; now
+        one control cycles off → include → exclude → off, and every part of that lives in
+        the browser. What is asserted is the whole round trip: the control changes state,
+        the badge in the collapsed heading says so, and the served artwork actually stops
+        being the excluded type.
+        """
+        display.keyboard.press("s")
+        expect(display.locator("#panel")).to_have_class(VISIBLE)
+
+        group = display.locator('[data-group="artwork-type"]')
+        group.locator("summary").click()
+        facet = group.locator('.facet[data-value="type.print"]')
+        expect(facet).to_have_attribute("data-state", "off")
+
+        facet.click()
+        expect(facet).to_have_attribute("data-state", "include")
+        facet.click()
+        expect(facet).to_have_attribute("data-state", "exclude")
+        # The heading says what is on inside it, so a collapsed group never hides a live
+        # filter — which is the whole reason the badge exists.
+        expect(display.locator('[data-badge="artwork-type"]')).to_contain_text("1")
+
+        # And it is a real filter, not just a control that changed colour.
+        served = display.evaluate(
+            "async () => {"
+            "  const seen = [];"
+            "  for (let i = 0; i < 6; i++) {"
+            "    const r = await fetch('/api/artwork/random?exclude=type.print');"
+            "    seen.push((await r.json()).artwork_type);"
+            "  }"
+            "  return seen;"
+            "}"
+        )
+        assert "Print" not in served, served
+
+        facet.click()
+        expect(facet).to_have_attribute("data-state", "off")
+
+    def test_the_spoken_description_reaches_the_screen_with_its_grounding(
+        self, page: Page, ai_server: str
+    ):
+        """Flow 8. The one feature whose failure the person it is for cannot see.
+
+        A sighted user notices an empty panel. Somebody relying on this notices silence,
+        which is indistinguishable from having pressed the wrong key. So the flow asserts
+        the three things that make it usable: the region appears, the text arrives, and the
+        line saying where the words came from is on screen with it — the display's half of
+        the promise that no model saw the artwork.
+        """
+        page.goto(ai_server)
+        page.wait_for_function(
+            "() => document.getElementById('artwork').naturalWidth > 0", timeout=FIRST_PAINT_MS
+        )
+        section = page.locator("#ov-access")
+        expect(section).to_be_hidden()
+        # Offered at all only because /api/health said the provider can write one.
+        expect(page.locator("#ov-describe")).not_to_be_hidden()
+
+        page.keyboard.press("a")
+
+        expect(section).not_to_be_hidden()
+        expect(page.locator("#access-summary")).not_to_be_empty()
+        expect(page.locator("#access-grounding")).to_contain_text("No AI has seen the artwork")
+        # A real button, in the tab order, so replay is reachable without a mouse.
+        expect(page.locator("#access-play")).not_to_be_hidden()

@@ -61,6 +61,7 @@ export function createPanel(elements, handlers) {
     createFilterGroup(
       {
         group: element.group,
+        prefix: element.prefix,
         field: element.field,
         elements: element,
       },
@@ -115,8 +116,12 @@ export function createPanel(elements, handlers) {
         {
           include: current[group.field] ?? [],
           // Every group is handed the whole exclusion list and keeps the entries that
-          // belong to it. A facet key starts with its group, so this is exact.
-          exclude: current.exclude.filter((facet) => facet.startsWith(`${group.group}.`)),
+          // belong to it, matched on the facet namespace rather than on the group's own
+          // name. Those are not the same string — the artwork-type group's facets are
+          // `type.*` — and matching on the wrong one silently dropped every exclusion in
+          // that group, so a facet clicked to "exclude" snapped back to "off" on the next
+          // redraw. Found by the Playwright flow written for exactly this control.
+          exclude: current.exclude.filter((facet) => facet.startsWith(`${group.prefix}.`)),
         },
         facetLabel,
       );

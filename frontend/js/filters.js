@@ -35,7 +35,7 @@ function nextState(state) {
  * @param {object} handlers
  * @param {(field: string, value: string, state: string) => void} handlers.onChange
  */
-export function createFilterGroup({ group, field, elements }, handlers) {
+export function createFilterGroup({ group, prefix, field, elements }, handlers) {
   const { root, list, count, search } = elements;
 
   // Every option the server offered, and what each is currently set to.
@@ -95,7 +95,10 @@ export function createFilterGroup({ group, field, elements }, handlers) {
 
     const number = document.createElement('span');
     number.className = 'facet-count';
-    number.textContent = String(option.count);
+    // The count answers "how many would choosing this yield", which is not a question an
+    // excluded facet has — it is always zero, and a struck-through row with a 0 beside it
+    // reads as a broken filter rather than as a working one.
+    number.textContent = state === 'exclude' ? '' : String(option.count);
 
     button.append(mark, text, number);
     // The state in words, for a screen reader, because the glyph is hidden from it and
@@ -133,6 +136,9 @@ export function createFilterGroup({ group, field, elements }, handlers) {
 
   return {
     group,
+    // The facet namespace, which is not always the group's own name: the artwork-type
+    // group's facets are `type.*`. `panel.js` sorts the shared exclusion list by this.
+    prefix,
     field,
 
     /** Replace the offered options. Does not change what is selected. */

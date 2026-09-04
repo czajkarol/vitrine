@@ -524,12 +524,16 @@ const panel = createPanel(
     ambientGroup: document.getElementById('panel-ambient-group'),
     intervalList: document.getElementById('panel-intervals'),
     // One entry per filter vocabulary, each pointing at the markup its group owns.
+    // `group` names the markup; `prefix` names the facet namespace. They are the same
+    // for two of the three and not for the first, which is exactly the sort of near-miss
+    // that stays hidden until something matches on the wrong one.
     filterGroups: [
-      { group: 'artwork-type', field: 'artworkType' },
-      { group: 'style', field: 'style' },
-      { group: 'subject', field: 'subject' },
-    ].map(({ group, field }) => ({
+      { group: 'artwork-type', prefix: 'type', field: 'artworkType' },
+      { group: 'style', prefix: 'style', field: 'style' },
+      { group: 'subject', prefix: 'subject', field: 'subject' },
+    ].map(({ group, prefix, field }) => ({
       group,
+      prefix,
       field,
       root: document.querySelector(`[data-group="${group}"]`),
       list: document.querySelector(`[data-list="${group}"]`),
