@@ -162,6 +162,18 @@ direct AIC queries if the index is empty, but that path is the fallback, not the
 
 Make it resumable and idempotent. Re-running it must update rows, not duplicate them.
 
+### Moving a corpus between databases
+
+`scripts/export_index.py` and `scripts/fetch_index.py` are thin CLIs over
+`repositories/corpus.py`, which holds the allow-list of corpus tables and the `ATTACH`-based
+copy in both directions. Keeping the SQL in a repository rather than in the scripts is the
+same rule as everywhere else, and it has a second payoff here: export and merge are two
+halves of one round trip, and a shared allow-list is the only reason they cannot drift apart.
+
+The export is *built up* from named tables into a fresh file, never *cut down* from a copy of
+the live one. A deny-list would be wrong by default the moment somebody adds a table, and one
+of the tables it would have to remember is `credentials`. ADR-0011.
+
 ---
 
 ## Frontend structure

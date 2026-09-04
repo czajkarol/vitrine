@@ -20,9 +20,18 @@ uv run uvicorn app.main:app --reload
 
 Then open <http://127.0.0.1:8000>. Press `F` for fullscreen and leave it.
 
+Fuller instructions, including what each step buys you, are in [docs/setup.md](docs/setup.md).
+
 The index step is optional but wanted: without it the app asks AIC for each artwork and falls
 back to a bundled set of thirty when the API is unreachable. With it, selection is a local
-SQLite query. A full walk of the collection is 1,328 requests at AIC's own etiquette of one
+SQLite query. If there is a published export, fetching it is the fast path and costs AIC
+nothing:
+
+```bash
+uv run python scripts/fetch_index.py --url https://.../vitrine-index.sqlite --sha256 <digest>
+```
+
+Otherwise, a full walk of the collection is 1,328 requests at AIC's own etiquette of one
 request per second — 22 minutes of request time, about 30 minutes measured end to end — and it
 is resumable:
 
@@ -182,7 +191,7 @@ so the failed round trip is paid once rather than every rotation.
 ## Testing
 
 ```bash
-uv run pytest                 # 520 tests: unit, contract, integration. No network
+uv run pytest                 # 539 tests: unit, contract, integration. No network
 uv run pytest -m live         # 9, against the real AIC API and a real AI provider if keyed
 uv run pytest -m e2e          # 6 Playwright flows; it starts its own server
 uv run ruff check . && uv run ruff format --check . && uv run mypy app
@@ -204,6 +213,10 @@ lists the failure paths that each have a named test — a 500 that succeeds on r
 - `.env` is gitignored. The bring-your-own key goes in the OS keyring where there is one.
 - Binds to localhost and serves one user ([ADR-0002](docs/adr/0002-local-first-single-user.md)).
   There is no login, because there is nobody else.
+- **`data/vitrine.db` is never committed or published.** Where there is no OS keyring it holds
+  the API key in plain text, in the same file as the index. `scripts/export_index.py` builds a
+  publishable copy from an allow-list of corpus tables rather than by deleting from that one
+  ([ADR-0011](docs/adr/0011-distribute-the-index-as-a-release-asset.md), [docs/data.md](docs/data.md)).
 - The image endpoint is not a general-purpose proxy: it validates the image id against a UUID
   shape and the width against the five cached IIIF widths.
 
@@ -228,6 +241,8 @@ lists the failure paths that each have a named test — a 500 that succeeds on r
 
 | | |
 |---|---|
+| `docs/setup.md` | From a clean clone to a picture on screen, and what to do when it does not work |
+| `docs/data.md` | What is stored, what is rebuildable, what may be published |
 | `docs/product-spec.md` | What the app does and how it behaves |
 | `docs/architecture.md` | Layers, boundaries, data flow |
 | `docs/aic-api.md` | AIC API constraints, fields, licensing |

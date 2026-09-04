@@ -82,6 +82,8 @@ Do not read these upfront. Read the one that matches the task, when the task com
 | Features, modes, UI behaviour, shortcuts | `docs/product-spec.md` |
 | Layers, module placement, interfaces | `docs/architecture.md` |
 | AI providers, caching, prompts, budgets | `docs/ai-system.md` |
+| Setting the project up, or a step that will not work | `docs/setup.md` |
+| Publishing or fetching an index, or what is stored where | `docs/data.md` |
 | What to build next | `docs/roadmap.md` |
 | Why something is the way it is | `docs/adr/` |
 
@@ -138,4 +140,6 @@ uv run pytest -m live         # hits the real AIC API, run manually
 uv run ruff check . && uv run ruff format --check .
 uv run mypy app
 uv run python scripts/build_index.py --limit 5000
+uv run python scripts/export_index.py         # publishable corpus → dist/, no network
+uv run python scripts/fetch_index.py --file dist/vitrine-index.sqlite
 ```

@@ -270,13 +270,28 @@ The largest milestone, and it needs **no AIC traffic**: the raw terms are alread
 
 ## M12 — Data, setup, and other sources
 
-- [ ] `scripts/export_index.py` — corpus tables only, into a fresh file, `VACUUM`ed
-- [ ] `scripts/fetch_index.py` — merge a published export without touching preferences,
-      history or credentials
-- [ ] `docs/setup.md`, verified by following it on a clean checkout
-- [ ] `docs/data.md` — what is stored, what is rebuildable, what may be published and why the
+- [x] `scripts/export_index.py` — corpus tables only, into a fresh file, `VACUUM`ed. The
+      allow-list and the SQL live in `app/repositories/corpus.py`, so the two halves of the
+      round trip cannot drift and both are testable without a subprocess. 57,607 artworks
+      in 1.5s; **57.8MB, not the 25–35MB the plan estimated** — `lqip` is 15MB of it, and
+      it stays, because it is what starts the crossfade before the image arrives
+- [x] `scripts/fetch_index.py` — merge a published export without touching preferences,
+      history or credentials. HTTPS only, a declared length within plausible bounds, and
+      the file itself read before anything is merged out of it; `--sha256` for the check
+      that says it is *the* file. Verified against the real corpus: 57,607 artworks merged
+      in 1.2s into a database whose language preference, favourite and stored key all
+      survived, then opened in a browser
+- [x] `docs/setup.md`, verified by following it on a clean checkout — and the check earned
+      its place immediately, see the item below
+- [x] `docs/data.md` — what is stored, what is rebuildable, what may be published and why the
       database is not committed
-- [ ] ADR-0011 — distribute the index as a release asset, never in Git
+- [x] ADR-0011 — distribute the index as a release asset, never in Git
+- [x] **`.env.example` could not be copied verbatim, which is exactly what step 3 tells you
+      to do.** python-dotenv strips a trailing comment only when a value comes *before* it,
+      so `AI_PROVIDER=  # mock | anthropic | openai` on an empty key read the comment as the
+      value: a `literal_error` at startup on a clean checkout. `AI_MODEL=` had the same
+      shape and was worse — a plain `str`, so it took the comment as a model id and failed
+      later, at the provider. Both comments moved to their own line
 - [ ] ADR-0012 (Proposed) — additional art sources, and what a second one would actually cost
 - [ ] ADRs re-read against the code, `docs/architecture.md` and `HANDOFF.md` reconciled
 - [ ] Commit

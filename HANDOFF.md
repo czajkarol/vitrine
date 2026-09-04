@@ -1,6 +1,6 @@
 # Handoff
 
-State of vitrine as of 2026-09-03. `CLAUDE.md` is the contract; this file is what you cannot
+State of vitrine as of 2026-09-04. `CLAUDE.md` is the contract; this file is what you cannot
 derive from it. Read `docs/plan-improvements.md` next — it is the agreed work.
 
 ---
@@ -24,11 +24,18 @@ is worth re-checking after any change near it.
 The index holds **57,607 artworks**, all scored, plus 84,190 style/subject rows.
 `data/vitrine.db` is 60MB and gitignored.
 
-**M7, M8 and M9 are done. M10–M12 are queued.** See `docs/roadmap.md` for the list and
-`docs/plan-improvements.md` for the design and the decisions. Of the six that needed a ruling,
-three were taken at the top of M8 (font, rate-limit numbers, how far to fold the facet
-vocabulary), two were proceeded on under a stated assumption and are one substitution to
-reverse, and one — "more like this" — stays a proposal that is deliberately not in the roadmap.
+**M7 through M12 are done**, bar the two items M12 leaves for the owner — see Outstanding.
+See `docs/roadmap.md` for the list and `docs/plan-improvements.md` for the design and the
+decisions. Of the six that needed a ruling, three were taken at the top of M8 (font,
+rate-limit numbers, how far to fold the facet vocabulary), two were proceeded on under a
+stated assumption and are one substitution to reverse, and one — "more like this" — stays a
+proposal that is deliberately not in the roadmap.
+
+Since M10 the filters run on a canonical facet layer rather than AIC's raw terms (ADR-0009),
+there is a third mode built on likes and hides (ADR-0010), and the corpus can be exported to a
+publishable file and merged back without disturbing anything personal (ADR-0011). That last
+one is what makes a second install cheap: 57,607 artworks in about a second, and no AIC
+traffic at all.
 
 M8 and M9 each changed more than their own list. Three bugs that a passing suite could not see
 turned up as soon as the app was opened and looked at, and all three are in the Gotchas below:
@@ -53,6 +60,12 @@ uv run python scripts/build_index.py             # full walk: 1,328 requests, ~3
 uv run python scripts/build_index.py --limit 5000
 uv run python scripts/build_index.py --score-only
 uv run python scripts/build_index.py --explain <artwork_id>
+```
+
+```bash
+uv run python scripts/export_index.py                         # → dist/, no network, ~1.5s
+uv run python scripts/fetch_index.py --file dist/vitrine-index.sqlite
+uv run python scripts/fetch_index.py --url https://... --sha256 <digest>
 ```
 
 A fresh clone has no index and serves from AIC, then from the bundled 30-record fallback set.
@@ -123,7 +136,7 @@ All found the hard way, in a browser or against the live API. Each is documented
     *advance*: an allowed artwork request grants a credit its image spends.
     `app/domain/rate_limit.py`.
 12. **There is no way to unit-test the frontend here, and that is deliberate.** No bundler, no
-    `node_modules`, so no test runner (ADR-0005). Playwright covers five smoke flows and no
+    `node_modules`, so no test runner (ADR-0005). Playwright covers six smoke flows and no
     more. The bugs above were invisible to a passing suite and were found by opening the app
     and looking at it, which is why the definition of done says to.
 13. **`.gitignore` patterns without a leading slash match at any depth.** A bare `data/`
@@ -131,9 +144,29 @@ All found the hard way, in a browser or against the live API. Each is documented
     `QUESTIONS.md` #9.
 14. **`data/vitrine.db` holds a secret.** When there is no OS keyring, a pasted API key sits
     unencrypted in the same file as the index. Never commit, publish or attach it.
-    `docs/plan-improvements.md` Phase 6.
+    `scripts/export_index.py` builds a publishable copy from an *allow-list* of corpus tables
+    into a fresh file — never by deleting from a copy of that one, because a deny-list is
+    wrong by default the moment somebody adds a table. ADR-0011, `docs/data.md`.
+15. **python-dotenv strips a trailing comment only when a value comes before it.**
+    `AI_PROVIDER=  # mock | anthropic | openai` on an *empty* key reads the comment itself as
+    the value, so copying `.env.example` verbatim — which `docs/setup.md` step 3 tells you to
+    do — made the app refuse to start with a `literal_error`. `AI_MODEL=` had the same shape
+    and was quieter and worse: a plain `str`, so it took the comment as a model id and failed
+    later, at the provider. Both comments now sit on their own line, and any new empty key in
+    that file must too. Invisible to the whole suite, because the tests build `Settings`
+    directly and the e2e fixture strips `AI_*` out of the environment.
+16. **A WAL database copied without its `-wal` sidecar is missing its most recent writes.**
+    Which is why an export is written in the default rollback journal mode rather than WAL:
+    the deliverable is one self-contained file. `app/repositories/corpus.py`.
 
 ## Outstanding, and only the owner can close it
+
+**Publish the export, and put its `sha256` in the release notes.** `scripts/export_index.py`
+produces the file — 57.8MB for 57,607 artworks, verified — and `scripts/fetch_index.py` merges
+it, verified against the real corpus and in a browser. What has never happened is the upload:
+nothing has been published, so no URL exists, `--url` has only ever been exercised against its
+own refusal paths, and the README's fetch line is a shape rather than a command anyone can run.
+ADR-0011 says a release asset; making one is the owner's to do.
 
 **`uv run pytest -m live` with a real key.** Neither provider has ever been called with a working
 key. It is the only thing that can catch a wrong default model id, or `max_completion_tokens`
