@@ -1,20 +1,27 @@
-"""The eight Playwright flows from `docs/testing.md`, and no more.
+"""The nine Playwright flows from `docs/testing.md`, and no more.
 
 Playwright is slow and flaky in proportion to how much you ask of it, so this file asks for
-eight things: that the app loads a picture, that Space changes it, that `I` opens the
+nine things: that the app loads a picture, that Space changes it, that `I` opens the
 overlay, that the language switches, that with no AI configured the overlay shows the
 museum's own facts and no error, that liking an artwork survives a reload (M11), that a
-facet clicked twice excludes it (M13), and that the accessibility description reaches the
-screen with its grounding line (M14). Everything else lives in a unit or integration test.
+facet clicked twice excludes it (M13), that the accessibility description reaches the
+screen with its grounding line (M14), and that the rotation is actually held while
+somebody is reading (M16). Everything else lives in a unit or integration test.
 
-Each of the last three had to argue for its slot, and the argument is the same one:
+Each of the last four had to argue for its slot, and the argument is the same one:
 **there is no frontend test runner here and there will not be** (ADR-0005), so a rule that
 only exists in the browser is either an e2e flow or it is untested. The sixth crosses a
 keypress, an HTTP write, a SQLite row and the state read back onto a fresh page. The
 seventh is the only check that a facet control cycles through three states and that the
 third one narrows what the display serves — the panel's largest surface, rewritten
 wholesale in M13. The eighth covers the one feature whose failure the person it is for
-cannot see.
+cannot see. The ninth covers a promise made since M3 that broke silently in M16 and that
+587 unit tests and eight flows all missed.
+
+**The ninth is slow on purpose and is the only slow one.** It waits out a real rotation
+interval, because the bug it covers is precisely that the clock keeps running when it has
+been told not to, and nothing shorter can observe that. Forty seconds is the price of the
+shortest interval the app offers.
 
 These are `-m e2e`, excluded from the default run and from CI. They need Chromium:
 
@@ -130,6 +137,11 @@ def _padding(real: list) -> list:
             source.model_copy(
                 update={
                     "id": 900_000 + index,
+                    # A distinct title as well as a distinct id, so "the artwork changed"
+                    # is observable from the caption. Copies that shared a title with
+                    # their original made a rotation indistinguishable from no rotation,
+                    # which is the exact thing flow 9 is asserting about.
+                    "title": f"{source.title} (copy {index})",
                     "artwork_type_title": "Painting" if index % 2 else "Print",
                 }
             )
@@ -379,3 +391,59 @@ class TestSmokeFlows:
         expect(page.locator("#access-grounding")).to_contain_text("No AI has seen the artwork")
         # A real button, in the tab order, so replay is reachable without a mouse.
         expect(page.locator("#access-play")).not_to_be_hidden()
+
+    def test_the_rotation_is_held_while_the_details_are_open(self, display: Page):
+        """Flow 9. `docs/product-spec.md` has promised since M3 that opening the settings
+        pauses the rotation, and since M13 that expanding the details does too.
+
+        It broke, silently, and nothing caught it. `pause()` cleared the timers, which is
+        not the same as stopping the clock: an `advance()` already in flight re-armed on
+        its way out, in a `finally`, and the hold was gone. That window is about a second
+        on every advance and is the *whole* window at page load — which is where it was
+        found, by expanding the details half a second after opening the app and watching
+        the artwork change anyway.
+
+        So this flow waits. Thirty seconds is the shortest interval the app offers and
+        there is no faster way to see a clock that should not be ticking.
+        """
+        display.keyboard.press("1")  # 30-second rotation
+        expect(display.locator("#status")).to_contain_text("30")
+
+        display.mouse.move(400, 400)
+        expect(display.locator("#overlay")).to_have_class(VISIBLE)
+        # `text_content`, not `inner_text`: the latter returns "" for anything not
+        # visible, and this test deliberately runs across the overlay's idle timer.
+        before = display.locator("#ov-title").text_content()
+
+        display.locator("#ov-expand").click()
+        expect(display.locator("#ov-expand")).to_have_attribute("aria-expanded", "true")
+
+        # Somebody is reading, so the mouse moves. Without this the overlay's own 20s
+        # reading timer fades it, which *collapses* the details and correctly releases the
+        # clock — the unattended-display rule QUESTIONS.md #3 protects. Testing that path
+        # would be testing the opposite feature.
+        for _ in range(8):
+            display.wait_for_timeout(5_000)
+            display.mouse.move(400, 400)
+
+        assert display.locator("#ov-title").text_content() == before, (
+            "the artwork rotated while the details were expanded"
+        )
+        # Still expanded, because a rotation would have collapsed it — a second way of
+        # asserting the same thing, and the one that would catch a rotation this test
+        # happened to sample either side of.
+        expect(display.locator("#ov-expand")).to_have_attribute("aria-expanded", "true")
+
+        # And the clock is held, not dead: collapsing releases it and the display advances.
+        #
+        # The overlay's own button, not Space: the click above left focus on a `<button>`,
+        # and `shortcuts.js` deliberately leaves Space to a focused control that acts on it
+        # (`actsOnSpace`) — so Space here would re-toggle the details rather than advance.
+        # That is the right behaviour and this test tripped over it.
+        display.locator("#ov-expand").click()
+        display.locator("#ov-next").click()
+        display.wait_for_function(
+            "previous => document.getElementById('ov-title').textContent !== previous",
+            arg=before,
+            timeout=FIRST_PAINT_MS,
+        )

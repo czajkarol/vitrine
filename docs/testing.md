@@ -21,7 +21,7 @@ interpretation chain against `MockProvider`. Fast, no network.
 from the default run and from CI. Run them by hand when a contract test starts looking suspicious
 or before a release. They are also how fixtures get refreshed.
 
-**E2E** — Playwright, eight flows, no more:
+**E2E** — Playwright, nine flows, no more:
 
 1. App loads and an image appears
 2. Space advances to a different artwork
@@ -31,11 +31,12 @@ or before a release. They are also how fixtures get refreshed.
 6. `L` adds a favourite and it survives a reload
 7. A facet clicked twice excludes it, and the display stops serving that type
 8. The spoken description reaches the screen with its grounding line
+9. The rotation is actually held while somebody is reading
 
 Playwright is slow and flaky in proportion to how much you ask of it. Everything not in that
 list belongs in a unit or integration test.
 
-**A new flow has to argue for its slot**, and the last three each did. The argument is the same
+**A new flow has to argue for its slot**, and the last four each did. The argument is the same
 one every time: **there is no frontend test runner here and there will not be** (ADR-0005), so a
 rule that only exists in the browser is either an e2e flow or it is untested.
 
@@ -53,6 +54,14 @@ rule that only exists in the browser is either an e2e flow or it is untested.
   silence, which is indistinguishable from having pressed the wrong key. So it asserts the three
   things that make it usable: the region appears, the text arrives, and the line saying where the
   words came from is on screen with it.
+- The **ninth** (M16) covers a promise made in M3 — opening the settings pauses the rotation —
+  that broke silently and that 587 unit tests and eight flows all missed. `pause()` cleared the
+  timers, which is not the same as stopping the clock: an `advance()` already in flight re-armed
+  on its way out. **It is the only slow flow, and deliberately so**: it waits out a real
+  thirty-second interval, because the bug is that a clock keeps ticking when told not to and
+  nothing shorter can observe that. It moves the mouse while it waits, because a still mouse
+  fades the overlay and correctly *releases* the hold — testing that path would be testing the
+  opposite feature.
 
 The fixture starts its own uvicorn on a free port, against a temporary database seeded from the
 bundled fallback set, and strips `AI_*` and every vendor key out of the environment it inherits —
@@ -60,9 +69,11 @@ a key in the developer's shell would turn AI on and flow 5 would silently stop t
 says it tests. Metadata therefore needs no AIC call; the images still come from artic.edu, which
 is the one thing in the suite that touches the network and is exactly what flow 1 checks.
 
-**Two things the last two flows needed, and both are worth knowing.** The seeded index is padded
-with copies of the bundled records under synthetic ids, because a facet is not offered below
-forty artworks and the bundled set is thirty — without it the panel correctly reports that there
+**Two things these flows needed, and both are worth knowing.** The seeded index is padded
+with copies of the bundled records under synthetic ids *and synthetic titles*, because a facet is
+not offered below forty artworks and the bundled set is thirty — and because copies sharing a
+title with their original made a rotation indistinguishable from no rotation, which is exactly
+what flow 9 asserts about — without it the panel correctly reports that there
 is nothing worth filtering on and flow 7 has nothing to click. That is the narrowest departure
 from "fixtures are recorded, not invented" that makes the flow possible, and what is under test
 is the panel rather than AIC's shape. And flow 8 runs against a **second server** with

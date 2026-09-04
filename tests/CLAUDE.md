@@ -12,6 +12,9 @@ Loaded when working inside `tests/`. Strategy is in `docs/testing.md`.
   timeout, provider down, budget exhausted, corrupt cache.
 - Scoring tests assert relative ordering, not exact float values, so weight tuning does not
   break the suite.
-- Playwright covers eight smoke flows only. Push everything else down to unit tests. A ninth has
-  to argue for itself the way the sixth, seventh and eighth did: it earns a slot only by covering
-  a rule that exists nowhere but in the browser, or by crossing layers no smaller test can.
+- Playwright covers nine smoke flows only. Push everything else down to unit tests. A tenth has
+  to argue for itself the way the sixth through ninth did: it earns a slot only by covering a
+  rule that exists nowhere but in the browser, or by crossing layers no smaller test can.
+- Only one flow is allowed to be slow, and it already exists. Flow 9 waits out a real rotation
+  interval because a clock that should not be ticking cannot be observed any faster. Do not add
+  a second `wait_for_timeout` of that size without the same kind of argument.

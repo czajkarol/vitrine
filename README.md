@@ -258,8 +258,8 @@ so the failed round trip is paid once rather than every rotation.
 
 ```bash
 uv run pytest                 # 587 tests: unit, contract, integration. No network
-uv run pytest -m live         # 15, against the real AIC API and a real AI provider if keyed
-uv run pytest -m e2e          # 8 Playwright flows; they start their own servers
+uv run pytest -m live         # 9, against the real AIC API and a real AI provider if keyed
+uv run pytest -m e2e          # 9 Playwright flows; they start their own servers
 uv run ruff check . && uv run ruff format --check . && uv run mypy app
 ```
 

@@ -190,8 +190,12 @@ Expansion is per artwork and temporary. It collapses when the artwork rotates, o
 when the overlay fades. While it is open **the rotation is held** and the idle fade stretches
 from 3.5s to 20s. Those were two halves of the same problem and only one of them had been
 solved: text staying put while the picture underneath it changes is no better than the text
-going away. Scrolling the description counts as activity for the same reason. An unattended
-display still returns to the artwork on its own, which is what the original ruling protects.
+going away. Scrolling the description counts as activity for the same reason.
+
+The hold ends when the expansion does, which includes the overlay fading after 20s of
+stillness — so an unattended display still returns to the artwork and starts rotating again on
+its own, which is what the original ruling protects. Holding the clock is a promise to somebody
+who is *reading*, not a way to stop the display.
 
 `I` keeps its own meaning — pin or unpin the whole overlay. Two affordances, two meanings.
 

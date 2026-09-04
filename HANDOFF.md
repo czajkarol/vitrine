@@ -68,11 +68,13 @@ uv sync --all-extras
 uv run uvicorn app.main:app --reload      # http://127.0.0.1:8000
 uv run pytest                             # unit + contract; excludes live and e2e
 uv run pytest -m live                     # the real AIC API, and the AI providers if keyed
-uv run pytest -m e2e                      # eight Playwright flows; needs `playwright install chromium`
+uv run pytest -m e2e                      # nine Playwright flows; needs `playwright install chromium`
 uv run ruff check . && uv run ruff format --check . && uv run mypy app
 ```
 
-587 tests in the default run, 8 e2e flows, 15 live tests deselected.
+587 tests in the default run, plus 9 e2e flows and 9 live tests, both deselected by default.
+The e2e run takes about a minute; flow 9 waits out a real rotation interval and is the only
+slow one.
 
 ```bash
 uv run python scripts/build_index.py             # full walk: 1,328 requests, ~30 min, resumable
@@ -159,11 +161,12 @@ All found the hard way, in a browser or against the live API. Each is documented
     *advance*: an allowed artwork request grants a credit its image spends.
     `app/domain/rate_limit.py`.
 12. **There is no way to unit-test the frontend here, and that is deliberate.** No bundler, no
-    `node_modules`, so no test runner (ADR-0005). Playwright covers eight smoke flows and no
-    more, and a ninth has to argue for its slot. Most of the bugs in this list were invisible to
+    `node_modules`, so no test runner (ADR-0005). Playwright covers nine smoke flows and no
+    more, and a tenth has to argue for its slot. Most of the bugs in this list were invisible to
     a passing suite and were found by opening the app and looking at it, which is why the
     definition of done says to — but note that #18 was found by an e2e flow rather than by eye,
-    which is the case for a flow covering a rule that exists nowhere but in the browser.
+    and #23 by opening the app and then *waiting*, which is the case for the two flows that
+    cover rules existing nowhere but in the browser.
 13. **`.gitignore` patterns without a leading slash match at any depth.** A bare `data/`
     silently excluded `app/data/fallback_artworks.json`, the bundled offline set.
     `QUESTIONS.md` #9.
@@ -214,7 +217,15 @@ All found the hard way, in a browser or against the live API. Each is documented
     through as integers by `_as_int`, because a scoring pass comparing a string to a number would
     be wrong without saying so. Its records also carry no `lqip`, no `alt_text` and no `color`,
     which is why the AI features are not offered on them at all — see ADR-0013.
-23. **A personal email address found its way back into `.env.example`**, which M7 had removed on
+23. **`clearTimeout` is not the same as stopping a clock.** `rotation.pause()` cleared its
+    timers, and an `advance()` that was already in flight re-armed them on its way out in a
+    `finally` — so the hold was silently lost. That window is about a second on every advance
+    (fetching an artwork, decoding its image) and it is the *whole* window at page load. The
+    result was that opening the settings panel, or expanding the details, did not always stop
+    the picture changing underneath you — a promise `docs/product-spec.md` has made since M3.
+    There is a `paused` flag now, and `arm()` respects it. Anything else that holds a
+    self-rescheduling timer has the same shape of bug available to it.
+24. **A personal email address found its way back into `.env.example`**, which M7 had removed on
     purpose, by way of a `git add -A` that swept up an unrelated working-tree edit. That file is
     what `docs/setup.md` step 3 tells you to copy, so a real address in it ships to everyone who
     clones this. Look at what `git add -A` is about to stage in a repository that has a committed

@@ -64,6 +64,14 @@ export function createRotation({ prepare, present, onError }) {
   let pending = null;
   let stopped = false;
   let running = false;
+  // Held by the settings panel and by the expanded details. A flag rather than only
+  // clearing the timers, because clearing them is not enough: an `advance()` that was
+  // already in flight when the hold was asked for re-arms the clock in its own `finally`,
+  // and the hold is silently lost. That window is a second or so on every advance —
+  // fetching an artwork and decoding its image — and it is the *whole* window at page
+  // load, which is where this was found: expanding the details half a second after the
+  // app opened, and watching the artwork change 30 seconds later anyway.
+  let paused = false;
 
   /** What the clock actually runs at: the chosen interval, or the floor if it is higher. */
   const effectiveMs = () => Math.max(intervalMs, floorMs);
@@ -90,7 +98,7 @@ export function createRotation({ prepare, present, onError }) {
   /** Set both timers from the current deadline. Safe to call repeatedly. */
   function arm() {
     clearTimers();
-    if (stopped) return;
+    if (stopped || paused) return;
     const remaining = deadline - Date.now();
     if (remaining <= 0) {
       void advance();
@@ -140,11 +148,16 @@ export function createRotation({ prepare, present, onError }) {
     /** Show one immediately, then keep going. */
     start() {
       stopped = false;
+      paused = false;
       return advance();
     },
 
     /** Manual advance. Resets the interval, per docs/product-spec.md. */
     next() {
+      // Advancing is the clock running, so it lifts a hold rather than working around
+      // one. Closing the settings panel after changing a filter takes this path instead
+      // of `resume()`, and without this the clock would stay held for ever.
+      paused = false;
       return advance();
     },
 
@@ -189,8 +202,15 @@ export function createRotation({ prepare, present, onError }) {
       arm();
     },
 
-    /** Hold the clock while the settings panel is open. The prepared artwork is kept. */
+    /**
+     * Hold the clock — the settings panel is open, or the details are expanded. The
+     * prepared artwork is kept.
+     *
+     * The flag matters as much as the `clearTimers()`: an advance already in flight will
+     * otherwise re-arm on its way out and the hold will have done nothing.
+     */
     pause() {
+      paused = true;
       clearTimers();
     },
 
@@ -206,12 +226,19 @@ export function createRotation({ prepare, present, onError }) {
     },
 
     resume() {
+      paused = false;
       deadline = Date.now() + effectiveMs();
       arm();
     },
 
+    /** Whether the clock is currently held. Exposed for tests and for the e2e flow. */
+    isPaused() {
+      return paused;
+    },
+
     destroy() {
       stopped = true;
+      paused = false;
       clearTimers();
       pending = null;
       document.removeEventListener('visibilitychange', onVisibilityChange);

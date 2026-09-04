@@ -138,7 +138,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy app
 
 ```bash
 uv run playwright install chromium  # once
-uv run pytest -m e2e                # 8 flows; they start their own servers
+uv run pytest -m e2e                # 9 flows; they start their own servers
 ```
 
 `uv run pytest -m live` hits the real AIC API, and a real AI provider if one is keyed. It is
