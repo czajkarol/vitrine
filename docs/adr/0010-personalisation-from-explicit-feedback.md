@@ -18,6 +18,9 @@ gestures by one person, and a model fitted to that is fitting noise.
 
 **Curated's value is that it can be explained.** ADR-0006 chose transparent weights over
 machine learning precisely so that `--explain` can say why artwork A outranked artwork B.
+(ADR-0016 later lifted that prohibition, but for tagging a second museum's images rather than
+for ranking, and Curated is left exactly as this paragraph describes it. Nothing in this ADR's
+decision changes.)
 Anything that quietly folds personal history into the curated score destroys that: the
 score stops being reproducible, `--explain` starts printing something that depends on who
 is asking, and the honesty ADR-0006 bought is spent.

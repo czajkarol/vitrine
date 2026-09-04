@@ -30,6 +30,16 @@ combinations can be saved under a name, the settings panel explains in plain lan
 happens to a pasted API key, and `H` keeps an artwork up longer without ever becoming a way to
 stop the display.
 
+**M17 also reversed a prohibition without building anything.** ADR-0016 lifts ADR-0006's ban on
+machine learning, so that style and subject facets can be *inferred from the image* for
+Cleveland, which has no cataloguer's words to build them from — trained on the Art Institute's
+own 131,264 facet rows, offered only above a precision floor measured per facet, and labelled as
+inferred wherever they appear. Nothing is built. Two things to know before anyone starts: the
+real cost is not the model but **indexing Cleveland**, because filtering means knowing a
+candidate's facets before choosing it, which reopens items 6 and 8 of ADR-0013; and the training
+set needs 57,607 image fetches from AIC, about sixteen hours, which is the owner's call and has
+not been given.
+
 **Three things arrived after M12 and each changed the shape of something.**
 
 *Filters became one control per facet* (M13, ADR-0014). A facet has three states — off, include,
@@ -118,7 +128,11 @@ A fresh clone has no index and serves from AIC, then from the bundled 30-record 
 - **Never hardcode the IIIF base**; it arrives on every AIC response and is remembered in
   `preferences`.
 - **Scoring weights are product heuristics, not claims about art.** Keep them tunable; tests
-  assert ordering, never values. ADR-0006, `QUESTIONS.md` #11.
+  assert ordering, never values. ADR-0006, `QUESTIONS.md` #11. **ADR-0006's other half — no
+  machine learning, at all — was lifted by ADR-0016 in M17**, and read the two together before
+  acting on either. The ban failed twice: its premise ("no labels, no feedback signal") expired
+  two days after it was written when ADR-0010 landed, and its reasoning was aimed at *ranking*,
+  while what 0016 wants is *tagging*. Curated is untouched and 0016 does not want it changed.
 - **The index is a cache, not truth.** AIC can unpublish an image at any time. ADR-0003.
 - **The AI features apply to indexed artworks only.** Both prompts are grounded in AIC's own
   `alt_text`, and a source without one would need a different prompt or no AI at all. ADR-0013

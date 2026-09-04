@@ -49,6 +49,13 @@ Against ADR-0012's eight items:
 | 7 | The attribution becomes per-artwork | **Paid.** `attribution_aic` / `attribution_cma` in both locales, chosen from `artwork.museum`. The CC BY clause for the `description` field stays on the Art Institute's half, where the licence actually applies. |
 | 8 | The export gains a dimension | **Dodged.** The export is the corpus, the corpus is the index, and Cleveland is not in it. `repositories/corpus.py`'s allow-list is unchanged and still correct. |
 
+**Item 6 was reopened on 2026-09-04.** [ADR-0016](0016-inferred-facets-for-a-source-without-any.md) proposes inferring style and subject
+facets for Cleveland from the images, trained on the Art Institute's own cataloguing. Note what
+that costs: filtering means knowing a candidate's facets *before* choosing it, so they cannot be
+computed for the artwork already on screen — which means indexing Cleveland, and unpicking the
+"dodged" in items 6 and 8 below, possibly 1 and 5 with them. The dodge was correct for what this
+ADR built. It was never free, and 0016 is where the bill arrives.
+
 So: three paid, three dodged by not indexing, one accepted as degradation, one accepted as a
 narrower feature. That is a much smaller bill than ADR-0012 quoted, and ADR-0012 was not wrong —
 it priced a different thing.

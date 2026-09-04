@@ -22,6 +22,10 @@ itself back constantly, so if you find a capital V, fix it.
   Art Institute, `share_license_status == "CC0"` at Cleveland. A hard filter, not a preference,
   and checked on the way out as well as asked for in the query.
 - The app must be fully usable with no AI provider configured. AI is an enhancement, never a dependency.
+- **The repository is written in English.** Code, comments, docs, ADRs, commit messages,
+  identifiers, test names, branch names — all of it, whatever language the conversation about
+  the work happens in. The one exception is user-facing copy, which lives in
+  `frontend/locales/` and is translated; Polish belongs there and nowhere else.
 - No frontend framework. No React, Vue, Svelte, or build step. Plain HTML/CSS/JS modules.
 - Do not invent AIC API fields. If a field is not confirmed in `docs/aic-api.md`, verify it against
   a live response before building on it, then record what you found.

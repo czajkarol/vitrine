@@ -516,12 +516,37 @@ Six items from the owner, plus two bugs found while reproducing the first one.
 
 ---
 
+## M18 — Inferred facets for Cleveland, as an experiment
+
+Nothing started. ADR-0016 lifts the prohibition and sets the rules; this is what building it
+would be. Ordered so the cheap, checkable half comes before anything is offered to a user.
+
+- [ ] **Two things need the owner's yes before any of it.** 57,607 image fetches from AIC to
+      build the training set is about sixteen hours; and indexing Cleveland is a reversal of a
+      decision ADR-0013 took deliberately, not a detail
+- [ ] Embed the indexed AIC corpus locally with a pretrained vision-language model, into its own
+      table. ~57 MB at half precision; hours on a CPU, minutes on a GPU
+- [ ] Fit one classifier per facet against `artwork_facets`, holding out a slice of AIC. Seconds
+      to fit, on vectors that already exist
+- [ ] **Measure precision per facet per threshold, and let that table pick the floors.** Which
+      facets Cleveland gets is an outcome of the measurement, not a judgement call. Expect
+      `type.*` and the concrete subjects to pass and most of `style.*` not to
+- [ ] Check a sample of Cleveland predictions **by hand** before offering anything. A held-out
+      AIC slice measures the classifier, not the transfer to a different museum's photography
+- [ ] Only then: store inferred facets apart from `artwork_facets`, with confidence and model
+      version, and label them as inferred in the panel and on the artwork
+- [ ] Say plainly that a model looked at the picture. M14 promises the opposite about the spoken
+      description and that promise stays true; this feature must not inherit its reassurance
+- [ ] Decide whether inferred facets belong in a published export. Derived from the corpus
+      rather than from a person, so plausibly yes — but a decision, not an assumption (ADR-0011)
+
+---
+
 ## Not doing
 
 Recorded here so it does not get relitigated. Each has an ADR or a line in `CLAUDE.md`.
 
 - Shared/public interpretation cache — interface only (ADR-0004)
-- Machine learning for curation — transparent weights instead
 - ~~Image proxying~~ — reversed by ADR-0008. Cloudflare blocks hotlinking of AIC's IIIF
   images, so `GET /api/image/{image_id}` exists as a fallback after a direct load fails.
 - OS-level power management — Screen Wake Lock covers it

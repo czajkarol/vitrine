@@ -21,6 +21,20 @@ and keeps the research. 0014 reverses one sentence of `docs/product-spec.md` —
 the accessibility description, and the interesting half of it is the alternative that was not
 taken.
 
+0016 arrived in M17 and is the second partial supersede here. It wants **facets inferred from
+the image** for Cleveland, which has no cataloguer's words to build them from, trained on the
+Art Institute's own 131,264 facet rows and offered only above a precision floor measured per
+facet. To get there it lifts ADR-0006's blanket rejection of machine learning — a prohibition
+worth reading beside it, because it fails twice over. Its premise ("no labels, no feedback
+signal") expired two days after it was written when ADR-0010 landed, and its reasoning was aimed
+at ranking, which is a different and much worse-posed problem than tagging. 0006's actual
+decision, the weighted score with `--explain`, is untouched and 0016 does not want it changed.
+The pair is the clearest example in this directory of a decision that was right for a reason
+that stopped being true.
+
+0016 also reopens item 6 of 0013, and the interesting part is what that costs: filtering means
+knowing a candidate's facets before choosing it, so Cleveland would have to be indexed after all.
+
 All twelve earlier ones were re-read against the code on 2026-09-04, at the end of M12. 0009's
 facet counts and 0010's threshold, weights and formula still match the code exactly. 0003 gained
 a third postscript: fetching an export is now an alternative to walking, which one of its costs
@@ -38,7 +52,7 @@ means in practice). 0001, 0005, 0006 and 0008 describe what was built.
 | [0003](0003-local-artwork-index.md) | Build a local artwork index | Accepted |
 | [0004](0004-defer-shared-cache.md) | Defer the shared cache to an interface | Accepted |
 | [0005](0005-vanilla-frontend.md) | Vanilla frontend, no build step | Accepted |
-| [0006](0006-transparent-scoring.md) | Transparent scoring, not machine learning | Accepted |
+| [0006](0006-transparent-scoring.md) | Transparent scoring, not machine learning | Superseded in part by 0016 |
 | [0007](0007-public-domain-only.md) | Public-domain artworks only | Accepted |
 | [0008](0008-image-delivery-fallback.md) | Serve images direct, fall back to a backend proxy | Accepted |
 | [0009](0009-canonical-facets.md) | Canonical facets over AIC's raw terms | Accepted |
@@ -48,3 +62,4 @@ means in practice). 0001, 0005, 0006 and 0008 describe what was built.
 | [0013](0013-cleveland-as-a-live-source.md) | Cleveland as a live source, and the seven-eighths of 0012 we did not pay | Accepted |
 | [0014](0014-multi-select-filters.md) | One tri-state control per facet, and OR inside a group | Accepted |
 | [0015](0015-accessibility-descriptions.md) | Accessibility descriptions grounded in the museum's alt text | Accepted |
+| [0016](0016-inferred-facets-for-a-source-without-any.md) | Inferred facets for a source that has none | Accepted |

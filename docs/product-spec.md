@@ -261,6 +261,34 @@ Attribution is per artwork rather than per app, because it is a licence conditio
 label. Cleveland's metadata and images are CC0; the Art Institute's CC BY 4.0 clause stays on
 its own half, where it applies.
 
+### Filters on a source that was never catalogued for them
+
+**Cleveland offers one filter where the Art Institute offers three, and that is a metadata gap
+rather than a missing feature.** Every facet vitrine has comes from words a cataloguer wrote,
+and Cleveland does not publish anything that maps onto style or subject. ADR-0013 accepted this
+by not indexing the source; ADR-0016 proposes closing it by inferring the facets from the images
+themselves, trained on the Art Institute's own 131,264 facet rows.
+
+Nothing of this is built. Four rules would govern it if it were, and they are the decision:
+
+- **Only above a floor measured per facet.** `type.painting` is visible in a picture;
+  `style.chimu` is cataloguer's knowledge no amount of looking recovers. Each facet gets the
+  threshold that buys a stated precision on a held-out slice of AIC, and a facet that never
+  reaches it is not offered for that source at all.
+- **Below the floor is no facet, not a guess.** The artwork carries nothing and does not appear
+  under that filter. Showing fewer results is a narrowing the user can see; a confident wrong
+  tag is a filter quietly lying, which is the failure this whole section exists to prevent.
+- **An inferred facet says it is inferred**, in the panel and on the artwork, and is stored with
+  its confidence and its model version — never merged into `artwork_facets`, which means "the
+  museum said so" and has to keep meaning that.
+- **A model looks at the picture here, and it must say so.** The spoken description (M14,
+  ADR-0015) promises the opposite — no model sees the artwork, the words are the museum's own —
+  and that promise stays exactly true. These are two features with opposite properties and the
+  new one does not get to inherit the old one's reassurance.
+
+The cost is not the model. Filtering means knowing a candidate's facets before choosing it, so
+Cleveland would have to be indexed — which is the thing ADR-0013 deliberately did not do.
+
 ## Modes
 
 ### Explore
@@ -413,8 +441,8 @@ here would record a decision nobody made.
 
 ### Curated
 
-Transparent weighted scoring over the local index. No machine learning. Signals, all of which
-come from real API data:
+Transparent weighted scoring over the local index. Signals, all of which come from real API
+data:
 
 | Signal | Rationale |
 |---|---|
@@ -425,6 +453,11 @@ come from real API data:
 | Has `alt_text` | Correlates with curatorial attention |
 | Artwork type | Paintings and photographs display better than furniture or documents |
 | Recency penalty | Seen in the last N artworks |
+
+**Machine learning is no longer ruled out of this app, and Curated is not where it is wanted.**
+ADR-0006 banned it outright; ADR-0016 lifted the ban in M17 for a different purpose entirely —
+see Sources below. The score stays a weighted sum of the signals in that table, with `--explain`
+behind it, and nothing about it changes.
 
 ### For you
 

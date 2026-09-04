@@ -3,6 +3,12 @@
 Status: Accepted
 Date: 2026-09-04
 
+**Postscript, 2026-09-04.** Every facet described below is derived from words a cataloguer
+wrote. [ADR-0016](0016-inferred-facets-for-a-source-without-any.md) proposes a second origin — a facet inferred from the image itself, for a
+source that has no such words — and the boundary between the two is load-bearing. An inferred
+facet is stored apart, with its confidence and the model that produced it, and never merged into
+`artwork_facets`: this table means "the museum said so", and it has to keep meaning that.
+
 ## Context
 
 Explore filters on three vocabularies: artwork type, style and subject. Until now all three

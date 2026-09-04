@@ -1,7 +1,26 @@
 # 0006. Transparent scoring, not machine learning
 
-Status: Accepted
+Status: **Superseded in part by [ADR-0016](0016-inferred-facets-for-a-source-without-any.md)**
 Date: 2026-09-02
+
+**Half of this is still the decision, and half of it is not (2026-09-04).** The weighted linear
+score, the single dict of weights and `--explain` are exactly what the code does and are not in
+question. The blanket rejection of machine learning, in Alternatives below, is lifted by
+ADR-0016.
+
+It is lifted on its premise rather than on its reasoning. "No labels, no feedback signal, one
+user" was true the day this was written and stopped being true within two days: ADR-0010 added
+explicit feedback in M11, and `is_boosted` — named a paragraph above as better than anything we
+could infer — was already a label nobody was using as one.
+
+And the prohibition turned out to be aimed at the wrong target. ADR-0016 does not want a learned
+*ranker*; it wants a learned *tagger*, for a second museum that has no cataloguer's words to
+build facets from. That is a question with abundant ground truth, a free held-out set and an
+answer anyone can check by looking at the picture — none of which ranking has. The argument
+below about a learned ranker turning the most explainable part of the system into the least is
+therefore **not** reversed. It still stands, and it is why Curated is untouched.
+
+Everything below stands as it was written.
 
 ## Context
 
