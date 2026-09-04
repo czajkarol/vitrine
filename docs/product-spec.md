@@ -416,6 +416,33 @@ Handle the API being unavailable by hiding the toggle, not by erroring.
 Do not write OS-level power management. Do not simulate input of any kind. This is a
 display feature and the README describes it as one.
 
+**Off by default, except that going fullscreen turns it on.** The argument for off — that
+keeping somebody's screen awake is a side effect on their machine rather than a default — held
+while the app was a window among other windows, and it does not hold in fullscreen. Fullscreen
+*is* the ask: it is the one mode this app was built for, and a display that blanks ten minutes
+into it is the exact failure the wake lock exists to prevent. So entering fullscreen sets
+`ambient` to true and requests the lock. That argument was a comment on `PreferencesResponse`
+rather than a line in this file; it is amended in place there and stated here. M17.
+
+Three things that rule must not do, and they are the whole of its difficulty:
+
+- **It must not overrule somebody who turned ambient off by hand.** A stored `false` cannot
+  say on its own whether it means "never thought about it" or "no" — every save writes every
+  field — so the deliberateness is recorded separately, in `ambient_by_hand`. Nothing in the UI
+  shows that preference; it exists only so this rule can tell the two cases apart.
+- **It must not touch the preference where there is no Screen Wake Lock API.** The toggle is
+  removed from the panel outright there, so writing `ambient: true` would save a setting the
+  user can neither see nor undo.
+- **It must not say the screen will stay awake unless a lock is actually held.** The request is
+  refused while the document is hidden and on some machines on battery, and enabling ambient
+  mode swallows that by design. The line the display flashes is conditional on a lock having
+  been acquired, not on the preference having been set. Ask `isHolding()`, not `isEnabled()`.
+
+Leaving fullscreen does not turn it back off. By then it is the user's saved preference, shown
+in the panel and undoable there; taking it away again would be a second change they did not ask
+for. It is entered on `fullscreenchange` rather than on the app's own `F`, because F11 is
+fullscreen too and never goes through the app's toggle.
+
 ---
 
 ## Settings

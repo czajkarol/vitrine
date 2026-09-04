@@ -187,6 +187,7 @@ SUBJECT_KEY: Final[str] = "subject"
 EXCLUDE_KEY: Final[str] = "exclude"
 LANGUAGE_KEY: Final[str] = "language"
 AMBIENT_KEY: Final[str] = "ambient"
+AMBIENT_BY_HAND_KEY: Final[str] = "ambient_by_hand"
 MUSEUM_KEY: Final[str] = "museum"
 
 # The exclusion list is several values in a table that stores one string per key. Comma
@@ -520,6 +521,9 @@ async def read_preferences(
     # The table stores strings. Anything that is not the stored true is false, so a value
     # written by an older version cannot switch ambient mode on by accident.
     fields["ambient"] = await preferences.get(AMBIENT_KEY) == "1"
+    # Absent for everyone who installed before this existed, which reads as false — the
+    # right answer: they have not said no to ambient mode, so fullscreen may say yes.
+    fields["ambient_by_hand"] = await preferences.get(AMBIENT_BY_HAND_KEY) == "1"
 
     try:
         return PreferencesResponse(**fields)
@@ -553,6 +557,7 @@ async def write_preferences(
     await preferences.set(MUSEUM_KEY, body.museum)
     await preferences.set(LANGUAGE_KEY, body.language)
     await preferences.set(AMBIENT_KEY, "1" if body.ambient else "0")
+    await preferences.set(AMBIENT_BY_HAND_KEY, "1" if body.ambient_by_hand else "0")
     return body
 
 

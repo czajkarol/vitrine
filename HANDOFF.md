@@ -254,6 +254,20 @@ All found the hard way, in a browser or against the live API. Each is documented
     anything. Check what is actually listening before believing a bug: the stale process here
     was six hours old and the port was busy, so a fresh `uvicorn` never bound at all.
 
+28. **A stored `false` cannot tell "no" from "never asked".** Every save writes every field, so
+    `ambient: false` in `preferences` means nothing about whether the user has considered
+    ambient mode. Fullscreen turns ambient on (M17), and the only way it can do that without
+    overruling somebody who deliberately turned it off is a second field recording that the
+    toggle was operated by hand: `ambient_by_hand`. Nothing in the UI shows it. Any future
+    "turn this on for them" rule over a boolean preference has the same problem available to it.
+29. **The Fullscreen API cannot be exercised through Chrome automation here.** Both a CDP
+    keypress and a CDP click on a real button get `TypeError: not granted`, whatever
+    `document.fullscreenEnabled` says. Headed Playwright does it properly, and headed is also
+    the only way to see a wake lock actually acquired — the request is refused while the
+    document is hidden, and a backgrounded or headless window is hidden. That is why the
+    fullscreen rule was verified with a throwaway headed script rather than by eye or by a
+    tenth flow.
+
 ## Outstanding, and only the owner can close it
 
 *(The first of these is closed. Kept below, struck through, because the way it was closed is

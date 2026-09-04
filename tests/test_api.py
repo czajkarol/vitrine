@@ -356,8 +356,30 @@ class TestPreferences:
         assert client.get("/api/preferences").json()["museum"] == "cma"
 
     def test_ambient_is_off_until_it_is_asked_for(self, client):
-        # Keeping someone's screen awake is a side effect on their machine.
+        # Keeping someone's screen awake is a side effect on their machine — except in
+        # fullscreen, which is the one context where it is the point. See the amendment in
+        # docs/product-spec.md; the display decides that, and this is only the default.
         assert client.get("/api/preferences").json()["ambient"] is False
+
+    def test_a_fresh_install_has_not_set_ambient_by_hand(self, client):
+        """The field that lets fullscreen turn ambient on without overruling a "no".
+
+        A stored `ambient: false` cannot say on its own whether the user has considered
+        ambient mode and declined it or has never seen the toggle, because every save
+        writes every field. This is what carries that difference, and it is false for
+        everyone who installed before it existed — the right answer, since they have not
+        said no either.
+        """
+        assert client.get("/api/preferences").json()["ambient_by_hand"] is False
+
+    def test_a_deliberate_ambient_choice_survives_a_reload(self, client):
+        client.put(
+            "/api/preferences",
+            json={"interval_seconds": 300, "ambient": False, "ambient_by_hand": True},
+        )
+        body = client.get("/api/preferences").json()
+        assert body["ambient"] is False
+        assert body["ambient_by_hand"] is True
 
     def test_ambient_survives_a_round_trip(self, client):
         client.put("/api/preferences", json={"ambient": True})
@@ -461,6 +483,7 @@ class TestPreferences:
             "museum",
             "language",
             "ambient",
+            "ambient_by_hand",
         }
 
 

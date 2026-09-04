@@ -103,6 +103,7 @@
   "filter_state_include": "Included",
   "filter_state_exclude": "Excluded",
   "filter_state_hint": "Click to include, again to exclude, again to clear.",
+  "ambient_on_fullscreen": "Fullscreen. The screen will stay awake.",
   "filter_state_hint_include_only": "Click to include, again to clear.",
   "filter_badge_included": "{count} in",
   "filter_badge_excluded": "{count} out",

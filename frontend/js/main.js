@@ -97,6 +97,11 @@ const overlay = createOverlay(
 );
 
 const ambient = createAmbient();
+// Whether the ambient toggle was last set by hand. Going fullscreen turns ambient on for
+// somebody who has never thought about it, and must not overrule somebody who has thought
+// about it and said no — and a stored `false` cannot tell those two apart, because every
+// save writes every field. Persisted, so the answer survives a reload.
+let ambientByHand = false;
 const speech = createSpeech();
 const history = createHistory();
 
@@ -592,6 +597,11 @@ const panel = createPanel(
       rotation.pause();
     },
     onAmbientChange: (on) => {
+      // By hand, whichever way it was moved. Off is the half that matters — it is what
+      // stops fullscreen turning it back on — but recording only that would leave "on by
+      // hand" indistinguishable from "on by fullscreen", and the next thing to want this
+      // would have to guess.
+      ambientByHand = true;
       void ambient.setEnabled(on);
       persist();
     },
@@ -644,6 +654,7 @@ function persist() {
     exclude: query.exclude,
     language: getLanguage(),
     ambient: ambient.isEnabled(),
+    ambient_by_hand: ambientByHand,
   });
 }
 
@@ -712,6 +723,40 @@ function onStageClick(event) {
   // Said out loud once, because a click that hides every control also hides the way back.
   flashStatus(t(suppressed ? 'chrome_hidden' : 'chrome_shown'));
 }
+
+/**
+ * Going fullscreen turns ambient mode on.
+ *
+ * `docs/product-spec.md` argued ambient off by default because keeping somebody's screen
+ * awake is a side effect on their machine. That argument holds windowed and does not hold
+ * here: fullscreen *is* the ask, and a display that blanks ten minutes into the one mode
+ * it was built for is the failure the wake lock exists to prevent. The spec carries the
+ * amendment rather than the contradiction.
+ *
+ * Three things it must not do. It must not overrule a user who turned ambient off by hand
+ * — hence `ambientByHand`. It must not touch the preference on a browser with no Screen
+ * Wake Lock API, where the toggle is removed from the panel outright and saving `true`
+ * would record a setting the user cannot see or undo. And it must not *say* the screen
+ * will stay awake unless a lock is genuinely held: the request can be refused on battery,
+ * and `setEnabled` swallows that by design.
+ *
+ * On `fullscreenchange` rather than on our own toggle, because F11 is fullscreen too and
+ * never goes through `fullscreen.toggle()`. Leaving fullscreen does not turn it back off:
+ * it is the user's saved preference now, shown in the panel and undoable there.
+ */
+async function onFullscreenChange() {
+  if (!fullscreen.isFullscreen()) return;
+  // No API, no toggle in the panel, and nothing here may imply otherwise.
+  if (!ambientSupported()) return;
+  if (ambientByHand || ambient.isEnabled()) return;
+  await ambient.setEnabled(true);
+  panel.sync({ ambient: ambient.isEnabled() });
+  persist();
+  // Only if it actually took. Enabled and holding are different questions.
+  if (ambient.isHolding()) flashStatus(t('ambient_on_fullscreen'));
+}
+
+document.addEventListener('fullscreenchange', () => void onFullscreenChange());
 
 nextButton?.addEventListener('click', advance);
 backButton?.addEventListener('click', () => void travel(-1));
@@ -830,6 +875,9 @@ async function boot() {
     // No user gesture is needed for a wake lock, only a visible document, so a saved
     // preference can be honoured at boot rather than waiting to be re-clicked.
     if (saved?.ambient) await ambient.setEnabled(true);
+    // Restored before anything can go fullscreen, because it is what decides whether
+    // going fullscreen is allowed to change the preference at all.
+    ambientByHand = saved?.ambient_by_hand === true;
   } else {
     panel.hideAmbient();
   }

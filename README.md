@@ -2,7 +2,6 @@
 
 An ambient digital-art display. One public-domain artwork at a time — from the Art Institute of
 Chicago, or the Cleveland Museum of Art — full-bleed on a dark background, rotating on a timer.
-Built for a second monitor.
 
 ![The display, with the metadata overlay pinned](docs/screenshots/display.jpg)
 

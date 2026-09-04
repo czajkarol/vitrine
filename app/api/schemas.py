@@ -159,9 +159,16 @@ class PreferencesResponse(BaseModel):
     # Only the languages frontend/locales/ actually has strings for. The default is
     # overridden by `default_language` when nothing has been saved yet.
     language: Literal["en", "pl"] = "en"
-    # Screen Wake Lock. Off unless asked for: keeping someone's screen awake is a side
-    # effect on their machine, not a default.
+    # Screen Wake Lock. Off unless asked for *or* until the display goes fullscreen —
+    # which is the one context where keeping the screen awake is the whole point rather
+    # than a side effect. docs/product-spec.md carries the amended argument.
     ambient: bool = False
+    # Whether the ambient toggle above was last set by hand rather than by going
+    # fullscreen. Nothing in the UI shows this. It exists so that fullscreen can turn
+    # ambient on for somebody who has never thought about it without overruling somebody
+    # who has thought about it and said no — a stored `false` cannot tell those apart on
+    # its own, because every save writes every field.
+    ambient_by_hand: bool = False
 
 
 class FilterOption(BaseModel):

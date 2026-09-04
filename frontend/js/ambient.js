@@ -72,6 +72,18 @@ export function createAmbient() {
       return enabled;
     },
 
+    /**
+     * Whether a lock is held *right now*, which is not the same as being enabled.
+     *
+     * The request can be refused — on battery, or while the document is hidden — and the
+     * browser takes the lock back whenever the tab stops being visible. Anything that
+     * wants to tell the user their screen will stay awake has to ask this, not
+     * `isEnabled()`, or it will say so when nothing is holding it.
+     */
+    isHolding() {
+      return sentinel !== null;
+    },
+
     async destroy() {
       document.removeEventListener('visibilitychange', onVisibilityChange);
       enabled = false;
