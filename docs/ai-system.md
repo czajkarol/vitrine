@@ -166,6 +166,15 @@ OS keyring if `keyring` is available and fall back to SQLite with that warning s
 
 Never log a key. Never return one from an API endpoint. Redact to last four characters everywhere.
 
+**And say all of that in the panel, in words somebody non-technical can read.** The panel used
+to answer half the question -- it named the store ("keyring") without saying what one is, and
+said nothing at all about what happens to the key on the way there. It now states the four
+things that are true and stops: the key is sent from vitrine to the provider rather than from
+the page, it never reaches a log, everywhere else it appears it is its last four characters,
+and it is kept either in the OS password store or unencrypted in `data/vitrine.db`. The second
+half of that last one is a warning and reads as one. Nothing there is reassurance beyond what
+this section can back up. M17.
+
 **How it came out.** `repositories/credentials.py` holds both backends and picks between them
 once, at startup, rather than per call — a key written to the keyring and then looked for in
 SQLite would read as "no key" and quietly turn the feature off. The choice is a probe, not an

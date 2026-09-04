@@ -259,6 +259,15 @@
     <fieldset class="panel-group" id="panel-ai-group">
       <legend data-i18n="ai_key_legend">AI interpretation</legend>
       <p id="panel-ai-status" class="panel-summary"></p>
+      <!-- Pasting an API key into a settings panel is a thing to be uneasy about, and the
+           panel used to answer only half of it: it said where the key was kept, in words
+           ("keyring") that mean nothing to most people. This says what happens to the key
+           in plain language, and it is deliberately not reassuring beyond what is true --
+           the second half, filled in from /api/ai/key below, is a warning when there is no
+           password store. ADR-0002, docs/ai-system.md. -->
+      <p id="panel-ai-explainer" class="panel-summary" data-i18n="ai_key_explainer">
+        You type it here once, and vitrine sends it to the provider on your behalf.
+      </p>
       <div id="panel-ai-form">
         <label class="panel-option">
           <input type="radio" name="ai-provider" value="anthropic" checked>
