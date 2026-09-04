@@ -104,15 +104,19 @@ artwork_index        id, image_id, title, artist, date_display, medium_display,
                      score, indexed_at
 artwork_terms        artwork_id, kind ('style' | 'subject'), value    — PK all three
 artwork_facets       artwork_id, facet                                — PK both
+artwork_feedback     artwork_id PK, kind ('like' | 'hide'), title, artist,
+                     image_id, created_at
 history              artwork_id, shown_at
 interpretations      cache_key PK, artwork_id, language, provider, model,
                      prompt_version, payload_json, created_at
 preferences          key, value
 ai_usage             day, provider, requests, tokens_in, tokens_out
 credentials          provider PK, api_key, updated_at
+schema_migrations    name PK, applied_at
 ```
 
-Four of those need a sentence each.
+Five of those need a sentence each. Which of them may leave this machine, and which may
+never, is [`docs/data.md`](data.md).
 
 `artwork_type` is AIC's `artwork_type_title` — "Painting", "Coin" — and is the thing Explore
 filters on and Curated scores. It was called `classification` until migration 002, which is a
@@ -130,9 +134,17 @@ three groups instead of a column special case plus a join table — which is wha
 and dependent counts affordable at all. Derived and rebuildable: `build_index.py --retag` writes
 it from the raw values in seconds with no network. ADR-0009.
 
+`artwork_feedback` is likes and hides, one row per artwork so `kind` is a state rather than a
+log. It carries a small snapshot — title, artist, `image_id` — and **no foreign key to
+`artwork_index`**, because an artwork can be on screen without being indexed at all: the second
+and third tiers serve straight from AIC and from the bundled set. A foreign key would turn
+"like the artwork I am looking at" into an `IntegrityError` on exactly the setup a new user has.
+Migration 009, ADR-0010.
+
 `credentials` is the fallback tier for a bring-your-own API key, used only when the OS keyring is
 unavailable, and it is unencrypted. It is the reason `data/vitrine.db` can never be published:
-the same file holds a rebuildable cache and a secret.
+the same file holds a rebuildable cache and a secret. The publishable subset is the three corpus
+tables, copied out by `repositories/corpus.py` — ADR-0011.
 
 Enable WAL mode. Wrap access in repository classes; no raw SQL outside `repositories/`.
 Migrations: a plain numbered-SQL-files runner is enough. Do not add Alembic for this.

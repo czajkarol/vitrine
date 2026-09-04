@@ -292,9 +292,21 @@ The largest milestone, and it needs **no AIC traffic**: the raw terms are alread
       value: a `literal_error` at startup on a clean checkout. `AI_MODEL=` had the same
       shape and was worse — a plain `str`, so it took the comment as a model id and failed
       later, at the provider. Both comments moved to their own line
-- [ ] ADR-0012 (Proposed) — additional art sources, and what a second one would actually cost
-- [ ] ADRs re-read against the code, `docs/architecture.md` and `HANDOFF.md` reconciled
-- [ ] Commit
+- [x] ADR-0012 (Proposed) — additional art sources, and what a second one would actually cost.
+      Written from four requests to Cleveland's own API rather than from the plan's table,
+      which turned out to be wrong on two of five columns: **41,512** CC0 records with an
+      image, not ~64k, and **no IIIF at all** — three fixed URLs, of which `full` is a TIFF
+      browsers cannot display, so two usable sizes. The finding that decides it is a field
+      gap the table did not mention: Cleveland has no `lqip`, no `alt_text` and no `color`,
+      which are the crossfade, the AI prompt's grounding, and the overlay scrim. Eight
+      things a second source costs, of which one is an API client
+- [x] ADRs re-read against the code, `docs/architecture.md` and `HANDOFF.md` reconciled —
+      0009's facet counts (30/585/1,611, of which 26/82/173 clear the bar) and 0010's
+      threshold, α and formula still match the code exactly. 0003 gained a third postscript:
+      one of its costs assumed walking AIC was the only way to obtain a corpus. And
+      `architecture.md` was missing `artwork_feedback` and `schema_migrations` from its
+      table list, an M11 gap
+- [x] Commit
 
 ---
 

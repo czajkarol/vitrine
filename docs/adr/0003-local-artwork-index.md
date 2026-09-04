@@ -16,6 +16,13 @@ Date: 2026-09-02
 > visible in `/api/stats`, where `aic.requests` stays at zero through a rotation. AIC is reached
 > only when there is no index (`_from_aic`), and by the image proxy of ADR-0008.
 
+> **Third postscript, 2026-09-04, at the end of M12.** The decision stands; one cost below is
+> no longer the only option. "An indexing script that must be resumable and idempotent" was
+> written when walking AIC was the sole way to obtain a corpus, which put a 30-minute crawl —
+> and the owner's approval for it — between a clean clone and a working index. The corpus can
+> now be exported to a file and merged into another database instead: about a second, and no
+> AIC traffic at all. The walk remains how a corpus is *created* and refreshed. See ADR-0011.
+
 ## Context
 
 The application needs to pick a random artwork matching a set of filters, repeatedly, for hours.

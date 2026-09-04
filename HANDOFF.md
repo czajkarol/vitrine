@@ -1,13 +1,14 @@
 # Handoff
 
 State of vitrine as of 2026-09-04. `CLAUDE.md` is the contract; this file is what you cannot
-derive from it. Read `docs/plan-improvements.md` next — it is the agreed work.
+derive from it. `docs/plan-improvements.md` was the agreed work and is now spent; read it
+for the reasoning behind M7–M12, not for what to do next.
 
 ---
 
 ## Where the project is
 
-**M0 through M6 are complete, M3.5 included.** The roadmap is ticked against the code, not
+**Every milestone is complete, M3.5 included.** The roadmap is ticked against the code, not
 against intentions.
 
 The app works end to end. It serves an artwork from a local SQLite index in ~19ms with **no AIC
@@ -21,12 +22,13 @@ one interface, and a key pasted into the settings panel takes effect without a r
 nothing configured the feature is simply not offered — that is a `CLAUDE.md` non-negotiable and
 is worth re-checking after any change near it.
 
-The index holds **57,607 artworks**, all scored, plus 84,190 style/subject rows.
-`data/vitrine.db` is 60MB and gitignored.
+The index holds **57,607 artworks**, all scored, plus 84,190 raw style/subject rows and
+131,264 canonical facet rows. `data/vitrine.db` is 67MB and gitignored; the publishable
+subset of it is 57.8MB.
 
-**M7 through M12 are done**, bar the two items M12 leaves for the owner — see Outstanding.
-See `docs/roadmap.md` for the list and `docs/plan-improvements.md` for the design and the
-decisions. Of the six that needed a ruling, three were taken at the top of M8 (font,
+The two things still open are the owner's rather than the next agent's — see Outstanding.
+`docs/plan-improvements.md` holds the design and the decisions behind M7–M12. Of the six that
+needed a ruling, three were taken at the top of M8 (font,
 rate-limit numbers, how far to fold the facet vocabulary), two were proceeded on under a
 stated assumption and are one substitution to reverse, and one — "more like this" — stays a
 proposal that is deliberately not in the roadmap.
@@ -36,6 +38,12 @@ there is a third mode built on likes and hides (ADR-0010), and the corpus can be
 publishable file and merged back without disturbing anything personal (ADR-0011). That last
 one is what makes a second install cheap: 57,607 artworks in about a second, and no AIC
 traffic at all.
+
+ADR-0012 is the only Proposed one and is deliberately unbuilt: a second art source is eight
+things, of which one is an API client. It was written from Cleveland's live API rather than
+from the plan's table, which was wrong on two of five columns — and the fact that decides it
+is that Cleveland has no `lqip`, no `alt_text` and no `color`, which here are the crossfade,
+the AI prompt's grounding and the overlay scrim.
 
 M8 and M9 each changed more than their own list. Three bugs that a passing suite could not see
 turned up as soon as the app was opened and looked at, and all three are in the Gotchas below:
