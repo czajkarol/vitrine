@@ -10,7 +10,7 @@ import respx
 from fastapi.testclient import TestClient
 
 from app.core.config import Settings
-from app.domain.artwork import Artwork
+from app.domain.artwork import Artwork, Thumbnail
 from app.domain.interpretation import CacheKey
 from app.main import create_app
 from app.providers.ai.base import (
@@ -29,7 +29,9 @@ from app.services.interpretation import (
     ArtworkNotFoundError,
     BudgetExhaustedError,
     CircuitOpenError,
+    DescriptionUnsupportedError,
     InterpretationService,
+    NotDescribableError,
 )
 
 BASE = "https://api.artic.edu/api/v1"
@@ -200,6 +202,9 @@ class TestInterpretationEndpoint:
     def test_health_advertises_the_configured_provider(self, ai_client):
         assert ai_client.get("/api/health").json()["ai"] == {
             "enabled": True,
+            # The mock implements `VisualDescriptionProvider` too, so the whole
+            # accessibility path is reachable with no key and no network.
+            "describes": True,
             "provider": "mock",
             "model": "mock-1",
             "circuit_open": False,
@@ -447,3 +452,141 @@ class TestTheCircuitBreaker:
             # it is currently being called.
             assert ai["enabled"] is True
             assert ai["circuit_open"] is True
+
+
+DESCRIBABLE = Artwork(
+    id=27994,
+    title="A quiet river",
+    is_public_domain=True,
+    image_id="ghi",
+    medium_display="Colour woodblock print",
+    thumbnail=Thumbnail(
+        alt_text="A wide river under a pale sky, with two small boats near the far bank."
+    ),
+)
+
+BARE = Artwork(
+    id=27995,
+    title="Untitled",
+    is_public_domain=True,
+    image_id="jkl",
+)
+
+
+class TestVisualDescriptions:
+    """The accessibility path. ADR-0015.
+
+    The assertions here are mostly about refusals, and that is the point: a listener cannot
+    check a description against the artwork, so everything that would make one untrustworthy
+    has to fail before the call rather than come back looking like an answer.
+    """
+
+    async def test_it_describes_an_artwork_with_alt_text(self, settings):
+        service = _service(settings, artworks=(DESCRIBABLE,))
+        result = await service.describe(27994, "en")
+        assert result.summary
+        assert result.description
+        assert result.language == "en"
+
+    async def test_it_refuses_an_artwork_with_nothing_visual_to_go_on(self, settings):
+        """A title and a date would produce a plausible artwork rather than this one, and
+        the reader is exactly the person who could not tell."""
+        service = _service(settings, artworks=(BARE,))
+        with pytest.raises(NotDescribableError):
+            await service.describe(27995, "en")
+
+    async def test_it_refuses_before_spending_anything(self, settings):
+        """The refusal has to come before the provider call, not after it."""
+        provider = MockProvider()
+        service = _service(settings, provider=provider, artworks=(BARE,))
+        with pytest.raises(NotDescribableError):
+            await service.describe(27995, "en")
+        assert provider.calls == 0
+
+    async def test_a_description_is_cached_and_replaying_it_is_free(self, settings):
+        """ "Read it again" must not be a second bill. The display offers replay precisely
+        because this is a cache hit."""
+        provider = MockProvider()
+        service = _service(settings, provider=provider, artworks=(DESCRIBABLE,))
+        first = await service.describe(27994, "en")
+        second = await service.describe(27994, "en")
+        assert provider.calls == 1
+        assert first == second
+
+    async def test_it_does_not_collide_with_the_interpretation_of_the_same_artwork(self, settings):
+        """Same artwork, same language, same provider, same model. Only `kind` separates
+        the two cache entries, and getting that wrong would serve one as the other."""
+        service = _service(settings, artworks=(DESCRIBABLE,))
+        interpretation = await service.interpret(27994, "en")
+        description = await service.describe(27994, "en")
+        assert interpretation.visual_description != description.description
+
+    async def test_an_interpretation_cached_before_this_feature_still_reads(self, settings):
+        """The kind is appended to the key string only when it is not the default, so
+        adding it did not silently invalidate every entry already on disk."""
+        key = CacheKey(
+            artwork_id=1, language="en", provider="mock", model="mock-1", prompt_version=1
+        )
+        assert key.as_string() == "1|en|mock|mock-1|1"
+        visual = key.model_copy(update={"kind": "visual"})
+        assert visual.as_string() == "1|en|mock|mock-1|1|visual"
+
+    async def test_a_provider_that_cannot_describe_says_so_rather_than_failing(self, settings):
+        """Anthropic only for now, expressed as a capability. A provider without the
+        method is refused here, not by a vendor name compared above `providers/`."""
+
+        class InterpretOnly:
+            name = "interpret-only"
+            model = "x-1"
+
+            async def interpret(self, request):  # pragma: no cover - never reached
+                raise AssertionError("should not be called")
+
+        service = _service(settings, artworks=(DESCRIBABLE,))
+        service.set_provider(InterpretOnly())
+        assert service.describes is False
+        with pytest.raises(DescriptionUnsupportedError):
+            await service.describe(27994, "en")
+
+    async def test_it_shares_the_daily_budget_with_interpretation(self, settings):
+        """The same provider and the same money. Two budgets would be two numbers to
+        reason about and one of them silently spent."""
+        capped = settings.model_copy(update={"ai_daily_request_limit": 1})
+        service = _service(capped, artworks=(DESCRIBABLE,))
+        await service.interpret(27994, "en")
+        with pytest.raises(BudgetExhaustedError):
+            await service.describe(27994, "en")
+
+
+class TestVisualDescriptionEndpoint:
+    def _seed(self, settings):
+        database = Database(settings.database_path)
+        database.migrate()
+        ArtworkIndexRepository(database).upsert_many_sync((DESCRIBABLE, BARE))
+
+    def test_it_says_what_the_description_was_built_from(self, ai_client, ai_settings):
+        """A listener cannot check the words against the artwork. What they can be told is
+        where the words came from, which is why the display says it out loud."""
+        self._seed(ai_settings)
+        body = ai_client.get("/api/access-description/27994?language=en").json()
+        assert body["grounded_in"] == "alt_text"
+        assert body["provider"] == "mock"
+        assert body["summary"]
+
+    def test_an_artwork_with_nothing_to_go_on_is_422_rather_than_404(self, ai_client, ai_settings):
+        """The artwork exists and is on screen. What is missing is the museum's own visual
+        description of it."""
+        self._seed(ai_settings)
+        response = ai_client.get("/api/access-description/27995")
+        assert response.status_code == 422
+        assert response.json()["detail"] == "access_not_describable"
+
+    def test_it_is_not_offered_at_all_with_no_provider(self, no_ai_client):
+        """`CLAUDE.md`: AI is an enhancement, never a dependency."""
+        response = no_ai_client.get("/api/access-description/27994")
+        assert response.status_code == 503
+        assert response.json()["detail"] == "ai_disabled"
+
+    def test_health_says_whether_descriptions_are_available(self, ai_client, no_ai_client):
+        assert ai_client.get("/api/health").json()["ai"]["describes"] is True
+        assert no_ai_client.get("/api/health").json()["ai"]["describes"] is False

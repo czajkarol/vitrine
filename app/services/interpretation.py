@@ -16,18 +16,21 @@ from app.core.config import Settings
 from app.domain.artwork import Artwork
 from app.domain.circuit_breaker import CircuitBreaker, CircuitState
 from app.domain.interpretation import (
+    CachedValue,
     CacheKey,
     Interpretation,
     InterpretationCache,
     Language,
+    VisualDescription,
 )
 from app.domain.metrics import CacheTally, LatencySummary, Tally
-from app.domain.prompts import PROMPT_VERSION
+from app.domain.prompts import PROMPT_VERSION, VISUAL_PROMPT_VERSION, is_describable
 from app.providers.ai.base import (
     AiError,
     InterpretationProvider,
     InterpretationRequest,
     ProviderUnavailableError,
+    VisualDescriptionProvider,
 )
 from app.providers.aic.client import AicClient, AicError
 from app.repositories.ai_usage import AiUsageRepository
@@ -46,6 +49,24 @@ class CircuitOpenError(RuntimeError):
 
     Deliberately not an error from `providers/ai/`: this is our decision about a provider,
     not something the provider did on this call.
+    """
+
+
+class NotDescribableError(ValueError):
+    """There is nothing visual in this artwork's metadata to build a description from.
+
+    Refused before a call is made rather than after, because the listener cannot check the
+    answer: a description written from a title and a date would be a plausible artwork
+    rather than this one. See `domain/prompts.is_describable`.
+    """
+
+
+class DescriptionUnsupportedError(RuntimeError):
+    """The configured provider cannot write accessibility descriptions.
+
+    Anthropic only for now — a capability rather than a configuration flag, so this is
+    "the live provider does not satisfy `VisualDescriptionProvider`" rather than a vendor
+    name compared anywhere above `providers/`.
     """
 
 
@@ -111,6 +132,16 @@ class InterpretationService:
         self._breaker.reset()
 
     @property
+    def describes(self) -> bool:
+        """Whether the live provider can write an accessibility description.
+
+        Surfaced on `/api/health` so the display can decide whether to offer the control at
+        all, the same way it already decides whether to offer interpretation. A control
+        that is offered and then refuses is worse than one that is not offered.
+        """
+        return isinstance(self._provider, VisualDescriptionProvider)
+
+    @property
     def circuit_open(self) -> bool:
         """Whether calls are currently being refused. Surfaced on /api/health."""
         return self._breaker.state is CircuitState.OPEN
@@ -170,8 +201,8 @@ class InterpretationService:
             prompt_version=PROMPT_VERSION,
         )
         cached = await self._read_caches(key)
-        self.cache.record(hit=cached is not None)
-        if cached is not None:
+        self.cache.record(hit=isinstance(cached, Interpretation))
+        if isinstance(cached, Interpretation):
             # A cache hit costs nothing, so it is not capped. The budget exists to limit
             # what we spend, not what we serve.
             return cached
@@ -234,7 +265,84 @@ class InterpretationService:
                 f"{self._provider.name} has used {spent} of {limit} requests today"
             )
 
-    async def _read_caches(self, key: CacheKey) -> Interpretation | None:
+    async def describe(self, artwork_id: int, language: Language) -> VisualDescription:
+        """One accessibility description, generated on demand and cached like the rest.
+
+        Everything around the call is shared with `interpret` on purpose — the same cache,
+        the same daily budget, the same circuit breaker, the same timeout. It is the same
+        money and the same provider, and giving the accessibility path its own budget would
+        mean two numbers to reason about and one of them silently spent.
+
+        What is *not* shared is the precondition. `is_describable` refuses an artwork with
+        no visual metadata behind it, before a call is made, because a listener cannot check
+        a description against the artwork and an invented one would be indistinguishable
+        from a real one.
+        """
+        if self._provider is None:
+            raise RuntimeError("describe() called with no provider configured")
+        if not isinstance(self._provider, VisualDescriptionProvider):
+            raise DescriptionUnsupportedError(
+                f"{self._provider.name} does not write accessibility descriptions"
+            )
+
+        key = CacheKey(
+            artwork_id=artwork_id,
+            language=language,
+            provider=self._provider.name,
+            model=self._provider.model,
+            # Its own version, so retuning the interpretation prompt does not throw away
+            # every description — the more expensive of the two to regenerate.
+            prompt_version=VISUAL_PROMPT_VERSION,
+            kind="visual",
+        )
+        cached = await self._read_caches(key)
+        self.cache.record(hit=isinstance(cached, VisualDescription))
+        if isinstance(cached, VisualDescription):
+            # Replaying a description costs nothing, which is the whole reason the display
+            # can offer "read it again" without asking anybody's permission.
+            return cached
+
+        if not self._breaker.allows():
+            raise CircuitOpenError(
+                f"{self._provider.name} is failing; retrying in "
+                f"{self._breaker.seconds_until_retry():.0f}s"
+            )
+
+        await self._check_budget()
+
+        artwork = await self.find_artwork(artwork_id)
+        if not is_describable(artwork):
+            raise NotDescribableError(
+                f"artwork {artwork_id} has no alt text or description to build one from"
+            )
+
+        request = InterpretationRequest(
+            artwork=artwork,
+            language=language,
+            max_output_tokens=self._settings.ai_max_output_tokens,
+        )
+        started = time.monotonic()
+        try:
+            async with asyncio.timeout(self._settings.ai_timeout_seconds):
+                result = await self._provider.describe(request)
+        except TimeoutError as exc:
+            self._record_failure()
+            self._record_call(started, error=True)
+            raise ProviderUnavailableError(
+                f"{self._provider.name} timed out after {self._settings.ai_timeout_seconds}s"
+            ) from exc
+        except AiError:
+            self._record_failure()
+            self._record_call(started, error=True)
+            raise
+
+        self._record_call(started)
+        self._breaker.record_success()
+        await self._usage.record(self._provider.name, result.usage)
+        await self._write_caches(key, result.description)
+        return result.description
+
+    async def _read_caches(self, key: CacheKey) -> CachedValue | None:
         """Local, then shared. A cache that raises is skipped, never propagated."""
         for cache in self._caches:
             try:
@@ -249,7 +357,7 @@ class InterpretationService:
                 logger.exception("The %s interpretation cache failed on read", cache.name)
         return None
 
-    async def _write_caches(self, key: CacheKey, value: Interpretation) -> None:
+    async def _write_caches(self, key: CacheKey, value: CachedValue) -> None:
         """Write back to every tier. The text is already on its way to the screen, so a
         failure here is logged and dropped rather than surfaced."""
         for cache in self._caches:

@@ -474,6 +474,7 @@ class TestHealth:
         # than asking for an interpretation and being told no.
         assert client.get("/api/health").json()["ai"] == {
             "enabled": False,
+            "describes": False,
             "provider": None,
             "model": None,
             "circuit_open": False,

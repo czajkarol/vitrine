@@ -15,13 +15,15 @@ import logging
 from typing import Any, Final
 
 from app.core.config import Settings
-from app.domain.prompts import build_prompt
+from app.domain.prompts import Prompt, build_prompt, build_visual_prompt
 from app.providers.ai.base import (
     InterpretationRequest,
     InterpretationResult,
     InvalidResponseError,
     TokenUsage,
+    VisualDescriptionResult,
     parse_interpretation,
+    parse_visual_description,
 )
 from app.providers.ai.http import ProviderHttp
 
@@ -52,18 +54,31 @@ class AnthropicProvider:
         await self._http.aclose()
 
     async def interpret(self, request: InterpretationRequest) -> InterpretationResult:
-        prompt = build_prompt(request.artwork, request.language)
-        payload = {
-            "model": self.model,
-            "max_tokens": request.max_output_tokens,
-            "system": prompt.system,
-            "messages": [{"role": "user", "content": prompt.content}],
-        }
-
-        body = await self._http.post_json(API_URL, payload)
+        body = await self._ask(build_prompt(request.artwork, request.language), request)
         return InterpretationResult(
             interpretation=parse_interpretation(_text_of(body), request.language),
             usage=_usage_of(body),
+        )
+
+    async def describe(self, request: InterpretationRequest) -> VisualDescriptionResult:
+        """The accessibility description — `VisualDescriptionProvider`, and Anthropic only
+        for now. The wire call is identical; only the prompt and the parser differ, which
+        is what `base.py` splitting `_parse_object` out was for."""
+        body = await self._ask(build_visual_prompt(request.artwork, request.language), request)
+        return VisualDescriptionResult(
+            description=parse_visual_description(_text_of(body), request.language),
+            usage=_usage_of(body),
+        )
+
+    async def _ask(self, prompt: Prompt, request: InterpretationRequest) -> dict[str, Any]:
+        return await self._http.post_json(
+            API_URL,
+            {
+                "model": self.model,
+                "max_tokens": request.max_output_tokens,
+                "system": prompt.system,
+                "messages": [{"role": "user", "content": prompt.content}],
+            },
         )
 
 

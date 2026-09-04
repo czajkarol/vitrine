@@ -14,6 +14,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Language = Literal["en", "pl"]
 
+CacheKind = Literal["interpretation", "visual"]
+"""What a cached entry *is*. Two things go through the same cache and the same budget, and
+they are not interchangeable: an interpretation says what an artwork might mean, a visual
+description says what is in it, for somebody who cannot see it."""
+
 # The separator in a cache key. A model identifier containing this would collide with a
 # key built from different parts, so it is checked rather than assumed.
 KEY_SEPARATOR: Final[str] = "|"
@@ -63,6 +68,40 @@ class Interpretation(BaseModel):
         return [item.strip() for item in value if isinstance(item, str) and item.strip()]
 
 
+class VisualDescription(BaseModel):
+    """A spoken-length account of what an artwork looks like, for a listener.
+
+    **It is written from the museum's own words, not from the image.** No model here sees a
+    picture. What grounds it is `thumbnail.alt_text` — written by a person at the Art
+    Institute who did look at the artwork — plus the catalogue metadata, and the prompt's
+    strongest instruction is to expand that rather than to invent past it. A blind listener
+    cannot check a description against the artwork, which makes invented detail the one
+    failure mode this feature must not have. `docs/ai-system.md` has the reasoning; the
+    display says the same thing out loud, in both languages.
+
+    Two fields because a listener needs an answer before they need an account: `summary` is
+    the one sentence that says what is on screen, and `description` is what is read aloud.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    summary: str = Field(min_length=1, max_length=400)
+    """One sentence. What the artwork is, at a glance."""
+
+    description: str = Field(min_length=1, max_length=4000)
+    """The spoken description itself: subject, composition, colour, scale, what sits where.
+    Bounded because this is read aloud — past a few hundred words a listener has lost the
+    beginning, and an unbounded field is an unbounded bill."""
+
+    language: Language
+
+
+CachedValue = Interpretation | VisualDescription
+"""What may be stored. The `kind` on the key says which of the two a row holds, and the
+cache validates into that model on the way out — so a row written under an older shape is a
+miss rather than something the display trusts."""
+
+
 class CacheKey(BaseModel):
     """Everything that can change an interpretation, and nothing that cannot.
 
@@ -80,6 +119,12 @@ class CacheKey(BaseModel):
     model: str = Field(min_length=1)
     prompt_version: int = Field(ge=1)
 
+    kind: CacheKind = "interpretation"
+    """Which of the two generated things this is. Appended to the key string only when it
+    is not the default, so every interpretation cached before M14 keeps the key it was
+    written under — a new field in a cache key is otherwise a silent, total invalidation,
+    and this one would have thrown away work that is still perfectly good."""
+
     @field_validator("provider", "model")
     @classmethod
     def _reject_separator(cls, value: str) -> str:
@@ -91,19 +136,24 @@ class CacheKey(BaseModel):
 
     def as_string(self) -> str:
         """The primary key of the `interpretations` table."""
-        return KEY_SEPARATOR.join(
-            [
-                str(self.artwork_id),
-                self.language,
-                self.provider,
-                self.model,
-                str(self.prompt_version),
-            ]
-        )
+        parts = [
+            str(self.artwork_id),
+            self.language,
+            self.provider,
+            self.model,
+            str(self.prompt_version),
+        ]
+        if self.kind != "interpretation":
+            parts.append(self.kind)
+        return KEY_SEPARATOR.join(parts)
 
 
 class InterpretationCache(Protocol):
-    """Somewhere an interpretation can be kept and found again.
+    """Somewhere a generated thing can be kept and found again.
+
+    Named for what it held first. It holds visual descriptions too since M14, keyed by the
+    same `CacheKey` with a different `kind` — renaming the Protocol and its two
+    implementations would have been a wide, purely cosmetic change.
 
     Two implementations from day one — SQLite and a null shared cache — so the resolution
     chain in `docs/ai-system.md` is real code rather than a promise. ADR-0004 explains why
@@ -115,6 +165,6 @@ class InterpretationCache(Protocol):
 
     name: str
 
-    async def get(self, key: CacheKey) -> Interpretation | None: ...
+    async def get(self, key: CacheKey) -> CachedValue | None: ...
 
-    async def put(self, key: CacheKey, value: Interpretation) -> None: ...
+    async def put(self, key: CacheKey, value: CachedValue) -> None: ...

@@ -30,6 +30,7 @@ from app.api.schemas import (
     ScoringWeight,
     StatsResponse,
     UsageStats,
+    VisualDescriptionResponse,
 )
 from app.core.config import Settings
 from app.domain.affinity import MIN_LIKES_FOR_PROFILE
@@ -50,7 +51,9 @@ from app.services.interpretation import (
     ArtworkNotFoundError,
     BudgetExhaustedError,
     CircuitOpenError,
+    DescriptionUnsupportedError,
     InterpretationService,
+    NotDescribableError,
 )
 from app.services.selection import SelectionQuery, SelectionService
 
@@ -603,6 +606,68 @@ async def read_interpretation(
     )
 
 
+@router.get("/access-description/{artwork_id}", response_model=VisualDescriptionResponse)
+async def read_visual_description(
+    artwork_id: Annotated[int, Path(gt=0)],
+    interpretation: InterpretationDep,
+    language: Annotated[Literal["en", "pl"], Query()] = "en",
+) -> VisualDescriptionResponse:
+    """Describe one artwork for somebody who cannot see it.
+
+    On demand, cached, and off the same budget and breaker as the interpretation — see the
+    service. A second request for the same artwork is a cache hit and costs nothing, which
+    is what lets the display offer "read it again" without asking anyone's permission.
+
+    The failures are more numerous than the interpretation's because there are two extra
+    ways to be unable to answer, and both are ordinary rather than faults: the provider may
+    not do this at all, and the artwork may have nothing visual in its metadata to build a
+    description from. Neither is a provider being down, and the display says something
+    different about each.
+    """
+    if not interpretation.enabled:
+        raise HTTPException(status_code=503, detail="ai_disabled")
+
+    try:
+        result = await interpretation.describe(artwork_id, language)
+    except DescriptionUnsupportedError as exc:
+        # A capability the configured provider does not have. /api/health says so too, so
+        # the display should not have asked — but a key can change while a page is open.
+        logger.info("Description refused: %s", exc)
+        raise HTTPException(status_code=503, detail="access_unsupported") from exc
+    except NotDescribableError as exc:
+        # 422 rather than 404: the artwork exists and is on screen. What is missing is the
+        # museum's own visual description of it, and inventing one is the failure this
+        # whole feature is written against.
+        logger.info("Description refused: %s", exc)
+        raise HTTPException(status_code=422, detail="access_not_describable") from exc
+    except ArtworkNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="artwork_unknown") from exc
+    except BudgetExhaustedError as exc:
+        logger.info("Description refused: %s", exc)
+        raise HTTPException(status_code=503, detail="ai_budget_exhausted") from exc
+    except CircuitOpenError as exc:
+        logger.debug("Description refused: %s", exc)
+        raise HTTPException(status_code=503, detail="ai_unavailable") from exc
+    except AiError as exc:
+        logger.warning("Description failed for artwork %s: %s", artwork_id, exc)
+        raise HTTPException(status_code=503, detail="ai_unavailable") from exc
+
+    artwork = await interpretation.find_artwork(artwork_id)
+    alt = artwork.thumbnail.alt_text if artwork.thumbnail else None
+    return VisualDescriptionResponse(
+        artwork_id=artwork_id,
+        language=result.language,
+        provider=interpretation.provider_name or "",
+        model=interpretation.model or "",
+        summary=result.summary,
+        description=result.description,
+        # Which museum field carried the visual content. `find_artwork` is a cache hit or
+        # an indexed read here — the description above already went through it — so this
+        # costs a lookup rather than a request.
+        grounded_in="alt_text" if (alt or "").strip() else "description",
+    )
+
+
 @router.get("/ai/key", response_model=AiKeyResponse)
 async def read_ai_key(credentials: AiCredentialsDep) -> AiKeyResponse:
     """Whether a key is set, where it lives, and its last four characters.
@@ -786,6 +851,7 @@ async def health(interpretation: InterpretationDep) -> HealthResponse:
     return HealthResponse(
         ai=AiStatus(
             enabled=interpretation.enabled,
+            describes=interpretation.describes,
             provider=interpretation.provider_name,
             model=interpretation.model,
             circuit_open=interpretation.circuit_open,

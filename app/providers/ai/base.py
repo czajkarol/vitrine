@@ -10,12 +10,12 @@ originally did not. It has to: the daily budget in `docs/ai-system.md` is enforc
 
 import json
 import re
-from typing import Final, Protocol
+from typing import Final, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.domain.artwork import Artwork
-from app.domain.interpretation import Interpretation, Language
+from app.domain.interpretation import Interpretation, Language, VisualDescription
 
 
 class AiError(Exception):
@@ -80,6 +80,34 @@ class InterpretationProvider(Protocol):
     async def interpret(self, request: InterpretationRequest) -> InterpretationResult: ...
 
 
+class VisualDescriptionResult(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    description: VisualDescription
+    usage: TokenUsage = TokenUsage()
+
+
+@runtime_checkable
+class VisualDescriptionProvider(Protocol):
+    """A provider that can also write an accessibility description.
+
+    **A capability, not a configuration flag.** The owner asked for Anthropic only to begin
+    with, and the honest way to express that is a second Protocol a provider either
+    satisfies or does not — rather than a `if provider == "anthropic"` somewhere above
+    `providers/`, which `CLAUDE.md` forbids outright, or a method on
+    `InterpretationProvider` that OpenAI would have to implement by raising.
+
+    `runtime_checkable`, so the service can ask. That only checks for the method's presence,
+    which is exactly the question being asked: adding the method to `OpenAiProvider` is what
+    would make OpenAI eligible, and there is no second place to remember to change.
+    """
+
+    name: str
+    model: str
+
+    async def describe(self, request: InterpretationRequest) -> VisualDescriptionResult: ...
+
+
 # Models wrap JSON in a fence often enough to be worth handling, instructions
 # notwithstanding. Stripping one is not the same as accepting prose: everything inside
 # still has to parse and validate.
@@ -88,14 +116,12 @@ _FENCE: Final[re.Pattern[str]] = re.compile(
 )
 
 
-def parse_interpretation(text: str, language: Language) -> Interpretation:
-    """Turn raw provider text into a validated `Interpretation`.
+def _parse_object(text: str) -> dict[str, object]:
+    """Raw provider text to a JSON object, or `InvalidResponseError`.
 
-    Shared by every provider, because "the model returned something unparseable" is a
-    property of language models rather than of any one vendor.
-
-    Raises `InvalidResponseError` for anything that does not survive the trip. The caller
-    treats that as a cache miss, not as something the user is shown.
+    Shared by every provider and by both response shapes, because "the model returned
+    something unparseable" is a property of language models rather than of any one vendor
+    or any one prompt.
     """
     fenced = _FENCE.match(text)
     payload = fenced.group("body") if fenced else text
@@ -107,9 +133,17 @@ def parse_interpretation(text: str, language: Language) -> Interpretation:
 
     if not isinstance(data, dict):
         raise InvalidResponseError(f"expected a JSON object, got {type(data).__name__}")
+    return data
 
+
+def parse_interpretation(text: str, language: Language) -> Interpretation:
+    """Turn raw provider text into a validated `Interpretation`.
+
+    Raises `InvalidResponseError` for anything that does not survive the trip. The caller
+    treats that as a cache miss, not as something the user is shown.
+    """
     try:
-        interpretation = Interpretation(**data)
+        interpretation = Interpretation(**_parse_object(text))
     except ValidationError as exc:
         raise InvalidResponseError(f"provider response did not validate: {exc}") from exc
 
@@ -121,3 +155,23 @@ def parse_interpretation(text: str, language: Language) -> Interpretation:
             f"asked for {language}, provider answered in {interpretation.language}"
         )
     return interpretation
+
+
+def parse_visual_description(text: str, language: Language) -> VisualDescription:
+    """The same, for the accessibility description.
+
+    The language check matters more here than above. A sighted reader can see that a note
+    came back in the wrong language and ignore it; the accessibility path hands its text
+    to a speech synthesiser, which will read English words with a Polish voice and produce
+    something nobody can follow.
+    """
+    try:
+        description = VisualDescription(**_parse_object(text))
+    except ValidationError as exc:
+        raise InvalidResponseError(f"provider response did not validate: {exc}") from exc
+
+    if description.language != language:
+        raise InvalidResponseError(
+            f"asked for {language}, provider answered in {description.language}"
+        )
+    return description

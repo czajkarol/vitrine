@@ -16,10 +16,19 @@ import sqlite3
 
 from pydantic import ValidationError
 
-from app.domain.interpretation import CacheKey, Interpretation
+from app.domain.interpretation import CachedValue, CacheKey, Interpretation, VisualDescription
 from app.repositories.database import Database
 
 logger = logging.getLogger(__name__)
+
+# Which model a row validates into, decided by the key's `kind`. One table holds both
+# because they are the same thing operationally — generated text, keyed by artwork,
+# language, provider, model and prompt version — and two tables would have been two copies
+# of this file. See `domain/interpretation.py`.
+_MODELS: dict[str, type[CachedValue]] = {
+    "interpretation": Interpretation,
+    "visual": VisualDescription,
+}
 
 
 class SqliteInterpretationCache:
@@ -30,7 +39,7 @@ class SqliteInterpretationCache:
     def __init__(self, database: Database) -> None:
         self._db = database
 
-    def get_sync(self, key: CacheKey) -> Interpretation | None:
+    def get_sync(self, key: CacheKey) -> CachedValue | None:
         try:
             with self._db.connect() as connection:
                 row = connection.execute(
@@ -45,23 +54,23 @@ class SqliteInterpretationCache:
             return None
 
         try:
-            return Interpretation.model_validate_json(row["payload_json"])
+            return _MODELS[key.kind].model_validate_json(row["payload_json"])
         except ValidationError as exc:
             # Written by an older shape, or corrupted. Validating on the way out is the
             # point: a row that no longer fits must not reach the display unchecked.
             logger.warning("Discarding unusable cached interpretation %s: %s", key.as_string(), exc)
             return None
 
-    async def get(self, key: CacheKey) -> Interpretation | None:
+    async def get(self, key: CacheKey) -> CachedValue | None:
         return await asyncio.to_thread(self.get_sync, key)
 
-    def put_sync(self, key: CacheKey, value: Interpretation) -> None:
+    def put_sync(self, key: CacheKey, value: CachedValue) -> None:
         try:
             with self._db.connect() as connection:
                 connection.execute(
                     "INSERT INTO interpretations ("
                     " cache_key, artwork_id, language, provider, model, prompt_version,"
-                    " payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
+                    " kind, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
                     " ON CONFLICT(cache_key) DO UPDATE SET"
                     " payload_json = excluded.payload_json,"
                     " created_at = CURRENT_TIMESTAMP",
@@ -72,6 +81,7 @@ class SqliteInterpretationCache:
                         key.provider,
                         key.model,
                         key.prompt_version,
+                        key.kind,
                         value.model_dump_json(),
                     ),
                 )
@@ -80,7 +90,7 @@ class SqliteInterpretationCache:
             # copy of it is not worth interrupting that.
             logger.warning("Interpretation cache write failed for %s: %s", key.as_string(), exc)
 
-    async def put(self, key: CacheKey, value: Interpretation) -> None:
+    async def put(self, key: CacheKey, value: CachedValue) -> None:
         await asyncio.to_thread(self.put_sync, key, value)
 
     def count_sync(self) -> int:
@@ -116,8 +126,8 @@ class NullSharedCache:
 
     name = "shared"
 
-    async def get(self, key: CacheKey) -> Interpretation | None:
+    async def get(self, key: CacheKey) -> CachedValue | None:
         return None
 
-    async def put(self, key: CacheKey, value: Interpretation) -> None:
+    async def put(self, key: CacheKey, value: CachedValue) -> None:
         return None

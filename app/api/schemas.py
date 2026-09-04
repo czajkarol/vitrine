@@ -289,10 +289,34 @@ class InterpretationResponse(BaseModel):
     look_closer: str
 
 
+class VisualDescriptionResponse(BaseModel):
+    """One accessibility description, plus who produced it and from what.
+
+    `grounded_in` names the museum field the description was built from, and it is on the
+    response because the display says so out loud. A listener cannot check a description
+    against the artwork, so the one thing they can be told is where the words came from:
+    the Art Institute's own alt text, expanded — not a model looking at a picture.
+    """
+
+    artwork_id: int
+    language: Literal["en", "pl"]
+    provider: str
+    model: str
+
+    summary: str
+    description: str
+    grounded_in: Literal["alt_text", "description"]
+
+
 class AiStatus(BaseModel):
     """What the frontend needs to know before offering the feature at all."""
 
     enabled: bool = False
+    describes: bool = False
+    """Whether the live provider can also write accessibility descriptions. Separate from
+    `enabled` because it is a capability of the provider rather than of the deployment —
+    Anthropic can, OpenAI does not yet, and the display offers the control accordingly."""
+
     provider: str | None = None
     model: str | None = None
     circuit_open: bool = False
