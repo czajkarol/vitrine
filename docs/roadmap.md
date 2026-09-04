@@ -474,6 +474,43 @@ parity, which is a different purchase: most of the eight are consequences of *in
 
 ---
 
+## M17 — A dead filter row, a screen that stays awake, and saved combinations
+
+Six items from the owner, plus two bugs found while reproducing the first one.
+
+- [x] **An excluded facet could not be turned back on.** Not a stuck state: two
+      `/api/filters` answers arriving in the wrong order. An exclusion is a NOT over the
+      whole facet table and is measurably the slower query, so the answer saying "excluded"
+      could land *after* the answer to the click that cleared it — and a count of zero on a
+      row whose state had just gone back to `off` is exactly the pair `buildRow` disables.
+      `loadFilters` numbers its requests and drops any that is not the newest. ADR-0014
+      amended
+- [x] **The same control offered `exclude` on Cleveland, which has no facet layer to
+      exclude over.** The third click produced a value the server rejected and the next
+      redraw dropped, so the row snapped back to off. Two states there, and the hint above
+      the groups says which cycle is running. Found in a browser. ADR-0013 amended
+- [x] Flow 7 grew two parts for both, and neither could be written with `page.route`: a sync
+      route handler sleeps on pytest's own thread and stops the second click leaving
+- [x] **Going fullscreen turns ambient mode on** and asks for the wake lock. The
+      off-by-default argument held while the app was a window among windows and does not
+      hold in fullscreen. It must not overrule a hand-set OFF (`ambient_by_hand`), must not
+      touch the preference where there is no Wake Lock API, and must not claim the screen
+      will stay awake unless a lock was actually acquired. `docs/product-spec.md` amended
+- [x] **The settings panel explains the API key in plain language**, both locales — where it
+      goes, what never happens to it, and what a keyring is. Every claim checked against
+      the code first
+- [x] **Coins excluded on a fresh install**, seeded into the `exclude` preference rather
+      than compiled in, so it arrives as an ordinary exclusion the badge shows and one click
+      undoes. 1,220 of 57,607, not the 4,000-odd assumed
+- [x] **Saved filter combinations**, as named presets: `filter_presets` (migration 012), the
+      panel's list, and a note when a preset holds facets the index no longer offers. No
+      ADR — every hard call in it was already taken by ADR-0011, ADR-0014, or the rule that
+      a filter may never silently widen
+- [x] `README.md` no longer says "Built for a second monitor."
+- [x] Commit
+
+---
+
 ## Not doing
 
 Recorded here so it does not get relitigated. Each has an ADR or a line in `CLAUDE.md`.

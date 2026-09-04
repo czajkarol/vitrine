@@ -8,7 +8,7 @@ read it for the reasoning behind M7–M12, not for what to do next.
 
 ## Where the project is
 
-**Every milestone through M16 is complete.** The roadmap is ticked against the code, not against
+**Every milestone through M17 is complete.** The roadmap is ticked against the code, not against
 intentions.
 
 The app works end to end. It serves an artwork from a local SQLite index in ~19ms with **no AIC
@@ -19,6 +19,15 @@ without a reload. Ambient mode holds a Screen Wake Lock.
 The index holds **57,607 artworks**, all scored, plus 84,190 raw style/subject rows and
 131,264 canonical facet rows. `data/vitrine.db` is 67MB and gitignored; the publishable
 subset of it is 57.8MB.
+
+**M17 is six owner items and two bugs found while reproducing the first of them.** The
+reported bug — an excluded facet that could not be turned back on — was not a stuck state
+but two `/api/filters` answers arriving in the wrong order, and the fix is that the panel
+now numbers its requests. The second bug was the same control offering a state Cleveland
+cannot honour. Going fullscreen now turns ambient mode on without overruling anyone who
+turned it off, coins are excluded on a fresh install as a preference the panel shows, filter
+combinations can be saved under a name, and the settings panel explains in plain language
+what happens to a pasted API key.
 
 **Three things arrived after M12 and each changed the shape of something.**
 
@@ -72,9 +81,10 @@ uv run pytest -m e2e                      # nine Playwright flows; needs `playwr
 uv run ruff check . && uv run ruff format --check . && uv run mypy app
 ```
 
-587 tests in the default run, plus 9 e2e flows and 9 live tests, both deselected by default.
-The e2e run takes about a minute; flow 9 waits out a real rotation interval and is the only
-slow one.
+597 tests in the default run, plus 11 e2e flows and 9 live tests, both deselected by default.
+The e2e run takes about seventy seconds; flow 9 waits out a real rotation interval and is the
+only slow one. Flow 7 is three of the eleven — the control, the race that made an excluded
+facet unclickable, and the state a live source cannot honour.
 
 ```bash
 uv run python scripts/build_index.py             # full walk: 1,328 requests, ~30 min, resumable
