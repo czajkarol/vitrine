@@ -1,4 +1,8 @@
 // Keyboard map from docs/product-spec.md. Inert while focus is in a text field.
+//
+// M13 added five: `D` for a dislike, `A` for the spoken description, the arrow keys for
+// the history stack, and `?` for the map itself — which is the one that makes the other
+// twelve discoverable, and should have been here from the start.
 
 // Keys 1-5, shortest first, so the row reads as a scale. Values are seconds.
 const INTERVAL_KEYS = { 1: 30, 2: 60, 3: 300, 4: 900, 5: 1800 };
@@ -99,10 +103,38 @@ export function bindShortcuts(handlers) {
         event.preventDefault();
         handlers.onLike();
         break;
+      case 'd':
+      case 'D':
+        // Between `L` and `X`: less of this, but keep showing it. See ADR-0014.
+        event.preventDefault();
+        handlers.onDislike();
+        break;
       case 'x':
       case 'X':
         event.preventDefault();
         handlers.onHide();
+        break;
+      case 'a':
+      case 'A':
+        // The accessibility description, read aloud. `A` because it is the key somebody
+        // who cannot see the screen has the best chance of being told about, and because
+        // every other letter this app uses is already spoken for.
+        event.preventDefault();
+        handlers.onDescribe();
+        break;
+      case 'ArrowLeft':
+        event.preventDefault();
+        handlers.onBack();
+        break;
+      case 'ArrowRight':
+        event.preventDefault();
+        handlers.onForward();
+        break;
+      case '?':
+        // Where every keyboard map lives. Shift+/ on most layouts, and the browser does
+        // nothing else with it.
+        event.preventDefault();
+        handlers.onHelp();
         break;
       case 'Escape':
         // Priority is most-transient-first, per the spec: settings, then overlay, then

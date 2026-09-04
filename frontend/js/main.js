@@ -1,5 +1,6 @@
 // Entry point: wiring. The pieces it joins each own one concern.
 
+import { createAccess } from './access.js';
 import { createAmbient, isSupported as ambientSupported } from './ambient.js';
 import {
   clearFeedback,
@@ -7,17 +8,20 @@ import {
   fetchInterpretation,
   fetchPreferences,
   fetchRandomArtwork,
+  fetchVisualDescription,
   saveFeedback,
   savePreferences,
 } from './api.js';
 import { createPanel } from './panel.js';
 import { chooseWidth, loadImage, present } from './display.js';
 import * as fullscreen from './fullscreen.js';
+import { createHistory } from './history.js';
 import { getLanguage, onLanguageChange, setLanguage, t } from './i18n.js';
 import { createInterpretation } from './interpretation.js';
 import { createOverlay } from './overlay.js';
 import { DEFAULT_INTERVAL_SECONDS, createRotation } from './rotation.js';
 import { bindShortcuts } from './shortcuts.js';
+import { createSpeech } from './speech.js';
 import {
   getState,
   setArtwork,
@@ -42,6 +46,14 @@ const FLASH_MS = 1600;
 // that keeps the display from being the thing that needs limiting.
 const ADVANCE_COOLDOWN_MS = 1500;
 
+// The rotation floor the accessibility description imposes, in seconds.
+//
+// A spoken description takes the better part of a minute to hear, and the artwork rotating
+// away mid-sentence would make the feature useless at the two shortest settings. Asked for
+// by the owner as "at least five minutes", and applied as a floor rather than as a new
+// interval: the user's 30-second choice is still theirs and comes back when this lifts.
+const DESCRIBED_FLOOR_SECONDS = 300;
+
 const elements = {
   artworkEl: document.getElementById('artwork'),
   layers: [document.getElementById('layer-a'), document.getElementById('layer-b')],
@@ -49,25 +61,44 @@ const elements = {
   body: document.body,
 };
 
+const stage = document.getElementById('stage');
 const nextButton = document.getElementById('ov-next');
+const backButton = document.getElementById('ov-back');
 const likeButton = document.getElementById('ov-like');
+const dislikeButton = document.getElementById('ov-dislike');
+const describeButton = document.getElementById('ov-describe');
 
-// Whether the artwork on screen is liked. Set from the server's answer, never guessed,
-// so a failed save leaves the heart telling the truth.
-let liked = false;
+// The verdict on the artwork on screen: 'like', 'dislike', 'hide' or null. Set from the
+// server's answer, never guessed, so a failed save leaves the buttons telling the truth.
+let verdict = null;
 
-const overlay = createOverlay({
-  overlay: document.getElementById('overlay'),
-  title: document.getElementById('ov-title'),
-  artist: document.getElementById('ov-artist'),
-  meta: document.getElementById('ov-meta'),
-  description: document.getElementById('ov-description'),
-  credit: document.getElementById('ov-credit'),
-  attribution: document.getElementById('ov-attribution'),
-  expandButton: document.getElementById('ov-expand'),
-});
+const overlay = createOverlay(
+  {
+    overlay: document.getElementById('overlay'),
+    facts: document.getElementById('ov-facts'),
+    title: document.getElementById('ov-title'),
+    artist: document.getElementById('ov-artist'),
+    meta: document.getElementById('ov-meta'),
+    description: document.getElementById('ov-description'),
+    extra: document.getElementById('ov-extra'),
+    credit: document.getElementById('ov-credit'),
+    attribution: document.getElementById('ov-attribution'),
+    expandButton: document.getElementById('ov-expand'),
+  },
+  {
+    // Reading is not a moment to have the picture change. The idle fade was already
+    // stretched for this; the clock was the other half of the same problem, and only one
+    // of them had been solved.
+    onExpandChange: (expanded) => {
+      if (expanded) rotation.pause();
+      else if (!panel.isOpen()) rotation.resume();
+    },
+  },
+);
 
 const ambient = createAmbient();
+const speech = createSpeech();
+const history = createHistory();
 
 const interpretation = createInterpretation({
   section: document.getElementById('ov-ai'),
@@ -80,18 +111,44 @@ const interpretation = createInterpretation({
   source: document.getElementById('ai-source'),
 });
 
-// Whether the server has a provider at all. Read once from /api/health, so the display
-// never asks for an interpretation only to be told the feature is off.
-let aiEnabled = false;
+const access = createAccess(
+  {
+    section: document.getElementById('ov-access'),
+    status: document.getElementById('access-status'),
+    body: document.getElementById('access-body'),
+    summary: document.getElementById('access-summary'),
+    description: document.getElementById('access-description'),
+    grounding: document.getElementById('access-grounding'),
+    source: document.getElementById('access-source'),
+    playButton: document.getElementById('access-play'),
+    stopButton: document.getElementById('access-stop'),
+  },
+  speech,
+);
 
-// The in-flight request, so an artwork change or a second press can cancel it. An
+// Whether the server has a provider at all, and whether that provider can also write an
+// accessibility description. Read from /api/health, so the display never asks for
+// something only to be told the feature is off.
+let aiEnabled = false;
+let aiDescribes = false;
+
+// The in-flight requests, so an artwork change or a second press can cancel them. An
 // abandoned generation still costs money on a real provider.
 let interpretationRequest = null;
+let describeRequest = null;
 
 // What the display is currently asking for. Persisted, so it survives a reload.
-// The three filters hold one canonical facet key each; `exclude` holds several, from any
-// group — see app/domain/vocabulary.py and ADR-0009.
-const query = { mode: 'random', artworkType: null, style: null, subject: null, exclude: [] };
+// The three filter groups hold canonical facet keys and are ORed within a group and ANDed
+// between them; `exclude` holds several, from any group — see app/domain/vocabulary.py,
+// ADR-0009 and ADR-0014.
+const query = {
+  mode: 'random',
+  museum: 'aic',
+  artworkType: [],
+  style: [],
+  subject: [],
+  exclude: [],
+};
 
 // Set when the criteria change while the panel is open, so closing it shows the result
 // straight away instead of leaving the user to wait out the rest of the interval.
@@ -139,12 +196,8 @@ function flashStatus(text) {
  */
 async function prepareArtwork(attemptsLeft = MAX_IMAGE_ATTEMPTS) {
   const artwork = await fetchRandomArtwork(query);
-  // source_width matters as much as the viewport: AIC refuses to upscale, and asking
-  // for more than the source has is a 403 and a skipped artwork. See chooseWidth().
-  const width = chooseWidth(window.innerWidth, window.devicePixelRatio, artwork.source_width);
   try {
-    const image = await loadImage(artwork, width);
-    return { artwork, image };
+    return { artwork, image: await decodeFor(artwork) };
   } catch (cause) {
     console.warn('Image failed for artwork', artwork.id, cause);
     if (attemptsLeft > 1) return prepareArtwork(attemptsLeft - 1);
@@ -156,6 +209,18 @@ async function prepareArtwork(attemptsLeft = MAX_IMAGE_ATTEMPTS) {
 }
 
 /**
+ * Decode one artwork's image at whatever width suits this screen.
+ *
+ * source_width matters as much as the viewport: AIC refuses to upscale, and asking for
+ * more than the source has is a 403 and a skipped artwork. See chooseWidth(). A source
+ * with no IIIF has already chosen the URL and the width is ignored — see loadImage().
+ */
+function decodeFor(artwork) {
+  const width = chooseWidth(window.innerWidth, window.devicePixelRatio, artwork.source_width);
+  return loadImage(artwork, width);
+}
+
+/**
  * Ask for an interpretation of what is on screen.
  *
  * On demand only. This is called when someone pins the overlay open, never when the
@@ -164,7 +229,7 @@ async function prepareArtwork(attemptsLeft = MAX_IMAGE_ATTEMPTS) {
  */
 async function requestInterpretation() {
   const { artwork } = getState();
-  if (!aiEnabled || !artwork) return;
+  if (!aiEnabled || !artwork || !canInterpret(artwork)) return;
 
   interpretationRequest?.abort();
   const controller = new AbortController();
@@ -204,29 +269,98 @@ function cancelInterpretation() {
 }
 
 /**
- * Like or un-like what is on screen.
+ * Ask for the accessibility description, or replay the one already here.
  *
- * The heart is set from what the server actually stored, not optimistically: a display
- * that says it saved your favourite and did not is worse than one that says nothing.
+ * Pressing `A` twice is a replay rather than a second generation: the text is on screen
+ * and the server has it cached, so `access.speak()` costs nothing. That is the whole
+ * reason replay is a control of its own.
+ *
+ * The first request also puts a floor under the rotation. A description takes most of a
+ * minute to hear, and at the 30-second setting the artwork would be gone before the end of
+ * it. The floor stays for the session — lifting it when the description was dismissed
+ * would mean the clock speeding up under someone still listening.
  */
-async function toggleLike() {
+async function requestDescription() {
+  const { artwork } = getState();
+  if (!aiEnabled || !aiDescribes || !artwork || !canInterpret(artwork)) return;
+
+  // Already on screen for this artwork: read it again, and do not ask anybody.
+  if (access.hasContent()) {
+    access.speak();
+    return;
+  }
+
+  if (rotation.setFloorSeconds(DESCRIBED_FLOOR_SECONDS)) {
+    flashStatus(t('access_slowed', { minutes: DESCRIBED_FLOOR_SECONDS / 60 }));
+  }
+
+  describeRequest?.abort();
+  const controller = new AbortController();
+  describeRequest = controller;
+
+  access.loading();
+  try {
+    const payload = await fetchVisualDescription(artwork.id, getLanguage(), {
+      signal: controller.signal,
+    });
+    if (controller.signal.aborted || getState().artwork?.id !== artwork.id) return;
+    access.render(payload);
+  } catch (error) {
+    if (error?.name === 'AbortError') return;
+    if (error?.code === 'ai_disabled' || error?.code === 'access_unsupported') {
+      // The server changed its mind since boot, or was never able to. Stop offering it.
+      aiDescribes = false;
+      syncDescribeButton();
+      access.clear();
+      return;
+    }
+    console.warn('Description failed.', error);
+    // Three of these are ordinary states rather than faults, and each reads differently:
+    // an artwork the museum has written nothing visual about, a spent budget, a provider
+    // that is down.
+    access.unavailable(
+      ['access_not_describable', 'ai_budget_exhausted'].includes(error?.code)
+        ? error.code
+        : 'ai_unavailable',
+    );
+  } finally {
+    if (describeRequest === controller) describeRequest = null;
+  }
+}
+
+function cancelDescription() {
+  describeRequest?.abort();
+  describeRequest = null;
+  access.clear();
+}
+
+/**
+ * Record a verdict on what is on screen, or take it back.
+ *
+ * Pressing the same key twice clears it, which is what makes `L` and `D` reversible
+ * without a third control. The state is set from what the server actually stored, not
+ * optimistically: a display that says it saved your favourite and did not is worse than
+ * one that says nothing.
+ */
+async function setVerdict(kind) {
   const { artwork } = getState();
   if (!artwork) return;
+  const clearing = verdict === kind;
   try {
-    if (liked) {
-      await clearFeedback(artwork.id);
-      liked = false;
+    if (clearing) {
+      await clearFeedback(artwork.id, artwork.museum ?? 'aic');
+      verdict = null;
     } else {
-      await saveFeedback(artwork, 'like');
-      liked = true;
+      await saveFeedback(artwork, kind);
+      verdict = kind;
     }
   } catch (error) {
     console.warn('Could not save that.', error);
     flashStatus(t('feedback_failed'));
     return;
   }
-  renderLike();
-  flashStatus(t(liked ? 'liked' : 'unliked'));
+  renderVerdict();
+  flashStatus(t(clearing ? `un${kind}d` : `${kind}d`));
 }
 
 /**
@@ -245,30 +379,74 @@ async function hideArtwork() {
     flashStatus(t('feedback_failed'));
     return;
   }
-  liked = false;
-  renderLike();
+  verdict = 'hide';
+  renderVerdict();
   flashStatus(t('hidden'));
   // The preloaded artwork was chosen before this one was hidden, and is fine — but the
   // one just hidden must not come back on the next rotation.
   advance();
 }
 
-function renderLike() {
-  if (!likeButton) return;
-  likeButton.setAttribute('aria-pressed', String(liked));
-  // Filled when given, outline when not. The glyph carries the state as well as the
-  // styling, so it survives a stylesheet that has not loaded.
-  likeButton.textContent = liked ? '♥' : '♡';
+function renderVerdict() {
+  if (likeButton) {
+    likeButton.setAttribute('aria-pressed', String(verdict === 'like'));
+    // Filled when given, outline when not. The glyph carries the state as well as the
+    // styling, so it survives a stylesheet that has not loaded.
+    likeButton.textContent = verdict === 'like' ? '♥' : '♡';
+  }
+  if (dislikeButton) {
+    dislikeButton.setAttribute('aria-pressed', String(verdict === 'dislike'));
+    dislikeButton.textContent = verdict === 'dislike' ? '⬇' : '⇩';
+  }
 }
 
-function presentArtwork({ artwork, image }) {
+function syncNavButtons() {
+  if (backButton) backButton.disabled = !history.canGoBack();
+}
+
+/**
+ * Whether the AI features apply to this artwork at all.
+ *
+ * Only to the Art Institute's, and for two separate reasons that happen to agree. The
+ * server can only find metadata for an artwork it can look up — the index, the bundled set
+ * or AIC — and a live Cleveland record is in none of the three, so both endpoints would
+ * answer "unknown artwork". And Cleveland has no `alt_text`, which is what grounds both
+ * prompts: `CLAUDE.md` puts the museum's own visual description at the centre of this, and
+ * a source without one would need a different prompt or no AI at all. ADR-0012 called
+ * that a decision to take out loud rather than to arrive at by accident; ADR-0013 takes it,
+ * and this line is where it is enforced.
+ */
+function canInterpret(artwork) {
+  return (artwork?.museum ?? 'aic') === 'aic';
+}
+
+function syncDescribeButton() {
+  if (!describeButton) return;
+  const { artwork } = getState();
+  describeButton.hidden = !(aiEnabled && aiDescribes && (!artwork || canInterpret(artwork)));
+}
+
+/**
+ * Put one artwork on screen.
+ *
+ * @param {object} prepared  the artwork and its decoded image
+ * @param {boolean} [record] whether this is a step *forward* worth remembering. False when
+ * we are moving through the history stack, which must not push what it is replaying.
+ */
+function presentArtwork(prepared, { record = true } = {}) {
+  const { artwork, image } = prepared;
   setArtwork(artwork);
-  // The server sends it with the artwork, so the heart is right on the first paint
+  // The server sends it with the artwork, so the buttons are right on the first paint
   // rather than a moment later.
-  liked = artwork.liked === true;
-  renderLike();
-  // The previous artwork's interpretation is about a picture nobody is looking at.
+  verdict = artwork.feedback ?? (artwork.liked ? 'like' : null);
+  renderVerdict();
+  // The previous artwork's generated text is about a picture nobody is looking at.
   cancelInterpretation();
+  cancelDescription();
+  if (record) history.push(artwork);
+  syncNavButtons();
+  // The AI controls belong to the Art Institute's artworks — see canInterpret().
+  syncDescribeButton();
   present(elements, artwork, image);
   overlay.render(artwork);
   // "For you" that is not personalising yet says so once, on the artwork it is showing
@@ -278,7 +456,7 @@ function presentArtwork({ artwork, image }) {
     flashStatus(t('mode_personal_cold'));
   }
   // Surfaced briefly on every change: it says what you are looking at, and it is what
-  // credits the Art Institute, which CLAUDE.md makes non-negotiable. Stillness fades it.
+  // credits the museum, which CLAUDE.md makes non-negotiable. Stillness fades it.
   overlay.flash();
   showStatus(null);
   setLoading(false);
@@ -304,20 +482,62 @@ const rotation = createRotation({
   onError: onPrepareError,
 });
 
+/**
+ * Go back, or forward, through what has already been shown.
+ *
+ * The image is re-decoded rather than held: a decoded 1686px bitmap is several megabytes
+ * and this app runs for hours. It comes out of the browser's own HTTP cache, which is what
+ * that cache is for, so this is normally instant and needs no request at all.
+ *
+ * Moving through history re-arms the clock the same way a manual advance does. Going back
+ * to look at something and having it rotate away two seconds later is the opposite of what
+ * the control is for.
+ */
+async function travel(delta) {
+  const artwork = history.step(delta);
+  if (!artwork) return;
+  rotation.pause();
+  showStatus('loading');
+  try {
+    const image = await decodeFor(artwork);
+    presentArtwork({ artwork, image }, { record: false });
+  } catch (error) {
+    console.warn('Could not reload that artwork.', error);
+    // AIC can unpublish an image between the first showing and the second. Step back to
+    // where we were rather than leaving the cursor pointing at something unshowable.
+    history.step(-delta);
+    syncNavButtons();
+    flashStatus(t('history_unavailable'));
+  } finally {
+    rotation.resume();
+  }
+}
+
 const panel = createPanel(
   {
     panel: document.getElementById('panel'),
+    modeGroup: document.getElementById('panel-mode-group'),
     modeInputs: [...document.querySelectorAll('input[name="mode"]')],
+    museumInputs: [...document.querySelectorAll('input[name="museum"]')],
     languageInputs: [...document.querySelectorAll('input[name="language"]')],
     ambientInput: document.getElementById('panel-ambient'),
     ambientGroup: document.getElementById('panel-ambient-group'),
     intervalList: document.getElementById('panel-intervals'),
-    typeList: document.getElementById('panel-types'),
-    styleList: document.getElementById('panel-styles'),
-    styleGroup: document.getElementById('panel-style-group'),
-    subjectList: document.getElementById('panel-subjects'),
-    subjectGroup: document.getElementById('panel-subject-group'),
+    // One entry per filter vocabulary, each pointing at the markup its group owns.
+    filterGroups: [
+      { group: 'artwork-type', field: 'artworkType' },
+      { group: 'style', field: 'style' },
+      { group: 'subject', field: 'subject' },
+    ].map(({ group, field }) => ({
+      group,
+      field,
+      root: document.querySelector(`[data-group="${group}"]`),
+      list: document.querySelector(`[data-list="${group}"]`),
+      count: document.querySelector(`[data-badge="${group}"]`),
+      search: document.querySelector(`[data-search="${group}"]`),
+    })),
     summary: document.getElementById('panel-summary'),
+    resetButton: document.getElementById('panel-reset-filters'),
     aiProviderInputs: [...document.querySelectorAll('input[name="ai-provider"]')],
     aiKeyInput: document.getElementById('panel-ai-key'),
     aiSaveButton: document.getElementById('panel-ai-save'),
@@ -343,11 +563,18 @@ const panel = createPanel(
       onQueryChanged();
       flashStatus(t(`mode_${mode}`));
     },
-    onFilterChange: ({ artworkType, style, subject, exclude }) => {
-      query.artworkType = artworkType;
-      query.style = style;
-      query.subject = subject;
-      query.exclude = exclude ?? [];
+    onMuseumChange: (museum, selection) => {
+      query.museum = museum;
+      applyFilters(selection);
+      // Two museums, two id spaces and two vocabularies. A back stack that crossed them
+      // would offer to return to an artwork the current source cannot show.
+      history.clear();
+      syncNavButtons();
+      onQueryChanged();
+      flashStatus(t(`museum_${museum}`));
+    },
+    onFilterChange: (selection) => {
+      applyFilters(selection);
       onQueryChanged();
     },
     onIntervalChange: (seconds) => {
@@ -366,8 +593,14 @@ const panel = createPanel(
     // telling the user to edit .env and restart.
     onAiChange: (status) => {
       aiEnabled = status?.enabled === true;
-      if (!aiEnabled) cancelInterpretation();
-      else if (getState().overlayPinned) void requestInterpretation();
+      // A new key may be a different vendor, and only some vendors write descriptions.
+      // Ask the server rather than guessing from the name — no module outside
+      // providers/ai/ is allowed to know which vendors can do what.
+      void refreshAiCapabilities();
+      if (!aiEnabled) {
+        cancelInterpretation();
+        cancelDescription();
+      } else if (getState().overlayPinned) void requestInterpretation();
     },
     onLanguageChange: async (code) => {
       await setLanguage(code);
@@ -379,10 +612,25 @@ const panel = createPanel(
   },
 );
 
+function applyFilters({ artworkType, style, subject, exclude }) {
+  query.artworkType = artworkType ?? [];
+  query.style = style ?? [];
+  query.subject = subject ?? [];
+  query.exclude = exclude ?? [];
+}
+
+async function refreshAiCapabilities() {
+  const health = await fetchHealth();
+  aiEnabled = health?.ai?.enabled === true;
+  aiDescribes = health?.ai?.describes === true;
+  syncDescribeButton();
+}
+
 function persist() {
   void savePreferences({
     interval_seconds: rotation.getIntervalSeconds(),
     mode: query.mode,
+    museum: query.museum,
     artwork_type: query.artworkType,
     style: query.style,
     subject: query.subject,
@@ -435,11 +683,42 @@ function holdAdvance(seconds) {
   }, ms);
 }
 
+/**
+ * A left click on the artwork, in fullscreen: take everything but the picture away.
+ *
+ * Only in fullscreen, because windowed there is already chrome around the page and the
+ * gesture would be a click that silently changed a mode. A click on one of the overlay's
+ * own buttons is not this — those stop the event themselves by being buttons, and the
+ * check below keeps a click on the expanded description from counting either.
+ */
+function onStageClick(event) {
+  if (!fullscreen.isFullscreen()) return;
+  if (event.button !== 0) return;
+  if (event.target.closest('.ov-button, .ov-description, .panel')) return;
+  const suppressed = !overlay.isSuppressed();
+  overlay.setSuppressed(suppressed);
+  if (suppressed) {
+    cancelInterpretation();
+    cancelDescription();
+    setOverlayPinned(false);
+  }
+  // Said out loud once, because a click that hides every control also hides the way back.
+  flashStatus(t(suppressed ? 'chrome_hidden' : 'chrome_shown'));
+}
+
 nextButton?.addEventListener('click', advance);
-likeButton?.addEventListener('click', () => void toggleLike());
+backButton?.addEventListener('click', () => void travel(-1));
+likeButton?.addEventListener('click', () => void setVerdict('like'));
+dislikeButton?.addEventListener('click', () => void setVerdict('dislike'));
+describeButton?.addEventListener('click', () => void requestDescription());
+document.getElementById('access-play')?.addEventListener('click', () => access.speak());
+document.getElementById('access-stop')?.addEventListener('click', () => access.stop());
+stage?.addEventListener('click', onStageClick);
 
 bindShortcuts({
   onNext: advance,
+  onBack: () => void travel(-1),
+  onForward: () => void travel(1),
   onFullscreen: () => void fullscreen.toggle(),
   onToggleOverlay: () => {
     const pinned = overlay.toggle();
@@ -458,12 +737,16 @@ bindShortcuts({
   // fullscreen, so a panel that only opens has no keyboard way out of the one state
   // this app is meant to sit in. QUESTIONS.md #2, amended.
   onSettings: () => (panel.isOpen() ? panel.hide() : void panel.show()),
-  onLike: () => void toggleLike(),
+  onHelp: () => void panel.showSection('panel-help'),
+  onLike: () => void setVerdict('like'),
+  onDislike: () => void setVerdict('dislike'),
   onHide: () => void hideArtwork(),
+  onDescribe: () => void requestDescription(),
   onDismissOverlay: () => {
     overlay.dismiss();
     setOverlayPinned(false);
     cancelInterpretation();
+    cancelDescription();
   },
   onExitFullscreen: () => void fullscreen.exit(),
   isSettingsOpen: () => panel.isOpen(),
@@ -495,10 +778,17 @@ function retranslate() {
   if (artwork) overlay.render(artwork);
   panel.retranslate();
   interpretation.retranslate();
+  access.retranslate();
   if (statusKey) elements.status.textContent = t(statusKey);
   // The generated text is in the old language and cannot be translated locally — it has
-  // to be asked for again, and only if it was on screen in the first place.
+  // to be asked for again, and only if it was on screen in the first place. The spoken
+  // description is not re-read automatically: a voice starting up unprompted after a
+  // settings change is not something anybody asked for.
   if (interpretation.hasContent()) void requestInterpretation();
+  if (access.hasContent()) {
+    access.clear();
+    void requestDescription();
+  }
 }
 
 onLanguageChange(retranslate);
@@ -506,6 +796,9 @@ onLanguageChange(retranslate);
 /** Restore saved settings, then put the first artwork up. */
 async function boot() {
   setIntervalSeconds(DEFAULT_INTERVAL_SECONDS);
+  // The voice list loads asynchronously and is empty on first call in Chrome, so asking
+  // for a Polish voice the moment somebody presses `A` would get the default one.
+  speech.prime();
 
   const saved = await fetchPreferences();
   // Before anything paints. Both calls are same-origin and quick, and starting in
@@ -518,10 +811,13 @@ async function boot() {
     setIntervalSeconds(saved.interval_seconds);
   }
   if (saved?.mode) query.mode = saved.mode;
-  if (saved?.artwork_type) query.artworkType = saved.artwork_type;
-  if (saved?.style) query.style = saved.style;
-  if (saved?.subject) query.subject = saved.subject;
-  if (Array.isArray(saved?.exclude)) query.exclude = saved.exclude;
+  if (saved?.museum) query.museum = saved.museum;
+  applyFilters({
+    artworkType: saved?.artwork_type,
+    style: saved?.style,
+    subject: saved?.subject,
+    exclude: saved?.exclude,
+  });
 
   if (ambientSupported()) {
     // No user gesture is needed for a wake lock, only a visible document, so a saved
@@ -533,6 +829,7 @@ async function boot() {
 
   panel.sync({
     mode: query.mode,
+    museum: query.museum,
     artworkType: query.artworkType,
     style: query.style,
     subject: query.subject,
@@ -543,8 +840,8 @@ async function boot() {
   });
 
   // Before the first artwork, so pinning the overlay immediately still works.
-  const health = await fetchHealth();
-  aiEnabled = health?.ai?.enabled === true;
+  await refreshAiCapabilities();
+  syncNavButtons();
 
   await rotation.start();
 }

@@ -23,6 +23,11 @@ class ArtworkResponse(BaseModel):
     medium_display: str | None
     credit_line: str | None
     place_of_origin: str | None
+    artwork_type: str | None = None
+    """What kind of object it is — "Painting", "Coin". On the response since M13, because
+    the expanded details show it and nothing else on screen says it: `medium_display` is
+    what it is made of, which is a different question."""
+
     main_reference_number: str | None
 
     description: str | None
@@ -89,6 +94,7 @@ class ArtworkResponse(BaseModel):
             medium_display=artwork.medium_display,
             credit_line=artwork.credit_line,
             place_of_origin=artwork.place_of_origin,
+            artwork_type=artwork.artwork_type_title,
             main_reference_number=artwork.main_reference_number,
             description=artwork.description,
             iiif_base=iiif_base,

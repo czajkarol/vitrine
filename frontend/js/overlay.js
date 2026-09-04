@@ -5,10 +5,14 @@ import { t } from './i18n.js';
 // "Fades after a few seconds of stillness" (docs/product-spec.md).
 const IDLE_MS = 3500;
 
-// While the description is expanded, someone is reading rather than glancing, and
-// reading is not moving the mouse. 3.5s takes the text away mid-paragraph. This is long
-// enough to read a clamped-open description and short enough that an unattended display
-// still returns to the artwork on its own, which is what QUESTIONS.md #3 protects.
+// While the details are expanded, someone is reading rather than glancing, and reading is
+// not moving the mouse. 3.5s takes the text away mid-paragraph. This is long enough to read
+// an expanded description and short enough that an unattended display still returns to the
+// artwork on its own, which is what QUESTIONS.md #3 protects.
+//
+// Since M13 the rotation is also held while this is open, so the display no longer changes
+// picture underneath a reader either — the fade and the clock were two halves of the same
+// problem and only one of them had been solved.
 const IDLE_READING_MS = 20000;
 
 /**
@@ -22,48 +26,61 @@ function plainText(html) {
   return (parsed.body.textContent ?? '').replace(/\s+/g, ' ').trim();
 }
 
-export function createOverlay(elements) {
-  const { overlay, title, artist, meta, description, credit, attribution, expandButton } =
-    elements;
+export function createOverlay(elements, handlers = {}) {
+  const { overlay, title, artist, meta, description, credit, attribution, expandButton,
+    facts, extra } = elements;
 
   let pinned = false;
   let visible = false;
   let lastMove = 0;
   let hideTimer = null;
   let expanded = false;
-
-  /**
-   * Whether the clamp is actually hiding anything.
-   *
-   * Measured, not guessed from character count: the clamp is five *lines*, and how many
-   * characters fit in five lines depends on the viewport, the font that won the
-   * `font-display: swap` race, and the words themselves. A button offering to expand
-   * text that is already fully visible is worse than no button.
-   */
-  function isClamped() {
-    return !expanded && description.scrollHeight > description.clientHeight + 1;
-  }
+  // Set by a left click in fullscreen: the overlay stops appearing at all, so the artwork
+  // is on screen with nothing over it. Movement does not bring it back — that is the whole
+  // request — and a second click restores it. See `setSuppressed`.
+  let suppressed = false;
+  // Whether the current artwork has a description at all. The `i` control is offered on
+  // every artwork since M13, but what it expands is not the same thing in both cases.
+  let hasDescription = false;
 
   function collapse() {
     if (!expanded) return;
     expanded = false;
     description.classList.remove('expanded');
+    if (facts) facts.classList.remove('expanded');
+    if (extra) extra.hidden = true;
     description.scrollTop = 0;
     syncExpandButton();
+    handlers.onExpandChange?.(false);
   }
 
+  /**
+   * The `i` control is shown on every artwork, always.
+   *
+   * It used to appear only when the description was actually clamped, measured from
+   * `scrollHeight` — which was right about the clamp and wrong about the control. The
+   * button vanishing on the roughly seven artworks in eight that have no description at all
+   * made it read as a rendering fault rather than as an absence, and there was no way to
+   * learn that the key even existed by looking at the screen. So it is a *details* toggle
+   * now: it expands the description where there is one, and on an artwork with none it
+   * still opens the catalogue facts the overlay does not have room for at rest — place of
+   * origin, the reference number, the artwork type.
+   */
   function syncExpandButton() {
     if (!expandButton) return;
-    // Hidden when there is nothing to expand and when there is nothing expanded to
-    // collapse — which for a short description is always.
-    expandButton.hidden = !expanded && !isClamped();
-    // The state goes on aria-expanded rather than into the label, so a screen reader
-    // hears it without the label having to be swapped in two languages — and so the
-    // stylesheet can show it too.
+    expandButton.hidden = false;
+    // The state goes on aria-expanded rather than into the label, so a screen reader hears
+    // it without the label having to be swapped in two languages — and so the stylesheet
+    // can show it too.
     expandButton.setAttribute('aria-expanded', String(expanded));
+    expandButton.setAttribute(
+      'aria-label',
+      t(hasDescription ? 'description_expand' : 'details_expand'),
+    );
   }
 
   function show() {
+    if (suppressed) return;
     visible = true;
     overlay.classList.add('visible');
   }
@@ -100,6 +117,7 @@ export function createOverlay(elements) {
   }
 
   function nudge() {
+    if (suppressed) return;
     lastMove = Date.now();
     if (!visible) show();
     if (hideTimer === null) hideTimer = setTimeout(tick, idleLimit());
@@ -110,28 +128,37 @@ export function createOverlay(elements) {
   }
 
   /**
-   * The `i` button — show the whole description, or clamp it again.
+   * The `i` button — open the details, or close them again.
    *
-   * Deliberately not bound to the `I` key, which pins the whole overlay and means
-   * something else (`docs/product-spec.md`). Two affordances, two meanings.
+   * Deliberately not bound to the `I` key, which pins the whole overlay and means something
+   * else (`docs/product-spec.md`). Two affordances, two meanings.
+   *
+   * Opening it holds the rotation as well as stretching the idle fade. Those were two
+   * halves of the same problem: the text staying put while the picture underneath it
+   * changed is no better than the text going away.
    */
-  function toggleDescription() {
+  function toggleDetails() {
     expanded = !expanded;
     description.classList.toggle('expanded', expanded);
+    // The whole panel goes up a size when it is being read rather than glanced at. A
+    // caption sized for a glance across a room is not a size anybody reads a paragraph at.
+    if (facts) facts.classList.toggle('expanded', expanded);
+    if (extra) extra.hidden = !expanded;
     if (!expanded) description.scrollTop = 0;
     syncExpandButton();
     // Reading is not moving the mouse, so without this the overlay fades out from under
     // the thing the user just asked to read.
     nudge();
+    handlers.onExpandChange?.(expanded);
     return expanded;
   }
 
   function onExpandClick() {
-    toggleDescription();
+    toggleDetails();
   }
 
-  // Scrolling a long description is the one way to be actively reading without moving
-  // the pointer at all. Without this the overlay counts it as stillness.
+  // Scrolling a long description is the one way to be actively reading without moving the
+  // pointer at all. Without this the overlay counts it as stillness.
   function onDescriptionScroll() {
     nudge();
   }
@@ -154,19 +181,50 @@ export function createOverlay(elements) {
         .join(' — ');
 
       const prose = plainText(artwork.description);
-      // A new artwork means a new description, so whatever was expanded is gone anyway.
+      hasDescription = prose !== '';
+      // A new artwork means new details, so whatever was expanded is gone anyway.
       collapse();
       description.textContent = prose;
-      description.hidden = prose === '';
-      // After the text is in the DOM: scrollHeight is a measurement, not a prediction.
+      description.hidden = !hasDescription;
       syncExpandButton();
+
+      // The facts that do not earn a line at rest but are worth having when someone has
+      // asked to read about the work. All of them were already on the response and none of
+      // them were on screen anywhere.
+      if (extra) {
+        const rows = [
+          [t('detail_origin'), artwork.place_of_origin],
+          [t('detail_type'), artwork.artwork_type],
+          [t('detail_reference'), artwork.main_reference_number],
+          [t('detail_museum'), t(`museum_${artwork.museum ?? 'aic'}`)],
+        ].filter(([, value]) => value);
+        extra.textContent = '';
+        for (const [label, value] of rows) {
+          const row = document.createElement('div');
+          row.className = 'ov-detail';
+          const name = document.createElement('span');
+          name.className = 'ov-detail-label';
+          name.textContent = label;
+          const text = document.createElement('span');
+          text.textContent = value;
+          row.append(name, text);
+          extra.appendChild(row);
+        }
+      }
 
       credit.textContent = artwork.credit_line ?? '';
       credit.hidden = !artwork.credit_line;
 
-      // The digital image is CC0 but courtesy is still owed. The description is CC BY 4.0
-      // and its attribution is a licence condition, so it only appears when it is shown.
-      attribution.textContent = prose ? t('attribution_with_description') : t('attribution');
+      // The digital image is CC0 but courtesy is still owed, and which museum is owed it
+      // depends on which one sent this. The description is CC BY 4.0 at the Art Institute
+      // and its attribution is a licence condition, so that half only appears when it is
+      // actually shown.
+      const museum = artwork.museum === 'cma' ? 'cma' : 'aic';
+      attribution.textContent = t(
+        hasDescription && museum === 'aic'
+          ? 'attribution_with_description'
+          : `attribution_${museum}`,
+      );
     },
 
     /** Reveal briefly, then let stillness fade it. Used when the artwork changes. */
@@ -176,6 +234,7 @@ export function createOverlay(elements) {
 
     /** `I` — pin open, or unpin and start fading again. */
     toggle() {
+      if (suppressed) return false;
       pinned = !pinned;
       if (pinned) show();
       else nudge();
@@ -190,10 +249,33 @@ export function createOverlay(elements) {
       return visible;
     },
 
-    toggleDescription,
+    toggleDetails,
 
-    isDescriptionExpanded() {
+    isExpanded() {
       return expanded;
+    },
+
+    /**
+     * Hide the overlay outright, or let it behave normally again.
+     *
+     * The "just the picture" state: a left click in fullscreen takes the title, the
+     * description and every control off screen, and movement no longer brings them back.
+     * That last part is the point — an overlay that reappears the moment the mouse twitches
+     * is exactly what somebody asking for this is trying to get rid of.
+     */
+    setSuppressed(next) {
+      suppressed = next;
+      if (!suppressed) return;
+      pinned = false;
+      visible = false;
+      clearTimeout(hideTimer);
+      hideTimer = null;
+      overlay.classList.remove('visible');
+      collapse();
+    },
+
+    isSuppressed() {
+      return suppressed;
     },
 
     /** `Esc` — unpin and hide outright. */

@@ -177,10 +177,27 @@ body {
   visibility: visible;
 }
 
+/* Expanded, the overlay is most of the screen tall, and the gradient is relative to its
+   own box — so the title ends up near the transparent top of it, over whatever the artwork
+   has there. At rest that is fine, because the caption sits in the bottom fifth where the
+   scrim is at its strongest. Reading a paragraph is a different situation, and the same
+   gradient stretched over 700px is not a scrim any more. Seen in a browser on a gilded
+   triptych, where the title was over gold leaf. */
+.overlay:has(.facts.expanded) {
+  --scrim-bottom: 0.94;
+  --scrim-mid: 0.86;
+  --scrim-mid-stop: 92%;
+}
+
 /* Measured, not full-bleed: prose set across a 2560px monitor is unreadable. Widened
    from 62ch with the type scale below — the same measure at a larger size is a
    narrower column of words. */
 .overlay-panel { max-width: 68ch; }
+
+/* The measure widens with the type when the details are expanded. Without this the
+   parent keeps the 68ch it has at rest and the larger text just wraps sooner, which is
+   the opposite of what a step up in size is for. */
+.overlay-panel:has(.facts.expanded) { max-width: 84ch; }
 
 .ov-title {
   margin: 0;
@@ -231,6 +248,51 @@ body {
   /* It has to be scrollable, so it is the second element allowed to take the pointer
      back from the overlay. */
   pointer-events: auto;
+}
+
+
+/* Expanded is a different act from glancing, so it is a different size.
+   A caption is sized to be read across a room at a glance; a paragraph is read at a desk,
+   and 1.0625rem is small for that. The whole panel steps up together - a description that
+   grew while its title stayed put would look like a rendering fault - and the measure
+   widens with it so the line length stays about the same count of words. */
+.facts.expanded { max-width: 76ch; }
+.facts.expanded .ov-title { font-size: 2rem; }
+.facts.expanded .ov-artist { font-size: 1.25rem; }
+.facts.expanded .ov-meta { font-size: 1.0625rem; }
+
+.facts.expanded .ov-description {
+  font-size: 1.25rem;
+  line-height: 1.65;
+  /* Bright enough to read a paragraph in. --fg-dim is right for a line glanced at over an
+     artwork and is not right for four hundred words. */
+  color: var(--fg);
+}
+
+/* The catalogue facts, shown only while the details are open. All of these were already
+   on the response and none of them were on screen anywhere. */
+.ov-extra {
+  margin: 0.9rem 0 0;
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.95rem;
+  color: var(--fg-dim);
+}
+
+/* `display: grid` above outranks the user agent's `[hidden] { display: none }`, which is
+   a bare attribute selector. The same trap as `.ov-button[hidden]` further down, and it
+   caught this the same way: the catalogue facts were on screen at rest, under a caption
+   that had not been expanded. Seen in a browser. */
+.ov-extra[hidden] { display: none; }
+
+.ov-detail {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.ov-detail-label {
+  min-width: 9rem;
+  opacity: 0.7;
 }
 
 /* The two controls, and the only clickable things on the display itself. They live in
@@ -447,33 +509,120 @@ body {
   opacity: 0.75;
 }
 
-/* The Exclude sub-list. Quieter than the group it sits under, and closed at rest —
-   it is the secondary half of a filter, not a second filter. */
-.panel-exclude {
-  margin-top: 0.5rem;
+/* --- Filters -----------------------------------------------------------------
+   One collapsible group per vocabulary, each a list of tri-state rows. Until M13 this
+   was three lists of radios plus three collapsed lists of checkboxes - the same sixty
+   facets written twice, meaning two different things, in two places. */
+
+.panel-facets {
+  margin: 0 0 0.35rem;
+  border-radius: 3px;
 }
 
-.panel-exclude > summary {
-  color: var(--fg-dim);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+.panel-facets > summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.35rem 0;
+  color: var(--fg);
+  font-size: 0.85rem;
   cursor: pointer;
-  padding: 0.2rem 0;
-  opacity: 0.8;
 }
 
-.panel-exclude > summary:hover { opacity: 1; }
+.panel-facets > summary:hover { opacity: 0.85; }
 
-.panel-exclude .panel-options {
-  max-height: 14rem;
-  padding-left: 0.25rem;
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
+/* What is on in this group, in the heading, so a collapsed group never hides a live
+   filter. filters.js also opens a group that has something set. */
+.facet-badge {
+  color: var(--fg-dim);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-/* An option the current selection rules out: zero artworks behind it, or the very value
-   being included. Dimmed and left in place rather than removed — a list that reshuffles
-   under the cursor is worse than a greyed row. */
+.panel-search {
+  margin: 0.35rem 0 0.4rem;
+  font-size: 0.8rem;
+}
+
+.facet-list {
+  max-height: 18rem;
+  display: grid;
+  gap: 1px;
+}
+
+/* One facet. A button rather than a checkbox because it has three states, and a real
+   button so it is in the tab order and answers to Space and Enter for free. */
+.facet {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr auto;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.28rem 0.4rem;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--fg-dim);
+  font: inherit;
+  font-size: 0.83rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.facet:hover:not(:disabled) { background: rgba(255, 255, 255, 0.06); }
+
+.facet:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.45);
+  outline-offset: -1px;
+}
+
+/* Zero behind it under the current selection, and not currently excluded. Dimmed and
+   left in place rather than removed - a list that reshuffles under the cursor is worse
+   than a greyed row. */
+.facet:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.facet-mark {
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.facet-count {
+  color: var(--fg-dim);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+/* The two live states. Colour *and* a glyph *and* a word in the aria-label: one of the
+   three alone is a guess, and green-versus-red alone is unreadable to a good number of
+   the people this app is for. */
+.facet[data-state="include"] {
+  background: rgba(120, 200, 140, 0.16);
+  color: var(--fg);
+}
+
+.facet[data-state="include"] .facet-mark { color: #8fd6a4; }
+
+.facet[data-state="exclude"] {
+  background: rgba(220, 120, 120, 0.14);
+  color: var(--fg-dim);
+}
+
+.facet[data-state="exclude"] .facet-mark { color: #e39b9b; }
+.facet[data-state="exclude"] .facet-label { text-decoration: line-through; opacity: 0.75; }
+
+.panel-filter-hint {
+  font-size: 0.72rem;
+  opacity: 0.7;
+}
+
+/* An option the current selection rules out. Dimmed and left in place rather than
+   removed - a list that reshuffles under the cursor is worse than a greyed row. */
 .panel-option.is-disabled {
   opacity: 0.4;
   cursor: default;
@@ -539,6 +688,71 @@ body {
   color: var(--fg-dim);
   font-size: 0.75rem;
   opacity: 0.8;
+}
+
+/* The keyboard map. A definition list, because that is what it is: a key and what it
+   does. Translated like every other string - thirteen shortcuts documented only in a
+   file nobody using the app reads were thirteen shortcuts nobody knew about. */
+.panel-help { margin-top: 1.5rem; }
+
+.help-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.3rem 0.8rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  color: var(--fg-dim);
+}
+
+.help-list dt {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.74rem;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.help-list dd {
+  margin: 0;
+  line-height: 1.45;
+}
+
+
+
+/* --- The accessibility description -------------------------------------------
+   Its own region, below the interpretation and styled like it: the interface sans,
+   a rule and a label, so nothing here can be mistaken for a museum caption either.
+   Set a step larger than the interpretation, because this is the one block on the
+   display that somebody may be reading rather than glancing at. */
+
+.access {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  font-family: var(--font-ui);
+  /* The whole section takes the pointer back: it holds two buttons and text somebody
+     may want to select. */
+  pointer-events: auto;
+}
+
+.access-summary {
+  margin: 0 0 0.4rem;
+  color: var(--fg);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.access-text {
+  margin: 0 0 0.6rem;
+  color: var(--fg);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.access-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
 }
 
 /* --- AI interpretation -------------------------------------------------------

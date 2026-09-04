@@ -5,19 +5,14 @@
  * @returns {Promise<object>} the artwork payload
  * @throws {Error} with a `code` property keyed to a message the UI can translate
  */
-export async function fetchRandomArtwork({ mode, artworkType, style, subject, exclude } = {}) {
-  const params = new URLSearchParams();
-  if (mode && mode !== 'random') params.set('mode', mode);
-  if (artworkType) params.set('artwork_type', artworkType);
-  if (style) params.set('style', style);
-  if (subject) params.set('subject', subject);
-  // Repeatable, unlike the three above: excluding several things at once is ordinary.
-  for (const facet of exclude ?? []) params.append('exclude', facet);
-  const query = params.toString();
+export async function fetchRandomArtwork(query = {}) {
+  const params = selectionParams(query);
+  if (query.mode && query.mode !== 'random') params.set('mode', query.mode);
+  const search = params.toString();
 
   let response;
   try {
-    response = await fetch(`/api/artwork/random${query ? `?${query}` : ''}`, {
+    response = await fetch(`/api/artwork/random${search ? `?${search}` : ''}`, {
       headers: { Accept: 'application/json' },
     });
   } catch (cause) {
@@ -67,15 +62,10 @@ function retryAfter(response) {
  * facet is worth in the whole index while the rotation is already narrowed, which is the
  * number that is not useful.
  */
-export async function fetchFilters({ artworkType, style, subject, exclude } = {}) {
-  const params = new URLSearchParams();
-  if (artworkType) params.set('artwork_type', artworkType);
-  if (style) params.set('style', style);
-  if (subject) params.set('subject', subject);
-  for (const facet of exclude ?? []) params.append('exclude', facet);
-  const query = params.toString();
+export async function fetchFilters(query = {}) {
+  const search = selectionParams(query).toString();
   try {
-    const response = await fetch(`/api/filters${query ? `?${query}` : ''}`, {
+    const response = await fetch(`/api/filters${search ? `?${search}` : ''}`, {
       headers: { Accept: 'application/json' },
     });
     if (!response.ok) return null;
@@ -83,6 +73,27 @@ export async function fetchFilters({ artworkType, style, subject, exclude } = {}
   } catch {
     return null;
   }
+}
+
+/**
+ * The query parameters a selection turns into, shared by the two endpoints that take one.
+ *
+ * Every group is repeatable since M13. Inside a group the server ORs them, across groups it
+ * ANDs, and `exclude` is NOT-ed over all of them — see ADR-0014. Building this in one place
+ * is what keeps `/api/filters` counting the same selection the display is showing.
+ */
+function selectionParams({ museum, artworkType, style, subject, exclude } = {}) {
+  const params = new URLSearchParams();
+  if (museum && museum !== 'aic') params.set('museum', museum);
+  for (const [name, values] of [
+    ['artwork_type', artworkType],
+    ['style', style],
+    ['subject', subject],
+    ['exclude', exclude],
+  ]) {
+    for (const facet of values ?? []) params.append(name, facet);
+  }
+  return params;
 }
 
 /**
@@ -97,6 +108,40 @@ export async function fetchInterpretation(artworkId, language, { signal } = {}) 
   try {
     response = await fetch(
       `/api/interpretation/${encodeURIComponent(artworkId)}?language=${encodeURIComponent(language)}`,
+      { headers: { Accept: 'application/json' }, signal },
+    );
+  } catch (cause) {
+    if (cause?.name === 'AbortError') throw cause;
+    throw withCode(new Error('network request failed'), 'network_unreachable', cause);
+  }
+
+  if (!response.ok) {
+    const detail = await response
+      .json()
+      .then((body) => body?.detail)
+      .catch(() => null);
+    throw withCode(new Error(`HTTP ${response.status}`), detail ?? 'ai_unavailable');
+  }
+  return response.json();
+}
+
+/**
+ * Ask for one artwork's accessibility description — what it looks like, for a listener.
+ *
+ * Cached server-side, so asking twice for the same artwork costs nothing. That is what
+ * lets the display offer "read it again" without a second bill, and it is why replay is a
+ * separate control rather than a second request.
+ *
+ * @throws {Error} with a `code`: `access_not_describable` when the museum has written
+ * nothing visual about this artwork, `access_unsupported` when the configured provider
+ * does not do this, and the usual AI codes otherwise. The first two are ordinary states
+ * rather than faults, and the display says something different about each.
+ */
+export async function fetchVisualDescription(artworkId, language, { signal } = {}) {
+  let response;
+  try {
+    response = await fetch(
+      `/api/access-description/${encodeURIComponent(artworkId)}?language=${encodeURIComponent(language)}`,
       { headers: { Accept: 'application/json' }, signal },
     );
   } catch (cause) {
@@ -199,6 +244,8 @@ export async function saveFeedback(artwork, kind) {
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
       kind,
+      // Which museum, because artwork id 1 is a real record at both of them.
+      museum: artwork.museum ?? 'aic',
       title: artwork.title ?? null,
       artist: artwork.artist ?? null,
       image_id: artwork.image_id ?? null,
@@ -208,11 +255,12 @@ export async function saveFeedback(artwork, kind) {
   return response.json();
 }
 
-/** Forget a like or a hide. Idempotent — forgetting nothing is not an error. */
-export async function clearFeedback(artworkId) {
-  const response = await fetch(`/api/favorites/${encodeURIComponent(artworkId)}`, {
-    method: 'DELETE',
-  });
+/** Forget a verdict. Idempotent — forgetting nothing is not an error. */
+export async function clearFeedback(artworkId, museum = 'aic') {
+  const response = await fetch(
+    `/api/favorites/${encodeURIComponent(artworkId)}?museum=${encodeURIComponent(museum)}`,
+    { method: 'DELETE' },
+  );
   if (!response.ok) throw withCode(new Error(`HTTP ${response.status}`), 'feedback_failed');
 }
 

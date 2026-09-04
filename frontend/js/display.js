@@ -73,6 +73,15 @@ export function isUsingProxy() {
  * @returns {Promise<HTMLImageElement>} a decoded, paintable image
  */
 export async function loadImage(artwork, width) {
+  // A source with no IIIF service has already chosen the URL, and there is nothing to
+  // pick a width from or to proxy through. Cleveland is that source: three fixed URLs per
+  // record, of which one is a TIFF — ADR-0013. Its CDN serves an <img> directly, so the
+  // Cloudflare dance below is not just unnecessary, it would be a request to a backend
+  // route that only knows how to fetch from AIC.
+  if (artwork.image_url) {
+    return decodeImage(artwork.image_url, artwork.alt_text, PROXY_TIMEOUT_MS);
+  }
+
   const direct = () => directImageUrl(artwork.iiif_base, artwork.image_id, width);
   const proxied = () => proxiedImageUrl(artwork.image_id, width);
 

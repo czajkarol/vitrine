@@ -1,7 +1,10 @@
-// The settings panel. M3 gives it mode and Explore filters; M4 adds language and AI.
+// The settings panel. Mode, source, filters, rotation, ambient, AI, language and help.
 //
 // Opening it pauses rotation and closing resumes, per docs/product-spec.md — a panel you
 // are reading should not have the picture change underneath it.
+//
+// The filter half moved to `filters.js` in M13. What is left here is orchestration: which
+// groups exist, what the current selection is, and telling the display when it changed.
 
 import {
   deleteAiKey,
@@ -11,22 +14,14 @@ import {
   fetchScoring,
   saveAiKey,
 } from './api.js';
+import { createFilterGroup } from './filters.js';
 import { t } from './i18n.js';
 import { INTERVAL_SECONDS } from './rotation.js';
 
 export function createPanel(elements, handlers) {
-  const { panel, modeInputs, languageInputs, ambientInput, ambientGroup, intervalList,
-    typeList, styleList, styleGroup, subjectList, subjectGroup, summary, aiProviderInputs,
-    aiKeyInput, aiSaveButton, aiClearButton, aiStatusLine, aiStorageLine } = elements;
-
-  // The three filter vocabularies, in the order the panel shows them. Each names the
-  // radio group in the markup, the field it sets, where its options are rendered, and
-  // which of the server's three lists it draws from.
-  const FILTERS = [
-    { group: 'artwork-type', field: 'artworkType', any: 'filter_any', source: 'artwork_types' },
-    { group: 'style', field: 'style', any: 'filter_any_style', source: 'styles' },
-    { group: 'subject', field: 'subject', any: 'filter_any_subject', source: 'subjects' },
-  ];
+  const { panel, modeInputs, museumInputs, languageInputs, ambientInput, ambientGroup,
+    intervalList, filterGroups, summary, resetButton, aiProviderInputs, aiKeyInput,
+    aiSaveButton, aiClearButton, aiStatusLine, aiStorageLine, modeGroup } = elements;
 
   let open = false;
   let loaded = false;
@@ -44,50 +39,62 @@ export function createPanel(elements, handlers) {
   // The filter vocabulary as fetched. Kept so a language change can relabel the list
   // without asking the server for it again.
   let filters = null;
-  // The panel's idea of the current settings, kept because the filter list is built
-  // lazily on first open — long after preferences were restored at boot. Without this the
-  // radio would read "Any type" while the rotation was actually filtered.
+  // The panel's idea of the current settings, kept because the filter list is built lazily
+  // on first open — long after preferences were restored at boot. Without this the panel
+  // showed nothing selected while the rotation was actually filtered.
   let current = {
     mode: 'random',
-    artworkType: null,
-    style: null,
-    subject: null,
-    // Several at once, unlike the three above. See the Exclude sub-lists below.
+    museum: 'aic',
+    artworkType: [],
+    style: [],
+    subject: [],
     exclude: [],
     language: 'en',
     ambient: false,
     intervalSeconds: 300,
   };
 
-  function applySelection() {
-    for (const input of modeInputs) input.checked = input.value === current.mode;
-    for (const input of languageInputs) input.checked = input.value === current.language;
-    ambientInput.checked = current.ambient;
-    for (const input of intervalList.querySelectorAll('input')) {
-      input.checked = Number(input.value) === current.intervalSeconds;
-    }
-    for (const filter of FILTERS) {
-      const inputs = [...panel.querySelectorAll(`input[name="${filter.group}"]`)];
-      const target = inputs.find((input) => input.value === (current[filter.field] ?? ''));
-      if (target) target.checked = true;
-    }
-  }
+  // One per group, in the order the panel shows them. `field` names the array in `current`
+  // that this group's inclusions go into; exclusions from every group share one list,
+  // because the server NOTs them all at once.
+  const groups = filterGroups.map((element) =>
+    createFilterGroup(
+      {
+        group: element.group,
+        field: element.field,
+        elements: element,
+      },
+      {
+        onChange: onFacetChange,
+        // Re-render this group only. A search is a view of what is already loaded and must
+        // not cost a request.
+        onSearch: () => renderFilters(),
+      },
+    ),
+  );
 
   /**
-   * Fetch the vocabulary and draw it.
+   * A facet moved between off, include and exclude.
    *
-   * Re-fetched whenever the selection changes, not cached after the first open: the
-   * counts are dependent, so they are only true for the selection they were asked for.
-   * It is one local query against an indexed table and the panel is already open.
+   * The whole selection is rebuilt from the groups rather than patched, because a facet can
+   * move from `include` to `exclude` in one click and patching would have to remember to
+   * remove it from the first list — the sort of thing that works until it does not.
    */
-  async function loadFilters() {
-    filters = await fetchFilters(currentSelection());
-    loaded = true;
-    renderFilters();
+  function onFacetChange() {
+    const exclude = [];
+    for (const group of groups) {
+      const { include, exclude: excluded } = group.selection();
+      current[group.field] = include;
+      exclude.push(...excluded);
+    }
+    current.exclude = exclude;
+    handlers.onFilterChange(currentSelection());
+    void loadFilters();
   }
 
   function currentSelection() {
     return {
+      museum: current.museum,
       artworkType: current.artworkType,
       style: current.style,
       subject: current.subject,
@@ -95,10 +102,40 @@ export function createPanel(elements, handlers) {
     };
   }
 
-  /** Tell the display, and redraw the counts under the new selection. */
-  function announceFilterChange() {
-    handlers.onFilterChange(currentSelection());
-    void loadFilters();
+  function applySelection() {
+    for (const input of modeInputs) input.checked = input.value === current.mode;
+    for (const input of museumInputs) input.checked = input.value === current.museum;
+    for (const input of languageInputs) input.checked = input.value === current.language;
+    ambientInput.checked = current.ambient;
+    for (const input of intervalList.querySelectorAll('input')) {
+      input.checked = Number(input.value) === current.intervalSeconds;
+    }
+    for (const group of groups) {
+      group.setSelection(
+        {
+          include: current[group.field] ?? [],
+          // Every group is handed the whole exclusion list and keeps the entries that
+          // belong to it. A facet key starts with its group, so this is exact.
+          exclude: current.exclude.filter((facet) => facet.startsWith(`${group.group}.`)),
+        },
+        facetLabel,
+      );
+    }
+    syncResetButton();
+  }
+
+  /**
+   * Fetch the vocabulary and draw it.
+   *
+   * Re-fetched whenever the selection changes, not cached after the first open: the counts
+   * are dependent, so they are only true for the selection they were asked for. It is one
+   * local query against an indexed table and the panel is already open. A live source
+   * answers this from its own cache — see `providers/cma/client.py`.
+   */
+  async function loadFilters() {
+    filters = await fetchFilters(currentSelection());
+    loaded = true;
+    renderFilters();
   }
 
   /**
@@ -107,7 +144,8 @@ export function createPanel(elements, handlers) {
    * Before M10 these were AIC's raw values and were deliberately left in English, because
    * they were data. A canonical facet label is interface text, so it comes from locales/
    * like everything else — falling back to the English the server sent, so a facet no
-   * locale has caught up with reads as a word rather than as a slug.
+   * locale has caught up with reads as a word rather than as a slug. A live source's own
+   * vocabulary has no facet keys at all and always falls through to its label.
    */
   function facetLabel(option) {
     const key = `facet_${option.value.replace(/\./g, '_')}`;
@@ -125,7 +163,7 @@ export function createPanel(elements, handlers) {
   function renderIntervals() {
     intervalList.textContent = '';
     for (const seconds of INTERVAL_SECONDS) {
-      const option = buildOption(intervalLabel(seconds), String(seconds), false, 'interval');
+      const option = buildRadio(intervalLabel(seconds), String(seconds), 'interval');
       option.querySelector('input').addEventListener('change', () => {
         current = { ...current, intervalSeconds: seconds };
         handlers.onIntervalChange(seconds);
@@ -134,157 +172,72 @@ export function createPanel(elements, handlers) {
     }
   }
 
+  function buildRadio(label, value, name) {
+    const wrapper = document.createElement('label');
+    wrapper.className = 'panel-option';
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = name;
+    input.value = value;
+    const text = document.createElement('span');
+    text.textContent = label;
+    wrapper.append(input, text);
+    return wrapper;
+  }
+
   /**
-   * Build the three filter lists from `filters`. Idempotent, so a relabel is just another
-   * call.
+   * Draw the filter groups from `filters`. Idempotent, so a relabel is just another call.
    *
-   * Style and subject came with M3.5 and behave slightly differently from artwork type:
-   * their vocabularies run to thousands of values, so the server sends only the most
-   * populous few, and where the index has none of them the whole group is hidden rather
-   * than shown empty.
+   * A live source offers one group and no style, subject or exclusion at all — it has no
+   * index behind it and therefore no facet layer (ADR-0013). The groups it does not offer
+   * are hidden rather than shown empty, which is the same rule M3.5 already applied to a
+   * vocabulary too thin to sustain a rotation.
    */
   function renderFilters() {
-    if (!filters || filters.artwork_types.length === 0) {
-      // No index yet, or nothing with enough behind it. Say so rather than showing an
-      // empty box the user cannot interpret.
-      typeList.textContent = '';
-      styleGroup.hidden = true;
-      subjectGroup.hidden = true;
+    const source = {
+      'artwork-type': filters?.artwork_types,
+      style: filters?.styles,
+      subject: filters?.subjects,
+    };
+    const anyOffered = Object.values(source).some((options) => (options ?? []).length > 0);
+
+    if (!filters || !anyOffered) {
+      for (const group of groups) group.setOptions([], facetLabel);
       summary.textContent = filters?.indexed_total
         ? t('filters_too_thin', { minimum: filters.minimum_count })
         : t('filters_no_index');
       return;
     }
 
-    summary.textContent = t('filters_summary', { total: filters.indexed_total });
-    for (const filter of FILTERS) {
-      const options = filters[filter.source] ?? [];
-      renderFilterList(filter, options);
-      renderExcludeList(filter, options);
-    }
-    styleGroup.hidden = (filters.styles ?? []).length === 0;
-    subjectGroup.hidden = (filters.subjects ?? []).length === 0;
-    // The lists were just rebuilt from scratch, and a fresh radio only knows the
-    // `defaultChecked` it was built with — which is "Any". Without this the panel showed
-    // "Any style" while the rotation was still filtered to Japanese, and clicking "Any"
-    // to clear it fired no change event because it already looked checked. Seen in a
-    // browser, and the state and the screen disagreed silently.
+    summary.textContent =
+      current.museum === 'aic'
+        ? t('filters_summary', { total: filters.indexed_total })
+        : t('filters_summary_live', { total: filters.indexed_total });
+    for (const group of groups) group.setOptions(source[group.group] ?? [], facetLabel);
+    // The lists were just rebuilt from scratch and know nothing about what is selected.
     applySelection();
   }
 
-  /** One list of radios: an "any" entry, then the options the server thought worth it. */
-  function renderFilterList(filter, options) {
-    const list = listFor(filter.group);
-    list.textContent = '';
-    if (options.length === 0) return;
-    // Each list says what it is letting through — "Any subject" under Subject, not the
-    // artwork type's wording repeated three times.
-    list.appendChild(buildOption(t(filter.any), '', true, filter.group));
-    for (const option of options) {
-      const label = t('filter_option', { value: facetLabel(option), count: option.count });
-      const element = buildOption(label, option.value, false, filter.group);
-      // Zero under the *current* selection. Disabled rather than removed: a list that
-      // reshuffles under the cursor is worse than a greyed row, and the row is what says
-      // the option exists but is empty right now.
-      if (option.count === 0) disable(element);
-      list.appendChild(element);
-    }
+  function syncResetButton() {
+    if (!resetButton) return;
+    resetButton.hidden = groups.every((group) => group.isEmpty());
   }
 
-  /**
-   * The "Exclude" sub-list under each group.
-   *
-   * Checkboxes, where inclusion is radios, and the difference is not an inconsistency.
-   * `docs/product-spec.md`'s reasoning for radios is that "landscape AND portraits"
-   * narrows to nothing — which is true of inclusion and simply not true of exclusion:
-   * ruling several things out at once is ordinary and leaves plenty behind.
-   *
-   * Collapsed by default. Most of the time nobody wants it, and an ambient display's
-   * settings panel should not open onto three lists of sixty checkboxes.
-   */
-  function renderExcludeList(filter, options) {
-    const list = excludeListFor(filter.group);
-    const group = excludeGroupFor(filter.group);
-    if (!list || !group) return;
-    list.textContent = '';
-    group.hidden = options.length === 0;
-    for (const option of options) {
-      const wrapper = document.createElement('label');
-      wrapper.className = 'panel-option';
-
-      const input = document.createElement('input');
-      input.type = 'checkbox';
-      input.value = option.value;
-      input.checked = current.exclude.includes(option.value);
-      // Excluding what you have just asked for is contradictory rather than empty, and
-      // the server would answer it with "nothing matches". Say so by not offering it.
-      input.disabled = current[filter.field] === option.value;
-      input.addEventListener('change', () => {
-        const next = current.exclude.filter((facet) => facet !== option.value);
-        if (input.checked) next.push(option.value);
-        current = { ...current, exclude: next };
-        announceFilterChange();
-      });
-
-      const text = document.createElement('span');
-      text.textContent = facetLabel(option);
-
-      wrapper.append(input, text);
-      if (input.disabled) wrapper.classList.add('is-disabled');
-      list.appendChild(wrapper);
-    }
-  }
-
-  function listFor(group) {
-    return { 'artwork-type': typeList, style: styleList, subject: subjectList }[group];
-  }
-
-  function excludeListFor(group) {
-    return panel.querySelector(`[data-exclude-list="${group}"]`);
-  }
-
-  function excludeGroupFor(group) {
-    return panel.querySelector(`[data-exclude-group="${group}"]`);
-  }
-
-  function disable(optionElement) {
-    optionElement.classList.add('is-disabled');
-    const input = optionElement.querySelector('input');
-    if (input) input.disabled = true;
-  }
-
-  function buildOption(label, value, checked, group = 'artwork-type') {
-    const wrapper = document.createElement('label');
-    wrapper.className = 'panel-option';
-
-    const input = document.createElement('input');
-    input.type = 'radio';
-    input.name = group;
-    input.value = value;
-    input.defaultChecked = checked;
-    const filter = FILTERS.find((candidate) => candidate.group === group);
-    if (filter) {
-      input.addEventListener('change', () => {
-        current = { ...current, [filter.field]: value || null };
-        announceFilterChange();
-      });
-    }
-
-    const text = document.createElement('span');
-    text.textContent = label;
-
-    wrapper.append(input, text);
-    return wrapper;
+  function clearFilters() {
+    for (const group of groups) group.clear();
+    current = { ...current, artworkType: [], style: [], subject: [], exclude: [] };
+    handlers.onFilterChange(currentSelection());
+    void loadFilters();
   }
 
   /**
    * Say what the key situation is, in a settings panel that must never show a key.
    *
-   * Three states, and they read differently on purpose. A key from `.env` is not the
-   * user's to remove from here, so no button is offered for it. A key in the OS keyring
-   * is fine. A key in the database is unencrypted, and `docs/ai-system.md` allows that
-   * only on condition the UI says so — which is this line, shown before anything is typed
-   * as well as after.
+   * Three states, and they read differently on purpose. A key from `.env` is not the user's
+   * to remove from here, so no button is offered for it. A key in the OS keyring is fine. A
+   * key in the database is unencrypted, and `docs/ai-system.md` allows that only on
+   * condition the UI says so — which is this line, shown before anything is typed as well
+   * as after.
    */
   function renderAiKey() {
     if (!keyStatus) {
@@ -307,8 +260,8 @@ export function createPanel(elements, handlers) {
 
     aiStorageLine.textContent =
       keyStatus.storage === 'keyring' ? t('ai_storage_keyring') : t('ai_storage_database');
-    // Nothing to remove, and nothing this panel could remove: a key in .env is a file
-    // the user edits themselves.
+    // Nothing to remove, and nothing this panel could remove: a key in .env is a file the
+    // user edits themselves.
     aiClearButton.hidden = keyStatus.source === 'environment' || keyStatus.source === 'none';
 
     const target = [...aiProviderInputs].find((input) => input.value === keyStatus.provider);
@@ -332,8 +285,8 @@ export function createPanel(elements, handlers) {
       keyStatus = await saveAiKey(chosenProvider(), apiKey);
       keyMessage = 'ai_key_saved';
       // Out of the field the moment it is stored. It is in the browser's memory for as
-      // long as this node holds it, and there is no reason for that to be the rest of
-      // the evening.
+      // long as this node holds it, and there is no reason for that to be the rest of the
+      // evening.
       aiKeyInput.value = '';
       handlers.onAiChange(keyStatus);
     } catch (error) {
@@ -388,6 +341,37 @@ export function createPanel(elements, handlers) {
     });
   }
 
+  /**
+   * Switching museum clears the filters as well as the source.
+   *
+   * The two vocabularies have nothing in common — one is canonical facet keys over an
+   * index, the other is Cleveland's own artwork types — so carrying a selection across
+   * would leave the panel showing a filter that silently matches nothing. Clearing it is
+   * the honest answer, and the display says so.
+   */
+  for (const input of museumInputs) {
+    input.addEventListener('change', () => {
+      if (!input.checked) return;
+      for (const group of groups) group.clear();
+      current = {
+        ...current,
+        museum: input.value,
+        artworkType: [],
+        style: [],
+        subject: [],
+        exclude: [],
+      };
+      handlers.onMuseumChange(current.museum, currentSelection());
+      // Curated and "For you" rank against a score only the index carries, so switching to
+      // a live source has to take them away — and put the mode back to Random if one of
+      // them was selected. Without this the panel kept showing Curated while the display
+      // was serving plain random picks, which is the same silent lie the "For you" cold
+      // start message exists to prevent. Seen in a browser.
+      syncModes();
+      void loadFilters();
+    });
+  }
+
   for (const input of languageInputs) {
     input.addEventListener('change', () => {
       current = { ...current, language: input.value };
@@ -395,7 +379,7 @@ export function createPanel(elements, handlers) {
     });
   }
 
-  renderIntervals();
+  resetButton?.addEventListener('click', clearFilters);
 
   ambientInput.addEventListener('change', () => {
     current = { ...current, ambient: ambientInput.checked };
@@ -444,26 +428,49 @@ export function createPanel(elements, handlers) {
         });
   }
 
+  /**
+   * Curated and "For you" rank against a score the index carries, and a live source has no
+   * index. Offering them anyway would be offering a mode that silently is not one.
+   */
+  function syncModes() {
+    const indexed = current.museum === 'aic';
+    for (const input of modeInputs) {
+      if (input.value === 'random') continue;
+      input.disabled = !indexed;
+      input.closest('.panel-option')?.classList.toggle('is-disabled', !indexed);
+    }
+    modeGroup?.querySelector('.panel-mode-note')?.toggleAttribute('hidden', indexed);
+    if (!indexed && current.mode !== 'random') {
+      current = { ...current, mode: 'random' };
+      handlers.onModeChange('random');
+      applySelection();
+    }
+  }
+
   return {
     async show() {
       open = true;
       panel.classList.add('visible');
       panel.removeAttribute('inert');
       // Read fresh on every open: someone may have liked several artworks since it was
-      // last read, and "For you" saying it needs three more when it needs none is the
-      // kind of small lie that makes a panel untrustworthy.
+      // last read, and "For you" saying it needs three more when it needs none is the kind
+      // of small lie that makes a panel untrustworthy.
+      // Built on first open rather than at construction: the panel is constructed before
+      // boot() has loaded a locale, and drawing the interval menu then meant five
+      // "missing translation" warnings for strings that were about to arrive.
+      renderIntervals();
       feedbackSummary = await fetchFeedbackSummary();
       renderPersonalHint();
       if (scoring === null) {
         scoring = await fetchScoring();
         renderScoring();
       }
+      syncModes();
       await loadFilters();
       // Read fresh on every open rather than cached: the key can have been changed from
       // another tab, or the provider taken away by a restart.
       keyMessage = null;
       await loadAiKey();
-      // After the list exists, not before — see `current` above.
       applySelection();
       handlers.onOpen();
     },
@@ -483,21 +490,33 @@ export function createPanel(elements, handlers) {
 
     hideAmbient,
 
+    /** Open the panel with one section expanded — used by the `?` shortcut for help. */
+    async showSection(id) {
+      if (!open) await this.show();
+      const section = document.getElementById(id);
+      if (!(section instanceof HTMLDetailsElement)) return;
+      section.open = true;
+      section.scrollIntoView({ block: 'nearest' });
+      section.querySelector('summary')?.focus();
+    },
+
     /** Reflect restored preferences without firing change handlers. */
     sync(next) {
       current = { ...current, ...next };
       applySelection();
+      syncModes();
     },
 
     /**
-     * Relabel everything this module built itself. The markup's own labels are handled
-     * by i18n.applyTo(); this covers the list built from /api/filters.
+     * Relabel everything this module built itself. The markup's own labels are handled by
+     * i18n.applyTo(); this covers the lists built from /api/filters.
      */
     retranslate() {
-      renderIntervals();
+      if (open) renderIntervals();
       renderScoring();
       renderPersonalHint();
       if (loaded) renderFilters();
+      else for (const group of groups) group.refresh(facetLabel);
       renderAiKey();
       applySelection();
     },

@@ -20,35 +20,53 @@
        aria-live so a screen reader hears each new artwork announced. -->
   <footer id="overlay" class="overlay" aria-live="polite">
     <div class="overlay-panel">
-      <!-- Museum facts. AI interpretation gets its own labelled container in M5 and must
-           never share this one — a glance should never mistake generated text for a
-           museum caption (docs/product-spec.md). -->
-      <section class="facts">
+      <!-- Museum facts. AI text gets its own labelled containers below and must never
+           share this one — a glance should never mistake generated text for a museum
+           caption (docs/product-spec.md). -->
+      <section class="facts" id="ov-facts">
         <h1 id="ov-title" class="ov-title"></h1>
         <p id="ov-artist" class="ov-artist"></p>
         <p id="ov-meta" class="ov-meta"></p>
         <p id="ov-description" class="ov-description"></p>
+        <!-- The catalogue facts that do not earn a line at rest. Filled by overlay.js and
+             shown only while the details are expanded — all of them were already on the
+             response and none of them were on screen anywhere. -->
+        <div id="ov-extra" class="ov-extra" hidden></div>
       </section>
 
-      <!-- The only clickable controls on the display itself. They live inside the
-           overlay, which is hidden at rest, so "no visible controls at rest" holds
+      <!-- The only clickable controls on the display itself. They live inside the overlay,
+           which is hidden at rest, so "no visible controls at rest" holds
            (docs/product-spec.md). The overlay keeps pointer-events: none so it cannot
-           swallow the movement that reveals it; these two take the pointer back for
-           themselves. The expand button is shown only when the description is actually
-           clamped — overlay.js measures it rather than guessing from length. -->
+           swallow the movement that reveals it; these take the pointer back for
+           themselves. -->
       <div class="ov-controls">
-        <button type="button" id="ov-expand" class="ov-button" hidden aria-expanded="false"
-                data-i18n-aria-label="description_expand">i</button>
+        <button type="button" id="ov-back" class="ov-button"
+                data-i18n-aria-label="previous_artwork">&larr;</button>
         <button type="button" id="ov-next" class="ov-button"
                 data-i18n-aria-label="next_artwork">&rarr;</button>
-        <!-- The like state, and the only control here that changes what the display will
-             show you later. `L` does the same thing from the keyboard. -->
+        <!-- Shown on every artwork since M13, because a control that vanishes on the seven
+             works in eight with no description read as a fault rather than an absence. It
+             expands the description where there is one, and the catalogue facts either
+             way. overlay.js sets the label to match. -->
+        <button type="button" id="ov-expand" class="ov-button" aria-expanded="false"
+                data-i18n-aria-label="details_expand">i</button>
+        <!-- The two verdicts that change what the display will show you later. `L` and `D`
+             do the same from the keyboard; `X` has no button, because "never again" is
+             not a thing to put one click away. -->
         <button type="button" id="ov-like" class="ov-button" aria-pressed="false"
                 data-i18n-aria-label="like_artwork">&#9825;</button>
+        <button type="button" id="ov-dislike" class="ov-button" aria-pressed="false"
+                data-i18n-aria-label="dislike_artwork">&#8681;</button>
+        <!-- The accessibility description. Hidden unless the server says a provider can
+             write one — a control that is offered and then refuses is worse than one that
+             is not offered. -->
+        <button type="button" id="ov-describe" class="ov-button" hidden
+                data-i18n-aria-label="access_describe">&#9834;</button>
       </div>
-      <!-- AI interpretation, in its own labelled container. It must never share one
-           with the museum facts above: a glance should not be able to mistake generated
-           text for a museum caption (docs/product-spec.md). Hidden unless asked for. -->
+
+      <!-- AI interpretation, in its own labelled container. It must never share one with
+           the museum facts above: a glance should not be able to mistake generated text
+           for a museum caption (docs/product-spec.md). Hidden unless asked for. -->
       <section id="ov-ai" class="interpretation" hidden>
         <h2 class="ai-label" data-i18n="ai_label">Interpretation</h2>
         <p id="ai-status" class="ai-status"></p>
@@ -64,6 +82,30 @@
         </p>
       </section>
 
+      <!-- The accessibility description: its own region, its own label, its own controls.
+           `role="region"` with a name so a screen reader can jump to it, and aria-live so
+           the text is announced when it arrives rather than sitting there silently. -->
+      <section id="ov-access" class="access" hidden role="region"
+               aria-live="polite" data-i18n-aria-label="access_label">
+        <h2 class="ai-label" data-i18n="access_label">Described for listening</h2>
+        <p id="access-status" class="ai-status"></p>
+        <div id="access-body" hidden>
+          <p id="access-summary" class="access-summary"></p>
+          <p id="access-description" class="access-text"></p>
+          <div class="access-controls">
+            <button type="button" id="access-play" class="ov-button"
+                    data-i18n-aria-label="access_play">&#9654;</button>
+            <button type="button" id="access-stop" class="ov-button" hidden
+                    data-i18n-aria-label="access_stop">&#9632;</button>
+          </div>
+          <!-- Where the words came from. Not a disclaimer bolted on: a listener cannot
+               check a description against the artwork, so the one thing they can be told
+               is that no model saw the picture. -->
+          <p id="access-grounding" class="ai-disclaimer"></p>
+          <p id="access-source" class="ai-source"></p>
+        </div>
+      </section>
+
       <p id="ov-credit" class="ov-credit"></p>
       <p id="ov-attribution" class="ov-attribution"></p>
     </div>
@@ -76,9 +118,28 @@
          data-i18n-aria-label="settings_title" inert>
     <h2 class="panel-heading" data-i18n="settings_title">Settings</h2>
 
+    <!-- Which museum. First, because it changes what every group below it can offer. -->
+    <fieldset class="panel-group">
+      <legend data-i18n="museum_legend">Source</legend>
+      <label class="panel-option panel-option-stacked">
+        <input type="radio" name="museum" value="aic" checked>
+        <span>
+          <span class="panel-option-name" data-i18n="museum_aic">Art Institute of Chicago</span>
+          <span class="panel-option-hint" data-i18n="museum_aic_hint">Indexed locally. Every mode and filter.</span>
+        </span>
+      </label>
+      <label class="panel-option panel-option-stacked">
+        <input type="radio" name="museum" value="cma">
+        <span>
+          <span class="panel-option-name" data-i18n="museum_cma">Cleveland Museum of Art</span>
+          <span class="panel-option-hint" data-i18n="museum_cma_hint">Fetched live. Random only, one filter.</span>
+        </span>
+      </label>
+    </fieldset>
+
     <!-- Each mode is a name and a quieter second line. The em dash that used to join
          them was doing a job a layout should do, so the dashes left the strings. -->
-    <fieldset class="panel-group">
+    <fieldset class="panel-group" id="panel-mode-group">
       <legend data-i18n="mode_legend">Mode</legend>
       <label class="panel-option panel-option-stacked">
         <input type="radio" name="mode" value="random" checked>
@@ -101,6 +162,11 @@
           <span class="panel-option-hint" id="panel-personal-hint" data-i18n="mode_personal_hint">Built from what you have liked</span>
         </span>
       </label>
+      <!-- Shown only while a live source is selected: those two modes rank against a score
+           the index carries, and a live source has no index. -->
+      <p class="panel-summary panel-mode-note" data-i18n="mode_needs_index" hidden>
+        Curated and For you need the local index, so they are only available for the Art Institute.
+      </p>
 
       <!-- What the curated score actually weighs, with the numbers read from
            /api/scoring rather than written here — a weight retuned in the code updates
@@ -125,47 +191,54 @@
       <div id="panel-intervals" class="panel-options"></div>
     </fieldset>
 
-    <fieldset class="panel-group">
-      <legend data-i18n="artwork_type_legend">Artwork type</legend>
+    <!-- Filters. One collapsible group per vocabulary, each a list of tri-state rows:
+         click to include, again to exclude, again to clear. Until M13 inclusion and
+         exclusion were two separate lists of the same sixty facets in two places, which
+         meant finding a facet twice to rule it out. -->
+    <fieldset class="panel-group panel-filters">
+      <legend data-i18n="filters_legend">Filters</legend>
       <p id="panel-summary" class="panel-summary"></p>
-      <div id="panel-types" class="panel-options"></div>
-      <!-- Exclusion. A collapsed sub-list under each group, because ruling several
-           things out at once is ordinary where including several is not — the radios
-           above are radios for a reason (docs/product-spec.md). Collapsed by default:
-           an ambient display's settings should not open onto three lists of checkboxes. -->
-      <details class="panel-exclude" data-exclude-group="artwork-type">
-        <summary data-i18n="exclude_legend">Exclude</summary>
-        <div class="panel-options" data-exclude-list="artwork-type"></div>
-      </details>
-    </fieldset>
+      <p class="panel-summary panel-filter-hint" data-i18n="filter_state_hint">
+        Click to include, again to exclude, again to clear.
+      </p>
 
-    <!-- Style and subject. Both lists are built by panel.js from /api/filters, and both
-         are hidden outright when the index has nothing to offer for them — an empty
-         group invites the reader to wonder what they did wrong. -->
-    <fieldset class="panel-group" id="panel-style-group">
-      <legend data-i18n="style_legend">Style</legend>
-      <div id="panel-styles" class="panel-options"></div>
-      <!-- Exclusion. A collapsed sub-list under each group, because ruling several
-           things out at once is ordinary where including several is not — the radios
-           above are radios for a reason (docs/product-spec.md). Collapsed by default:
-           an ambient display's settings should not open onto three lists of checkboxes. -->
-      <details class="panel-exclude" data-exclude-group="style">
-        <summary data-i18n="exclude_legend">Exclude</summary>
-        <div class="panel-options" data-exclude-list="style"></div>
+      <details class="panel-facets" data-group="artwork-type">
+        <summary>
+          <span data-i18n="artwork_type_legend">Artwork type</span>
+          <span class="facet-badge" data-badge="artwork-type" hidden></span>
+        </summary>
+        <input type="search" class="panel-input panel-search" data-search="artwork-type"
+               hidden autocomplete="off" spellcheck="false"
+               data-i18n-placeholder="filter_search" placeholder="Search">
+        <div class="panel-options facet-list" data-list="artwork-type"></div>
       </details>
-    </fieldset>
 
-    <fieldset class="panel-group" id="panel-subject-group">
-      <legend data-i18n="subject_legend">Subject</legend>
-      <div id="panel-subjects" class="panel-options"></div>
-      <!-- Exclusion. A collapsed sub-list under each group, because ruling several
-           things out at once is ordinary where including several is not — the radios
-           above are radios for a reason (docs/product-spec.md). Collapsed by default:
-           an ambient display's settings should not open onto three lists of checkboxes. -->
-      <details class="panel-exclude" data-exclude-group="subject">
-        <summary data-i18n="exclude_legend">Exclude</summary>
-        <div class="panel-options" data-exclude-list="subject"></div>
+      <details class="panel-facets" data-group="style">
+        <summary>
+          <span data-i18n="style_legend">Style</span>
+          <span class="facet-badge" data-badge="style" hidden></span>
+        </summary>
+        <input type="search" class="panel-input panel-search" data-search="style"
+               hidden autocomplete="off" spellcheck="false"
+               data-i18n-placeholder="filter_search" placeholder="Search">
+        <div class="panel-options facet-list" data-list="style"></div>
       </details>
+
+      <details class="panel-facets" data-group="subject">
+        <summary>
+          <span data-i18n="subject_legend">Subject</span>
+          <span class="facet-badge" data-badge="subject" hidden></span>
+        </summary>
+        <input type="search" class="panel-input panel-search" data-search="subject"
+               hidden autocomplete="off" spellcheck="false"
+               data-i18n-placeholder="filter_search" placeholder="Search">
+        <div class="panel-options facet-list" data-list="subject"></div>
+      </details>
+
+      <div class="panel-buttons">
+        <button type="button" id="panel-reset-filters" hidden
+                data-i18n="filters_reset">Clear all filters</button>
+      </div>
     </fieldset>
 
     <!-- Removed outright where the Screen Wake Lock API is missing, rather than shown
@@ -219,6 +292,29 @@
         <span data-i18n="language_pl">Polski</span>
       </label>
     </fieldset>
+
+    <!-- The keyboard map, translated like everything else. It lives here rather than in a
+         separate overlay because the panel is already the one place the app explains
+         itself, and `?` opens it straight to this section. Without it, thirteen shortcuts
+         were documented only in a file nobody using the app reads. -->
+    <details class="panel-explain panel-help" id="panel-help">
+      <summary data-i18n="help_open">Keyboard shortcuts</summary>
+      <dl class="help-list">
+        <dt>Space</dt><dd data-i18n="help_next">Next artwork</dd>
+        <dt>&larr; &rarr;</dt><dd data-i18n="help_history">Back and forward through what you have seen</dd>
+        <dt>I</dt><dd data-i18n="help_overlay">Pin or unpin the details, and ask for an interpretation</dd>
+        <dt>A</dt><dd data-i18n="help_describe">Describe the artwork aloud</dd>
+        <dt>L</dt><dd data-i18n="help_like">Add to favourites</dd>
+        <dt>D</dt><dd data-i18n="help_dislike">Show me less like this</dd>
+        <dt>X</dt><dd data-i18n="help_hide">Never show this one again</dd>
+        <dt>F</dt><dd data-i18n="help_fullscreen">Fullscreen</dd>
+        <dt data-i18n="help_click_key">Click</dt><dd data-i18n="help_click">In fullscreen, hide or show everything but the artwork</dd>
+        <dt>S</dt><dd data-i18n="help_settings">Open or close settings</dd>
+        <dt>1 – 5</dt><dd data-i18n="help_intervals">Rotate every 30 sec, 1, 5, 15 or 30 min</dd>
+        <dt>?</dt><dd data-i18n="help_help">This list</dd>
+        <dt>Esc</dt><dd data-i18n="help_escape">Close settings, then the details, then fullscreen</dd>
+      </dl>
+    </details>
 
     <p class="panel-hint" data-i18n="panel_hint">Esc to close. Rotation is paused while this is open.</p>
   </aside>

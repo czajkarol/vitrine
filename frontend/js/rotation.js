@@ -46,6 +46,14 @@ function retryDelayMs(error) {
  */
 export function createRotation({ prepare, present, onError }) {
   let intervalMs = DEFAULT_INTERVAL_SECONDS * SECOND_MS;
+  // A floor under the interval, applied without changing what the user chose.
+  //
+  // The accessibility description is the reason it exists. A spoken description takes the
+  // better part of a minute to hear, and a display set to 30 seconds would rotate away
+  // mid-sentence — so asking for one raises the floor to five minutes for the rest of the
+  // session. A floor rather than an assignment, because the 30-second setting is still the
+  // user's and should come back the moment this is lifted.
+  let floorMs = 0;
   // Absolute wall-clock time, not a countdown. Browsers throttle timers in hidden tabs
   // to roughly once a minute, so a timer that "should" have fired may not have. Keeping
   // the deadline as a timestamp lets visibilitychange work out the truth from the clock
@@ -57,7 +65,10 @@ export function createRotation({ prepare, present, onError }) {
   let stopped = false;
   let running = false;
 
-  const leadMs = () => Math.min(PRELOAD_LEAD_MS, intervalMs / 3);
+  /** What the clock actually runs at: the chosen interval, or the floor if it is higher. */
+  const effectiveMs = () => Math.max(intervalMs, floorMs);
+
+  const leadMs = () => Math.min(PRELOAD_LEAD_MS, effectiveMs() / 3);
 
   function clearTimers() {
     clearTimeout(advanceTimer);
@@ -109,7 +120,7 @@ export function createRotation({ prepare, present, onError }) {
       running = false;
       if (!stopped) {
         // Measured from when the artwork actually appeared, not from when it was due.
-        deadline = Date.now() + (failure ? retryDelayMs(failure) : intervalMs);
+        deadline = Date.now() + (failure ? retryDelayMs(failure) : effectiveMs());
         arm();
       }
     }
@@ -141,13 +152,40 @@ export function createRotation({ prepare, present, onError }) {
       return intervalMs / SECOND_MS;
     },
 
+    /** What the clock is running at right now, floor included. */
+    getEffectiveSeconds() {
+      return effectiveMs() / SECOND_MS;
+    },
+
+    /**
+     * Hold the interval at or above `seconds` without changing the saved preference.
+     *
+     * @returns {boolean} whether this actually slowed anything down, so the caller can say
+     * so once rather than announcing a floor that was already below the chosen interval.
+     */
+    setFloorSeconds(seconds) {
+      const next = Math.max(0, seconds) * SECOND_MS;
+      if (next === floorMs) return false;
+      const wasBinding = floorMs > intervalMs;
+      floorMs = next;
+      const isBinding = floorMs > intervalMs;
+      // Only re-arm when the effective interval actually moved. Restarting the clock
+      // because a floor was set below the chosen interval would reset the countdown for no
+      // reason the user could see.
+      if (wasBinding || isBinding) {
+        deadline = Date.now() + effectiveMs();
+        arm();
+      }
+      return isBinding;
+    },
+
     /** Change the interval and restart the clock from now. */
     setIntervalSeconds(seconds) {
       if (!INTERVAL_SECONDS.includes(seconds)) {
         throw new Error(`unsupported interval: ${seconds}`);
       }
       intervalMs = seconds * SECOND_MS;
-      deadline = Date.now() + intervalMs;
+      deadline = Date.now() + effectiveMs();
       arm();
     },
 
@@ -168,7 +206,7 @@ export function createRotation({ prepare, present, onError }) {
     },
 
     resume() {
-      deadline = Date.now() + intervalMs;
+      deadline = Date.now() + effectiveMs();
       arm();
     },
 
