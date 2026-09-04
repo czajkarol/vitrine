@@ -26,8 +26,9 @@ but two `/api/filters` answers arriving in the wrong order, and the fix is that 
 now numbers its requests. The second bug was the same control offering a state Cleveland
 cannot honour. Going fullscreen now turns ambient mode on without overruling anyone who
 turned it off, coins are excluded on a fresh install as a preference the panel shows, filter
-combinations can be saved under a name, and the settings panel explains in plain language
-what happens to a pasted API key.
+combinations can be saved under a name, the settings panel explains in plain language what
+happens to a pasted API key, and `H` keeps an artwork up longer without ever becoming a way to
+stop the display.
 
 **Three things arrived after M12 and each changed the shape of something.**
 
@@ -286,6 +287,17 @@ All found the hard way, in a browser or against the live API. Each is documented
     lesson: a flow that starts from "a fresh install" starts from whatever the product
     defaults are that week. `open_group()` and `clear_filters()` in `tests/test_e2e.py`
     make the starting state explicit rather than assumed.
+
+31. **A hold has to say how it ends, and an idle timer is the wrong answer.** `H` keeps the
+    artwork up five minutes longer, repeatable to an hour, and it works by moving the current
+    deadline and nothing else — not the interval, not the floor `setFloorSeconds` puts under
+    it, not the mode. So it is a duration rather than a state, it cannot be left switched on,
+    and the unattended-display promise holds without anything having to guess whether somebody
+    is still in the room. The design was chosen by the owner from three; the two rejected are
+    in `docs/product-spec.md` in outline, and the idle-released hold was rejected because it
+    releases exactly when the user walks away, which is the case they wanted it held for.
+    Verified by holding an artwork on a 30-second rotation and watching it stay for 48 seconds,
+    then watching the next one rotate normally at 26.
 
 ## Outstanding, and only the owner can close it
 

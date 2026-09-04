@@ -112,6 +112,7 @@ Space      next artwork
 ← →        back and forward through what you have seen
 F          toggle fullscreen
 I          toggle metadata overlay
+H          keep this artwork up five minutes longer
 A          describe this artwork aloud
 L          add to favourites, or remove
 D          show me less like this, or take it back
@@ -141,6 +142,25 @@ field, the API key, and a field you cannot escape from is a panel you cannot clo
 uses it to leave fullscreen, so a key that opens the panel and cannot close it leaves no
 keyboard way out of the panel that does not also drop out of the one state this app is meant to
 sit in. `QUESTIONS.md` #2, amended.
+
+`H` extends the slot the artwork is currently in. Five minutes per press, up to an hour on
+any one artwork, and the status line says the running total rather than the step — after three
+presses "five more minutes" is the wrong number, and the one thing somebody holding an artwork
+wants to know is how long they have. At the ceiling it says so, because a limit that is
+indistinguishable from a broken key is a broken key.
+
+**Only the current deadline moves.** Not the saved interval, not the session floor
+`setFloorSeconds` puts under it, not the mode. So this is a duration rather than a state: there
+is nothing to leave, nothing to remember to undo, and it cannot be left switched on. The hold
+is spent when the artwork changes for any reason, including `Space`, so it never carries into
+the next one.
+
+**That is also how it satisfies the unattended rule.** This file has promised since M3 that a
+display nobody is watching returns to rotating on its own. A "pin this artwork" would break
+that promise; a hold released by an idle timer would keep it only by guessing whether anyone is
+still in the room, and would release exactly when somebody walked off to make coffee — the case
+they most likely wanted it held for. An extension ends by arithmetic instead: the deadline
+arrives, and the display carries on. Nothing has to notice anything.
 
 `Space` and the overlay's advance button share one 1500ms cooldown. A press inside the window is
 ignored rather than queued — a queued advance arrives after the user has stopped asking for

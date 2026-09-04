@@ -19,6 +19,22 @@ const RETRY_DELAY_MS = 20_000;
 
 const SECOND_MS = 1000;
 
+// How much one press of `H` adds to the artwork currently on screen, and how much hold one
+// artwork may accumulate before the key stops giving more.
+//
+// **A fixed step rather than another interval.** One press has to mean the same thing
+// whatever the rotation is set to: at 30 seconds "one more interval" is barely a pause, and
+// at 30 minutes it is a very large action to attach to a single keystroke. Five minutes is a
+// pause on the short settings and a top-up on the long ones.
+//
+// **The ceiling is the promise.** `docs/product-spec.md` has said since M3 that an
+// unattended display returns to rotating on its own, so a hold has to end. This one ends by
+// arithmetic rather than by an idle timer: the deadline moves, nothing else changes, and
+// the artwork rotates when it arrives. The cap only stops twelve absent-minded presses
+// parking the display for a working day.
+const HOLD_STEP_MS = 5 * 60 * SECOND_MS;
+const MAX_HOLD_MS = 60 * 60 * SECOND_MS;
+
 // A backstop on a server-supplied Retry-After. A limiter is not supposed to hand back
 // anything like this much, and a display that has silently stopped for an hour because
 // something upstream said so is worse than one that tries again and is refused again.
@@ -72,6 +88,9 @@ export function createRotation({ prepare, present, onError }) {
   // load, which is where this was found: expanding the details half a second after the
   // app opened, and watching the artwork change 30 seconds later anyway.
   let paused = false;
+  // How much the artwork on screen has been held for. Reset when a new one is presented,
+  // because the ceiling is per artwork: holding one for an hour says nothing about the next.
+  let heldMs = 0;
 
   /** What the clock actually runs at: the chosen interval, or the floor if it is higher. */
   const effectiveMs = () => Math.max(intervalMs, floorMs);
@@ -127,6 +146,8 @@ export function createRotation({ prepare, present, onError }) {
     } finally {
       running = false;
       if (!stopped) {
+        // A new artwork, so whatever the last one was held for is spent.
+        if (!failure) heldMs = 0;
         // Measured from when the artwork actually appeared, not from when it was due.
         deadline = Date.now() + (failure ? retryDelayMs(failure) : effectiveMs());
         arm();
@@ -190,6 +211,32 @@ export function createRotation({ prepare, present, onError }) {
         arm();
       }
       return isBinding;
+    },
+
+    /**
+     * Keep the artwork on screen a while longer, without changing anything else.
+     *
+     * Only the current deadline moves. Not the saved interval, not the floor, not the
+     * mode — so this is a duration and not a state, and there is nothing to leave or
+     * remember to undo. The artwork rotates when the extended deadline arrives, which is
+     * what keeps the unattended-display promise: the hold ends by arithmetic rather than
+     * by an idle timer that has to guess whether anybody is still there.
+     *
+     * @returns {number|null} the total seconds this artwork has now been held for, or
+     * `null` when it is already at the ceiling and the press did nothing.
+     */
+    extend() {
+      if (stopped || heldMs >= MAX_HOLD_MS) return null;
+      const step = Math.min(HOLD_STEP_MS, MAX_HOLD_MS - heldMs);
+      heldMs += step;
+      deadline += step;
+      arm();
+      return heldMs / SECOND_MS;
+    },
+
+    /** How long the artwork on screen has been held for. Exposed for tests. */
+    getHeldSeconds() {
+      return heldMs / SECOND_MS;
     },
 
     /** Change the interval and restart the clock from now. */

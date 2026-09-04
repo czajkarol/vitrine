@@ -805,6 +805,22 @@ bindShortcuts({
     cancelInterpretation();
     cancelDescription();
   },
+  /**
+   * Keep this one up a while longer.
+   *
+   * Says the running total rather than the step, because after three presses "five more
+   * minutes" is the wrong number and the one thing somebody holding an artwork wants to
+   * know is how long they have. At the ceiling it says so instead of silently doing
+   * nothing, which is the difference between a limit and a broken key.
+   */
+  onHold: () => {
+    const heldSeconds = rotation.extend();
+    if (heldSeconds === null) {
+      flashStatus(t('hold_limit'));
+      return;
+    }
+    flashStatus(t('hold_extended', { minutes: Math.round(heldSeconds / 60) }));
+  },
   onExitFullscreen: () => void fullscreen.exit(),
   isSettingsOpen: () => panel.isOpen(),
   onCloseSettings: () => panel.hide(),

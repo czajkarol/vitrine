@@ -114,6 +114,13 @@ export function bindShortcuts(handlers) {
         event.preventDefault();
         handlers.onHide();
         break;
+      case 'h':
+      case 'H':
+        // Hold. Free, mnemonic, and the last letter this app had left that neither the
+        // browser nor a screen reader wants.
+        event.preventDefault();
+        handlers.onHold();
+        break;
       case 'a':
       case 'A':
         // The accessibility description, read aloud. `A` because it is the key somebody

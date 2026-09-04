@@ -91,6 +91,7 @@ def open_group(page, group: str):
         root.locator("summary").click()
     return root
 
+
 # Generous: the first paint waits on an image from artic.edu, over the internet, possibly
 # through the proxy fallback. Everything after the first one is local.
 FIRST_PAINT_MS = 30_000

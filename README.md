@@ -54,6 +54,7 @@ Space      next artwork
 ← →        back and forward through what you have seen
 F          fullscreen
 I          metadata overlay — and, if AI is configured, an interpretation
+H          keep this artwork up five minutes longer (press again for more, up to an hour)
 A          describe this artwork aloud, for listening
 L          add to favourites, or remove
 D          show me less like this, or take it back

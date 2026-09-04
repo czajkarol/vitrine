@@ -506,6 +506,11 @@ Six items from the owner, plus two bugs found while reproducing the first one.
       panel's list, and a note when a preset holds facets the index no longer offers. No
       ADR — every hard call in it was already taken by ADR-0011, ADR-0014, or the rule that
       a filter may never silently widen
+- [x] **`H` keeps the artwork up five minutes longer**, repeatable to an hour. Three designs
+      were put to the owner and this one chosen: it ends by arithmetic rather than by an idle
+      timer, so the unattended promise holds without anything having to guess whether somebody
+      is still in the room. Only the deadline moves — not the interval, not the floor, not the
+      mode — so it is a duration and not a state
 - [x] `README.md` no longer says "Built for a second monitor."
 - [x] Commit
 
