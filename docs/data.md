@@ -95,7 +95,18 @@ default. `app/repositories/corpus.py` then asserts the finished file contains no
 and `tests/test_corpus_transfer.py` greps it for a key that was present in the source.
 
 Publish it as a GitHub Release asset with its `sha256`, and say in the notes when the walk
-was done.
+was done. **Rebuild before every publish**, with `--force`: `schema_migrations` travels in the
+export, so a file left over from before a migration claims a schema the project has moved past —
+and `merge_corpus` only refuses an export that is *ahead* of the fetcher, never one behind, so a
+stale export merges quietly while misreporting what it was built against. It happened on the
+first real publish.
+
+The first one is `v0.3.0`, published 2026-09-04, digest
+`892404cbb2cd6f8290ad9ab3ca8ceea481ee1b59f48f96073a1d99659eff65be`. The digest is repeated in
+`README.md` and `docs/setup.md` deliberately: it then lives in git history, on a different
+surface from the asset, so it can be checked against something the release page does not
+control. That is not signing and does not pretend to be — ADR-0011 declined signing, and its
+note on what a digest does and does not prove still stands.
 
 ## Fetching one
 

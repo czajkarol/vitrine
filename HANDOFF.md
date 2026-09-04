@@ -233,12 +233,26 @@ All found the hard way, in a browser or against the live API. Each is documented
 
 ## Outstanding, and only the owner can close it
 
-**Publish the export, and put its `sha256` in the release notes.** `scripts/export_index.py`
-produces the file — 57.8MB for 57,607 artworks, verified — and `scripts/fetch_index.py` merges
-it, verified against the real corpus and in a browser. What has never happened is the upload:
-nothing has been published, so no URL exists, `--url` has only ever been exercised against its
-own refusal paths, and the README's fetch line is a shape rather than a command anyone can run.
-ADR-0011 says a release asset; making one is the owner's to do.
+*(The first of these is closed. Kept below, struck through, because the way it was closed is
+worth knowing.)*
+
+~~**Publish the export, and put its `sha256` in the release notes.**~~ **Done, 2026-09-04.**
+Release `v0.3.0` carries `vitrine-index.sqlite`, and the fetch line in `README.md` and
+`docs/setup.md` is now a command rather than a shape:
+
+    892404cbb2cd6f8290ad9ab3ca8ceea481ee1b59f48f96073a1d99659eff65be
+
+**`--url` ran for real for the first time, and worked**: HTTPS, GitHub's 302 to its asset CDN
+followed, 57.8MB in thirteen seconds, digest verified, 57,607 artworks merged. Until then it had
+only ever been exercised against its own refusal paths.
+
+Two things that went wrong on the way, neither of them in the code. The export in `dist/` was
+**stale** — built before migrations 010 and 011, so its `schema_migrations` claimed schema 009 —
+and `merge_corpus` only refuses an export *ahead* of the fetcher, so a stale one merges quietly
+while misreporting itself. Re-run `export_index.py --force` before publishing, every time. And
+the fetch command pasted into both docs arrived as a **markdown link** with the `--sha256` flag
+name replaced by the digest; it is a long command with a URL in it, so check it is still a
+command after pasting.
 
 **`uv run pytest -m live` with a real key.** Neither provider has ever been called with a working
 key. It is the only thing that can catch a wrong default model id, or `max_completion_tokens`

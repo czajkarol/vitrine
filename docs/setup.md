@@ -72,7 +72,9 @@ about 19ms, and it is what Explore's filters and Curated's ranking are built on
 **a. Fetch a published export — fastest, no AIC traffic.**
 
 ```bash
-uv run python scripts/fetch_index.py --url https://.../vitrine-index.sqlite --sha256 <digest>
+uv run python scripts/fetch_index.py \
+  --url https://github.com/czajkarol/vitrine/releases/download/v0.3.0/vitrine-index.sqlite \
+  --sha256 892404cbb2cd6f8290ad9ab3ca8ceea481ee1b59f48f96073a1d99659eff65be
 ```
 
 About a second to merge, once the ~58MB has downloaded. It writes only the corpus tables,

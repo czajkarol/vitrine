@@ -29,7 +29,9 @@ SQLite query. If there is a published export, fetching it is the fast path and c
 nothing:
 
 ```bash
-uv run python scripts/fetch_index.py --url https://.../vitrine-index.sqlite --sha256 <digest>
+uv run python scripts/fetch_index.py \
+  --url https://github.com/czajkarol/vitrine/releases/download/v0.3.0/vitrine-index.sqlite \
+  --sha256 892404cbb2cd6f8290ad9ab3ca8ceea481ee1b59f48f96073a1d99659eff65be
 ```
 
 Otherwise, a full walk of the collection is 1,328 requests at AIC's own etiquette of one
