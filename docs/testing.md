@@ -21,16 +21,22 @@ interpretation chain against `MockProvider`. Fast, no network.
 from the default run and from CI. Run them by hand when a contract test starts looking suspicious
 or before a release. They are also how fixtures get refreshed.
 
-**E2E** — Playwright, five flows, no more:
+**E2E** — Playwright, six flows, no more:
 
 1. App loads and an image appears
 2. Space advances to a different artwork
 3. `I` opens the metadata overlay
 4. Language switches to Polish and back
 5. With AI disabled, the overlay shows museum data and no error
+6. `L` adds a favourite and it survives a reload
 
 Playwright is slow and flaky in proportion to how much you ask of it. Everything not in that
 list belongs in a unit or integration test.
+
+The sixth was added in M11 and had to argue for itself. It is here because it is the one
+feature that crosses every layer in a way no smaller test can: a keypress, an HTTP write, a
+SQLite row with no foreign key behind it, and the state read back onto a fresh page. Each half
+has a unit test; only this proves they meet.
 
 The fixture starts its own uvicorn on a free port, against a temporary database seeded from the
 bundled fallback set, and strips `AI_*` and every vendor key out of the environment it inherits —
@@ -51,6 +57,9 @@ uv run playwright install chromium
 Each of these has a named test. They are the ones that matter, because they are what a user
 running the app for eight hours will actually hit:
 
+- Liking an artwork the index has never seen — the ordinary case on a fresh clone
+- A hidden artwork never coming back, in any mode
+- "For you" with too few likes to personalise, saying so rather than pretending
 - AIC returns 500, then succeeds on retry
 - AIC times out
 - AIC returns valid JSON with `image_id: null`

@@ -1,9 +1,14 @@
-"""The five Playwright flows from `docs/testing.md`, and no more.
+"""The six Playwright flows from `docs/testing.md`, and no more.
 
 Playwright is slow and flaky in proportion to how much you ask of it, so this file asks for
-five things: that the app loads a picture, that Space changes it, that `I` opens the
-overlay, that the language switches, and that with no AI configured the overlay shows the
-museum's own facts and no error. Everything else lives in a unit or integration test.
+six things: that the app loads a picture, that Space changes it, that `I` opens the overlay,
+that the language switches, that with no AI configured the overlay shows the museum's own
+facts and no error, and — added in M11 — that liking an artwork survives a reload.
+Everything else lives in a unit or integration test.
+
+The sixth earns its place because it is the one feature that crosses every layer in a way
+no smaller test can: a keypress, an HTTP write, a SQLite row, and the state read back onto
+a fresh page. Each half of that has a unit test; only this one proves they meet.
 
 These are `-m e2e`, excluded from the default run and from CI. They need Chromium:
 
@@ -197,3 +202,26 @@ class TestSmokeFlows:
         # Hidden, not showing an error. Nothing was asked for, so there is nothing to
         # report — the frontend reads /api/health at boot precisely so it never asks.
         expect(display.locator("#ov-ai")).to_be_hidden()
+
+    def test_a_favourite_survives_a_reload(self, display: Page):
+        """The whole stack in one flow: `L`, an HTTP write, a SQLite row with no foreign
+        key, and the state read back onto a fresh page from the artwork response itself."""
+        heart = display.locator("#ov-like")
+        display.mouse.move(400, 400)
+        expect(display.locator("#overlay")).to_have_class(VISIBLE)
+        expect(heart).to_have_attribute("aria-pressed", "false")
+
+        display.keyboard.press("l")
+        expect(display.locator("#status")).to_have_text("Added to favourites")
+        expect(heart).to_have_attribute("aria-pressed", "true")
+
+        display.reload()
+        display.wait_for_function(
+            "() => document.getElementById('artwork').naturalWidth > 0", timeout=FIRST_PAINT_MS
+        )
+        display.mouse.move(410, 410)
+        # The same artwork does not necessarily come back — the rotation is random — so
+        # what is asserted is the record, which is what had to survive.
+        favourites = display.evaluate("async () => (await (await fetch('/api/favorites')).json())")
+        assert len(favourites) == 1
+        assert favourites[0]["title"], "the snapshot is what lets a favourite outlive the index"

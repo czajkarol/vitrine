@@ -250,15 +250,23 @@ The largest milestone, and it needs **no AIC traffic**: the raw terms are alread
 
 ## M11 — Modes, scoring explained, favourites
 
-- [ ] Mode options rendered as name + quiet description; the em dashes leave the strings
-- [ ] `GET /api/scoring` and an `i` beside Mode explaining the weights in both languages,
-      with the numbers taken from the code
-- [ ] Migration 009 `artwork_feedback` — no foreign key, with a small snapshot
-- [ ] `L` likes, `X` hides, a heart in the overlay, `GET`/`PUT`/`DELETE /api/favorites`
-- [ ] "For you" as a third mode over `domain/affinity.py`, falling back to Curated below
-      about five likes and saying so
-- [ ] ADR-0010 — personalisation from explicit feedback only
-- [ ] Commit
+- [x] Mode options rendered as name + quiet description; the em dashes leave the strings
+- [x] `GET /api/scoring` and an `i` beside Mode explaining the weights in both languages,
+      with the numbers taken from the code — a collapsed "How Curated ranks" under the mode
+      list, showing each signal's share of the total. Retuning a weight updates it
+- [x] Migration 009 `artwork_feedback` — no foreign key, with a small snapshot. The foreign
+      key would have failed on exactly the setup a new user has: the second and third tiers
+      serve artworks that are not in the index at all
+- [x] `L` likes, `X` hides, a heart in the overlay, `GET`/`PUT`/`DELETE /api/favorites`.
+      Hidden artworks are excluded in every mode, plain random included. The like state
+      travels with the artwork rather than as a second request per rotation
+- [x] "For you" as a third mode over `domain/affinity.py`, falling back to Curated below
+      about five likes and saying so — `personalised: false` on the response, and one line
+      on screen. Ranking is `curated × (1 + α · affinity)`, so quality still bounds it
+- [x] ADR-0010 — personalisation from explicit feedback only
+- [x] A sixth Playwright flow, which had to argue for itself: a favourite surviving a
+      reload is the one thing that crosses every layer in a way no smaller test can
+- [x] Commit
 
 ## M12 — Data, setup, and other sources
 

@@ -111,6 +111,8 @@ fallback stack: a readable caption in Georgia beats an invisible one in Garamond
 Space      next artwork
 F          toggle fullscreen
 I          toggle metadata overlay
+L          add to favourites, or remove
+X          hide this artwork — never show it again, in any mode
 1 2 3 4 5  set interval to 30 sec / 1 / 5 / 15 / 30 min
 S          toggle settings
 Esc        close settings if open, else close overlay if open, else exit fullscreen
@@ -249,6 +251,27 @@ come from real API data:
 | Has `alt_text` | Correlates with curatorial attention |
 | Artwork type | Paintings and photographs display better than furniture or documents |
 | Recency penalty | Seen in the last N artworks |
+
+### For you
+
+A third mode, and deliberately not a change to Curated — see ADR-0010.
+
+`L` and `X` are the entire input. No dwell time, no skips, no inference from silence: an
+ambient display is left running in an empty room, and "watched for nine minutes" usually means
+nobody was there.
+
+Ranking is `curated × (1 + α · affinity)`, so curated quality still bounds it: a blurry
+favourite subject does not beat a well-photographed one. The affinity is frequency over the
+canonical facets of what you have liked, weighted by group — subject says more about a person
+than artwork type does, because half the collection is prints and liking prints is close to
+saying nothing.
+
+**Below five likes it says so.** The mode falls back to curated ranking, the response carries
+`personalised: false`, and the display shows one line explaining that it is showing Curated
+picks for now. A recommendation that is not one is worse than no recommendation.
+
+Hidden artworks are excluded in **every** mode, including plain Random. `X` means never again,
+and switching modes is not a change of mind about it.
 
 Weights live in one dict in one module, with a comment per weight. A `--explain` flag on the
 index script should print the score breakdown for a given artwork. If you cannot explain in one

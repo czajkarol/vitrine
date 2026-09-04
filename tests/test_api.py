@@ -687,3 +687,113 @@ class TestFacetFilters:
             },
         )
         assert client.get("/api/preferences").json()["exclude"] == ["type.coin", "subject.man"]
+
+
+class TestFavorites:
+    """Likes and hides over HTTP — ADR-0010."""
+
+    def _seed(self, database, count=8):
+        from app.repositories.artwork_index import ArtworkIndexRepository
+        from app.repositories.preferences import PreferencesRepository
+        from app.services.selection import IIIF_BASE_KEY
+
+        PreferencesRepository(database).set_sync(IIIF_BASE_KEY, IIIF)
+        rows = [
+            _indexed(i, "Print").model_copy(update={"style_titles": ("Japanese",)})
+            for i in range(1, count + 1)
+        ]
+        ArtworkIndexRepository(database).upsert_many_sync(rows)
+        return rows
+
+    def test_liking_an_artwork_the_index_has_never_seen(self, client):
+        """The display's second and third tiers serve straight from AIC and from the
+        bundled set, so this is the ordinary case on a fresh clone — not an edge one. A
+        foreign key here would make it an IntegrityError."""
+        response = client.put(
+            "/api/favorites/999999",
+            json={"kind": "like", "title": "A work", "artist": "Nobody", "image_id": "abc"},
+        )
+        assert response.status_code == 200
+        assert response.json()["title"] == "A work"
+
+    def test_the_snapshot_is_what_makes_a_favourite_outlive_the_index(self, client):
+        client.put("/api/favorites/42", json={"kind": "like", "title": "Kept", "artist": "A"})
+        listed = client.get("/api/favorites").json()
+        assert [(f["artwork_id"], f["title"]) for f in listed] == [(42, "Kept")]
+
+    def test_liking_something_hidden_replaces_the_hide(self, client):
+        """One row per artwork: a change of mind, not a second opinion to reconcile."""
+        client.put("/api/favorites/7", json={"kind": "hide"})
+        client.put("/api/favorites/7", json={"kind": "like"})
+        assert [f["artwork_id"] for f in client.get("/api/favorites?kind=hide").json()] == []
+        assert [f["artwork_id"] for f in client.get("/api/favorites").json()] == [7]
+
+    def test_forgetting_something_that_was_never_there_is_not_an_error(self, client):
+        assert client.delete("/api/favorites/123456").status_code == 204
+
+    def test_a_hidden_artwork_is_never_served_again(self, client, database):
+        """In every mode, including plain random. `X` means never again, and a mode
+        switch is not a change of mind about it."""
+        self._seed(database, count=2)
+        client.put("/api/favorites/1", json={"kind": "hide"})
+        for _ in range(6):
+            assert client.get("/api/artwork/random").json()["id"] == 2
+
+    def test_the_artwork_carries_its_own_like_state(self, client, database):
+        """Sent with the artwork rather than fetched separately: the display needs it on
+        every rotation and a second round trip to draw a heart is not worth it."""
+        self._seed(database, count=1)
+        assert client.get("/api/artwork/random").json()["liked"] is False
+        client.put("/api/favorites/1", json={"kind": "like"})
+        assert client.get("/api/artwork/random").json()["liked"] is True
+
+    def test_the_summary_says_whether_it_is_personalising_yet(self, client):
+        from app.domain.affinity import MIN_LIKES_FOR_PROFILE
+
+        assert client.get("/api/favorites/summary").json() == {
+            "likes": 0,
+            "hides": 0,
+            "personalising": False,
+            "minimum_likes": MIN_LIKES_FOR_PROFILE,
+        }
+        for i in range(1, MIN_LIKES_FOR_PROFILE + 1):
+            client.put(f"/api/favorites/{i}", json={"kind": "like"})
+        assert client.get("/api/favorites/summary").json()["personalising"] is True
+
+
+class TestPersonalMode:
+    def test_it_says_when_it_is_not_personalising(self, client, database):
+        """A recommendation that is not one is worse than no recommendation, so the
+        display is told which it is getting."""
+        TestFavorites()._seed(database, count=3)
+        assert client.get("/api/artwork/random?mode=personal").json()["personalised"] is False
+
+    def test_it_personalises_once_there_is_enough_to_go_on(self, client, database):
+        from app.domain.affinity import MIN_LIKES_FOR_PROFILE
+
+        TestFavorites()._seed(database, count=MIN_LIKES_FOR_PROFILE + 3)
+        for i in range(1, MIN_LIKES_FOR_PROFILE + 1):
+            client.put(f"/api/favorites/{i}", json={"kind": "like"})
+        assert client.get("/api/artwork/random?mode=personal").json()["personalised"] is True
+
+    def test_curated_is_not_changed_by_any_of_this(self, client, database):
+        """ADR-0006's transparency claim only survives if curated stays the same for
+        everybody, whatever they have liked."""
+        from app.domain.affinity import MIN_LIKES_FOR_PROFILE
+
+        TestFavorites()._seed(database, count=MIN_LIKES_FOR_PROFILE + 3)
+        for i in range(1, MIN_LIKES_FOR_PROFILE + 1):
+            client.put(f"/api/favorites/{i}", json={"kind": "like"})
+        assert client.get("/api/artwork/random?mode=curated").json()["personalised"] is False
+
+
+class TestScoringEndpoint:
+    def test_it_reports_the_weights_the_code_is_actually_using(self, client):
+        """Read from domain.scoring.WEIGHTS, so retuning one updates what the panel says
+        instead of quietly making it wrong."""
+        from app.domain.scoring import WEIGHTS
+
+        body = client.get("/api/scoring").json()
+        assert {w["name"] for w in body["weights"]} == set(WEIGHTS)
+        assert body["weights"] == sorted(body["weights"], key=lambda w: -w["weight"])
+        assert abs(sum(w["share"] for w in body["weights"]) - 1.0) < 0.01

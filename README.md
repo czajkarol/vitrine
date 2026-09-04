@@ -42,6 +42,8 @@ traffic to someone else's service.
 Space      next artwork
 F          fullscreen
 I          metadata overlay — and, if AI is configured, an interpretation
+L          add to favourites, or remove
+X          hide this artwork — never show it again, in any mode
 1 2 3 4 5  rotation interval: 30 sec / 1 / 5 / 15 / 30 min
 S          toggle settings
 Esc        close settings, else close the overlay, else leave fullscreen
@@ -70,6 +72,13 @@ visual description; and whether the object is the kind of thing that fills a fra
 rather than a chair. The weights are one dict with a comment each, and `--explain` prints the
 breakdown for any artwork. It ranks rather than excludes, so with nothing scored yet you get a
 rotation instead of a blank screen.
+
+**Favourites, and "For you".** `L` likes what is on screen, `X` hides it for good. Once there
+are five favourites, a third mode ranks by what they have in common — frequency over the
+canonical facets, multiplied into the curated score so quality still bounds it. Below five it
+falls back to Curated and says so, because a recommendation that is not one is worse than no
+recommendation. Explicit gestures only: no dwell time, no skips, nothing inferred from silence
+([ADR-0010](docs/adr/0010-personalisation-from-explicit-feedback.md)).
 
 **English and Polish**, switchable without a reload.
 
@@ -165,15 +174,17 @@ so the failed round trip is paid once rather than every rotation.
 | `GET`/`PUT /api/preferences` | the settings panel's state |
 | `GET /api/interpretation/{id}` | one interpretation, on demand |
 | `GET`/`PUT`/`DELETE /api/ai/key` | the bring-your-own key, never returned |
+| `GET`/`PUT`/`DELETE /api/favorites` | likes and hides, with a snapshot that outlives the index |
+| `GET /api/scoring` | the curated weights, read from the code so the UI cannot drift |
 | `GET /api/health` | liveness, and whether AI is available |
 | `GET /api/stats` | cache hit ratio, provider latency, AIC error rate, today's spend |
 
 ## Testing
 
 ```bash
-uv run pytest                 # 493 tests: unit, contract, integration. No network
+uv run pytest                 # 520 tests: unit, contract, integration. No network
 uv run pytest -m live         # 9, against the real AIC API and a real AI provider if keyed
-uv run pytest -m e2e          # 5 Playwright flows; it starts its own server
+uv run pytest -m e2e          # 6 Playwright flows; it starts its own server
 uv run ruff check . && uv run ruff format --check . && uv run mypy app
 ```
 

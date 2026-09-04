@@ -44,7 +44,7 @@ uv sync --all-extras
 uv run uvicorn app.main:app --reload      # http://127.0.0.1:8000
 uv run pytest                             # unit + contract; excludes live and e2e
 uv run pytest -m live                     # the real AIC API, and the AI providers if keyed
-uv run pytest -m e2e                      # five Playwright flows; needs `playwright install chromium`
+uv run pytest -m e2e                      # six Playwright flows; needs `playwright install chromium`
 uv run ruff check . && uv run ruff format --check . && uv run mypy app
 ```
 
