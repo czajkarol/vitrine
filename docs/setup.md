@@ -103,10 +103,23 @@ automated traffic to somebody else's service is asked about first (`CLAUDE.md`,
 ## 5. Run it
 
 ```bash
+uv run python scripts/run.py
+```
+
+It serves the app, waits for `/api/health` to answer, and opens <http://127.0.0.1:8000>. Press
+`F` for fullscreen and leave it. `--port` moves it, `--no-browser` skips the last step, and
+`--no-reload` stops it watching source files.
+
+The server underneath is plain uvicorn, and you can run it directly:
+
+```bash
 uv run uvicorn app.main:app --reload
 ```
 
-Open <http://127.0.0.1:8000>, press `F` for fullscreen, and leave it.
+That does not open a page — uvicorn has no such option. It starts, prints the URL and waits, so
+a start that worked ends at `Application startup complete.` and a terminal that sits there.
+Nothing further will happen on its own; open the URL yourself. The launcher exists because that
+is indistinguishable from a hang.
 
 ## 6. Verify
 
@@ -134,7 +147,7 @@ in the same panel for the keyboard map.
 ## 7. The test suite
 
 ```bash
-uv run pytest                       # 587 tests, no network
+uv run pytest                       # 609 tests, no network
 uv run ruff check . && uv run ruff format --check . && uv run mypy app
 ```
 
@@ -148,6 +161,30 @@ excluded from the default run and from CI, and is run by hand when a contract te
 looking suspicious. See [testing.md](testing.md).
 
 ## Troubleshooting
+
+**The command runs, the log ends at `Application startup complete.`, and no window opens.**
+That is a successful start. `uvicorn` serves a URL; it does not open a browser and has no
+option to. Open <http://127.0.0.1:8000> yourself, or use `scripts/run.py`, which waits for the
+server and then opens it.
+
+**`[WinError 10013]` or "address already in use", and the process you are told to kill does not
+exist.** Something is still holding the port, and the PID is a ghost. `netstat` attributes a
+listening socket to the process that *created* it and keeps naming that PID after it has
+exited, for as long as a child holding the inherited handle keeps serving. `--reload` runs two
+processes, a watcher and a server; closing the terminal window kills the watcher and orphans
+the server, which is how you get a live port owned by a dead PID. Trust the process list, not
+the socket table:
+
+```powershell
+Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+    Select-Object ProcessId,CreationDate,CommandLine
+```
+
+The orphan is the one whose `CreationDate` belongs to a session you thought you had closed.
+`Stop-Process -Id <pid> -Force` it, killing children before parents so you do not make a second
+orphan. Stopping the server with Ctrl+C rather than by closing the window avoids the whole
+thing. `scripts/run.py` recognises this case: if the port answers as vitrine it opens that
+instead of failing, and if it does not, it prints the command above rather than a bind error.
 
 **A blank screen after editing a JS file, and the console says a module "does not provide an
 export named X" for an export that is plainly there.** Chrome caches ES modules hard, and

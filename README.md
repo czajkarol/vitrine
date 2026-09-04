@@ -15,10 +15,13 @@ are optional, off by default, and the app is complete without them.
 uv sync --all-extras
 cp .env.example .env          # set AIC_USER_AGENT to your project name and email
 uv run python scripts/build_index.py --limit 5000
-uv run uvicorn app.main:app --reload
+uv run python scripts/run.py
 ```
 
-Then open <http://127.0.0.1:8000>. Press `F` for fullscreen and leave it.
+The last line serves the app and opens <http://127.0.0.1:8000> once it answers. Press `F` for
+fullscreen and leave it. `uv run uvicorn app.main:app --reload` is the same server without the
+browser step — uvicorn starts, prints the URL and waits, which is worth knowing because a
+successful start looks exactly like a hang.
 
 Fuller instructions, including what each step buys you, are in [docs/setup.md](docs/setup.md).
 
@@ -260,7 +263,7 @@ so the failed round trip is paid once rather than every rotation.
 ## Testing
 
 ```bash
-uv run pytest                 # 587 tests: unit, contract, integration. No network
+uv run pytest                 # 609 tests: unit, contract, integration. No network
 uv run pytest -m live         # 9, against the real AIC API and a real AI provider if keyed
 uv run pytest -m e2e          # 9 Playwright flows; they start their own servers
 uv run ruff check . && uv run ruff format --check . && uv run mypy app

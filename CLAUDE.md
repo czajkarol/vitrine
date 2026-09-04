@@ -148,7 +148,8 @@ Do not add "verify your work" ceremony beyond this. Run the checks once, read th
 
 ```bash
 uv sync --all-extras          # or: pip install -e ".[dev]"
-uv run uvicorn app.main:app --reload
+uv run python scripts/run.py  # serve, then open a browser once it answers
+uv run uvicorn app.main:app --reload          # the same, without the browser
 uv run pytest                 # excludes live/e2e by default
 uv run pytest -m live         # hits the real AIC API, run manually
 uv run ruff check . && uv run ruff format --check .
