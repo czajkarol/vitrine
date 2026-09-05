@@ -301,17 +301,25 @@ who is *reading*, not a way to stop the display.
 
 ### Controls on the display
 
-Five buttons, plus the caption itself, and they are the only clickable controls outside the
-settings panel: back, next, like, dislike, settings, and — when a provider can write one —
-describe aloud. They live inside the overlay, which is hidden at rest, so "no visible controls
-at rest" is unaffected.
+Six buttons, plus the caption itself, and they are the only clickable controls outside the
+settings panel: back, next, like, dislike, never again, settings, and — when a provider can
+write one — describe aloud. They live inside the overlay, which is hidden at rest, so "no
+visible controls at rest" is unaffected.
 
 **The gear is the last of them and is set apart from the rest**, because it is the one control
 there that is not about the artwork on screen. It exists because `S` is not an affordance:
 somebody who had only ever used the mouse had no way to find out from the screen that the app
 had settings at all.
 
-`X` has no button. "Never show this again" is not a thing to put one click away from a cursor.
+**"Never show this again" has a button now, and it takes two clicks.** This file refused it
+outright until M18 — "not a thing to put one click away from a cursor" — and the reasoning was
+sound: the artwork leaves the screen the moment the verdict lands, so a mis-click is a
+permanent decision the user cannot see well enough to undo. What was wrong was the conclusion.
+The answer to an irreversible control is a confirm step, not no control, and no control left
+the one verdict that changes the collection most reachable only by a key nobody had been told
+about. So the first click arms it — the button turns, and both the label and the status line
+say what the next click does — and it forgets after four seconds. `X` stays a single press: a
+key nobody hits by accident does not need the guard.
 
 The overlay itself keeps `pointer-events: none` so it cannot swallow the movement that reveals
 it; the buttons, the caption, the expanded description and the accessibility section take the
@@ -654,22 +662,57 @@ A small panel, not a page. Source, mode, interval, filters, ambient mode, AI pro
 language, and the keyboard map. Persisted locally. Opening settings pauses rotation; closing
 resumes.
 
-**Three tabs since M18**, because one column had grown to nine groups with the API key — the
-one control here that is not a preference — in the middle of them:
+**Two tabs since M18**, and the split is one cut — everything about what the display shows,
+and the AI provider:
 
-- **Display** — source, mode, rotation, ambient, language
-- **Filters** — the three vocabularies and the saved combinations
-- **AI** — provider and key
+1. Source
+2. Mode
+3. Rotation
+4. Ambient
+5. Filters
+6. Saved filter sets
+7. Language
 
-The split is by what a setting is about rather than by how often it is touched. The keyboard
-map and the Esc hint stay below the tabs, because neither is a setting and `?` opens the map
-from anywhere. Which tab is showing is remembered for the life of the page and not persisted:
-coming back to the tab you were last in is worth having inside a session, while a *saved* tab
-means the panel opens on the API key months later because that is where you once were.
+and, behind the second tab, the AI provider and key. It was three tabs for a day, with the
+filters behind one of them. They are the control reached for most often here, a tab is the
+wrong place for that, and everything above them is now compact enough that they are on the
+first page without scrolling. What is left behind a tab is the one control here that is not a
+preference: a secret.
+
+The keyboard map and the Esc hint stay below the tabs, because neither is a setting and `?`
+opens the map from anywhere. Which tab is showing is remembered for the life of the page and
+not persisted: coming back to the tab you were last in is worth having inside a session, while
+a *saved* tab means the panel opens on the API key months later because that is where you once
+were.
 
 There is no arrow-key roving between the tabs, which is what the ARIA practices ask for. The
-arrow keys belong to the history stack in this app and would do both things at once, so all
-three tabs are in the tab order instead.
+arrow keys belong to the history stack in this app and would do both things at once, so both
+tabs are in the tab order instead.
+
+**A scale of a handful of values is a row.** Rotation, mode and language are segmented rows
+rather than stacks of radios — five, three and two lines of dot-plus-label to offer five, three
+and two choices was most of the panel's height. They are still radios: the input is hidden from
+view rather than removed, so each group keeps its keyboard behaviour and a screen reader still
+hears the options with one chosen.
+
+**Mode explains the mode you are in, not all three at once.** One line under the row saying what
+the selected mode does, and one disclosure under that holding the long version — Curated's
+weights, or how "For you" is built. It was three stacked radios each carrying its own hint plus
+a separate disclosure for Curated: five lines and a triangle to offer three choices. Random has
+nothing to open, so on Random no triangle is offered at all.
+
+**"For you" says how it works, and every claim in it is a line in `app/domain/affinity.py`.**
+It re-ranks the Curated picks rather than replacing them, at most roughly doubling a score; it
+counts the facets of the favourites, weighting subject over style over artwork type; and only
+explicit presses count — likes, dislikes and hides, nothing read from what was skipped or how
+long anything was looked at. The visible line above it says whether it is personalising *yet*,
+because below the threshold it is serving Curated picks and saying otherwise would be the kind
+of small lie that makes a panel untrustworthy.
+
+**The saved-filter group is named for the act, not the noun.** "Saved filters" sitting under a
+group called "Filters" read as a second list of filters rather than as a way to keep the first
+one; it is "saved filter sets" now, and the line under it says what to do — name the filters
+above to bring them back later.
 
 **It is still a form, and it no longer reads as a form bolted onto an ambient display.** The
 panel is set in the museum's face, not the interface sans — the two-voices rule exists so

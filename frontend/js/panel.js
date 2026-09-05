@@ -37,6 +37,8 @@ export function createPanel(elements, handlers) {
   const tabs = [...panel.querySelectorAll('[role="tab"]')];
   const tabPanels = [...panel.querySelectorAll('[role="tabpanel"]')];
   const aiExplain = panel.querySelector('#panel-ai-explain');
+  const modeHint = panel.querySelector('#panel-mode-hint');
+  const modeExplain = panel.querySelector('#panel-mode-explain');
   const aiStorageSummary = panel.querySelector('#panel-ai-storage-summary');
 
   let open = false;
@@ -151,6 +153,7 @@ export function createPanel(elements, handlers) {
 
   function applySelection() {
     for (const input of modeInputs) input.checked = input.value === current.mode;
+    renderModeExplain();
     for (const input of museumInputs) input.checked = input.value === current.museum;
     for (const input of languageInputs) input.checked = input.value === current.language;
     ambientInput.checked = current.ambient;
@@ -621,6 +624,8 @@ export function createPanel(elements, handlers) {
   for (const input of modeInputs) {
     input.addEventListener('change', () => {
       current = { ...current, mode: input.value };
+      // The line under the row and what the triangle holds both follow the selection.
+      renderModeExplain();
       handlers.onModeChange(current.mode);
     });
   }
@@ -737,11 +742,37 @@ export function createPanel(elements, handlers) {
     }
   }
 
-  /** "For you" says what it is doing, because below the threshold it is not doing it. */
-  function renderPersonalHint() {
-    const hint = document.getElementById('panel-personal-hint');
-    if (!hint || !feedbackSummary) return;
-    hint.textContent = feedbackSummary.personalising
+  /**
+   * What the selected mode does, in one line, and what is behind the triangle under it.
+   *
+   * The three modes were three stacked radios each carrying its own hint, plus a separate
+   * disclosure for Curated — five lines and a triangle to offer three choices. One line and
+   * one triangle now, both following the selection, so the panel explains the mode you are
+   * in rather than all of them at once.
+   *
+   * "For you" says whether it is personalising *yet*, because below the threshold it is
+   * not: a mode that quietly serves Curated picks while calling itself personal is the kind
+   * of small lie that makes a panel untrustworthy.
+   */
+  function renderModeExplain() {
+    if (modeHint) modeHint.textContent = modeHintText();
+    const curated = document.getElementById('panel-explain-curated');
+    const personal = document.getElementById('panel-explain-personal');
+    if (curated) curated.hidden = current.mode !== 'curated';
+    if (personal) personal.hidden = current.mode !== 'personal';
+    // Random has nothing to open, so the triangle is not offered at all rather than
+    // opening onto an empty box.
+    if (modeExplain) {
+      modeExplain.hidden = current.mode === 'random';
+      if (modeExplain.hidden) modeExplain.open = false;
+    }
+  }
+
+  function modeHintText() {
+    if (current.mode === 'random') return t('mode_random_hint');
+    if (current.mode === 'curated') return t('mode_curated_hint');
+    if (!feedbackSummary) return t('mode_personal_hint');
+    return feedbackSummary.personalising
       ? t('mode_personal_hint_active', { likes: feedbackSummary.likes })
       : t('mode_personal_hint_cold', {
           likes: feedbackSummary.likes,
@@ -784,7 +815,7 @@ export function createPanel(elements, handlers) {
       // "missing translation" warnings for strings that were about to arrive.
       renderIntervals();
       feedbackSummary = await fetchFeedbackSummary();
-      renderPersonalHint();
+      renderModeExplain();
       if (scoring === null) {
         scoring = await fetchScoring();
         renderScoring();
@@ -847,7 +878,7 @@ export function createPanel(elements, handlers) {
     retranslate() {
       if (open) renderIntervals();
       renderScoring();
-      renderPersonalHint();
+      renderModeExplain();
       if (loaded) renderFilters();
       else for (const group of groups) group.refresh(facetLabel);
       renderAiKey();

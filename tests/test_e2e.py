@@ -28,8 +28,9 @@ exclude over at all.
 Still nine after M18, which changed how two of them reach a control rather than adding a
 tenth. The details are opened by clicking the caption now rather than by an `i` button, so
 flow 9 clicks `#ov-facts` and asserts on `#ov-extra` — the catalogue facts, hidden at rest —
-rather than on an attribute that only restates the click. And the settings are three tabs, so
-the flows that reach for a filter say which one they want.
+rather than on an attribute that only restates the click. And the settings are tabbed, so
+`open_settings` names the tab it wants; the filters are on the first page, so the filter flows
+take the default.
 
 **The ninth is slow on purpose and is the only slow one.** It waits out a real rotation
 interval, because the bug it covers is precisely that the clock keeps running when it has
@@ -70,12 +71,13 @@ pytestmark = pytest.mark.e2e
 
 
 def open_settings(page, tab: str = "display"):
-    """Open the panel, and bring one of its three tabs up.
+    """Open the panel, and bring one of its two tabs up.
 
     Since M18 the settings are tabbed and only the first tab is on screen when the panel
-    opens, so a flow that reaches for a filter or the API key has to say which one it wants
-    — everything in the other two is `hidden`, and Playwright rightly refuses to click a
-    control nobody can see. `s` toggles, so a panel that is already open is left open.
+    opens, so a flow that reaches for the API key has to say so — everything in the other
+    tab is `hidden`, and Playwright rightly refuses to click a control nobody can see. The
+    filters live on the first page, so the default is enough for them. `s` toggles, so a
+    panel that is already open is left open.
     """
     if VISIBLE.search(page.locator("#panel").get_attribute("class") or "") is None:
         page.keyboard.press("s")
@@ -339,12 +341,15 @@ class TestSmokeFlows:
         display.keyboard.press("s")
         expect(display.locator("#panel")).to_have_class(VISIBLE)
 
-        display.locator('input[name="language"][value="pl"]').check()
+        # The label, not the input. Language is a segmented row since M18 and the radio
+        # inside each segment is hidden from view — still focusable and still announced, but
+        # not something Playwright will `check()`, and not what a person clicks either.
+        display.locator('.panel-segment:has(input[name="language"][value="pl"])').click()
         expect(display.locator(".panel-heading")).to_have_text("Ustawienia")
         # Screen readers and hyphenation key off this, so it is part of the switch.
         assert display.locator("html").get_attribute("lang") == "pl"
 
-        display.locator('input[name="language"][value="en"]').check()
+        display.locator('.panel-segment:has(input[name="language"][value="en"])').click()
         expect(display.locator(".panel-heading")).to_have_text("Settings")
         assert display.locator("html").get_attribute("lang") == "en"
 
@@ -390,7 +395,7 @@ class TestSmokeFlows:
         the badge in the collapsed heading says so, and the served artwork actually stops
         being the excluded type.
         """
-        open_settings(display, "filters")
+        open_settings(display)
 
         clear_filters(display)
         group = open_group(display, "artwork-type")
@@ -459,7 +464,7 @@ class TestSmokeFlows:
             }"""
         )
 
-        open_settings(display, "filters")
+        open_settings(display)
         clear_filters(display)
         group = open_group(display, "artwork-type")
         facet = group.locator('.facet[data-value="type.print"]')
@@ -521,16 +526,10 @@ class TestSmokeFlows:
         # this flow is looking at, and no request leaves the machine.
         display.route(re.compile(r"/api/artwork/.*museum=cma"), lambda route: route.abort())
 
-        # Across two tabs, because that is where the two halves of this now live: the source
-        # is a display setting and the hint belongs to the filters. The tab clicks are not
-        # what is being tested and are the whole cost of the M18 split.
-        open_settings(display, "filters")
+        open_settings(display)
         expect(display.locator("#panel-filter-hint")).to_contain_text("exclude")
 
-        display.locator('.panel-tab[data-tab="display"]').click()
         display.locator('input[name="museum"][value="cma"]').check()
-
-        display.locator('.panel-tab[data-tab="filters"]').click()
         expect(display.locator("#panel-filter-hint")).not_to_contain_text("exclude")
 
         group = open_group(display, "artwork-type")

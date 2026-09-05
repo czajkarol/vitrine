@@ -39,8 +39,9 @@ or before a release. They are also how fixtures get refreshed.
 Still nine after M18, which changed how two of them reach a control rather than adding a
 tenth. Flow 9 clicks the caption, because that is what opens the details now; it asserts on
 `#ov-extra`, the catalogue facts that are hidden at rest, rather than on a restatement of the
-click. Flow 7 says which settings tab it wants before reaching for a filter — the panel is
-three tabs and the other two are `hidden`, which Playwright rightly refuses to click into.
+click. And the panel is tabbed, so `open_settings` names the tab it wants — a tab that is not
+showing is `hidden`, which Playwright rightly refuses to click into. The filters are on the
+first page, so the filter flows take the default.
 
 Playwright is slow and flaky in proportion to how much you ask of it. Everything not in that
 list belongs in a unit or integration test.

@@ -509,6 +509,16 @@ body {
   border-color: rgba(255, 255, 255, 0.45);
 }
 
+/* "Never show this again", after the first click and before the second. It is the one
+   control on the display that cannot be undone by pressing it again, so it says so twice:
+   in this colour, and in the label overlay text and screen readers both read. */
+.ov-button[data-armed='true'] {
+  background: rgba(200, 90, 90, 0.55);
+  border-color: rgba(240, 170, 170, 0.75);
+}
+
+.ov-button[data-armed='true']:hover { background: rgba(210, 100, 100, 0.7); }
+
 .ov-button:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.6);
   outline-offset: 2px;
@@ -584,7 +594,7 @@ body.cursor-idle * { cursor: none; }
   right: 0;
   bottom: 0;
   width: min(26rem, 90vw);
-  padding: 1.5rem 1.5rem 2rem;
+  padding: 1.5rem 1.5rem 1.4rem;
   overflow-y: auto;
   /* Warm, and translucent enough that the artwork is still there behind it. The old value
      was #0e0e10 at 96% — a cold slab against a ground that is deliberately not cold. The
@@ -789,6 +799,16 @@ body.cursor-idle * { cursor: none; }
 }
 
 .panel-segment:hover { background: rgba(255, 255, 255, 0.06); color: var(--fg); }
+
+/* A segment the current source cannot honour — Curated and For you on a live museum.
+   Dimmed and left in place rather than removed: a row that loses a third of itself when
+   the source changes is harder to read than a greyed one. */
+.panel-segment:has(input:disabled) {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.panel-segment:has(input:disabled):hover { background: transparent; color: var(--fg-dim); }
 
 .panel-segment:has(input:checked) {
   background: rgba(255, 255, 255, 0.13);
@@ -1094,6 +1114,12 @@ body.cursor-idle * { cursor: none; }
   opacity: 0.7;
 }
 
+/* The line under a segmented row, saying what the selected value does. Tight to the row
+   above it, because it is a caption for that row rather than a paragraph of its own. */
+.panel-inline-hint {
+  margin: 0.4rem 0 0;
+}
+
 /* An option the current selection rules out. Dimmed and left in place rather than
    removed - a list that reshuffles under the cursor is worse than a greyed row. */
 .panel-option.is-disabled {
@@ -1179,9 +1205,7 @@ body.cursor-idle * { cursor: none; }
 }
 
 .panel-hint {
-  margin: 1.5rem 0 0;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin: 0.45rem 0 0;
   color: var(--fg-dim);
   font-family: var(--font-ui);
   font-size: 0.73rem;
@@ -1193,10 +1217,14 @@ body.cursor-idle * { cursor: none; }
    does. Translated like every other string - thirteen shortcuts documented only in a
    file nobody using the app reads were thirteen shortcuts nobody knew about. */
 /* Below the tabs rather than in one of them, because it is not a setting: it is where the
-   app explains itself, and `?` opens it from anywhere. */
+   app explains itself, and `?` opens it from anywhere.
+
+   One hairline for the pair, and the Esc line tucked straight under the triangle. It was
+   two hairlines and two 1.5rem gaps to hold a disclosure and one line of text — a footer
+   taking more room than the group above it. */
 .panel-help {
-  margin-top: 1.5rem;
-  padding-top: 1.25rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 

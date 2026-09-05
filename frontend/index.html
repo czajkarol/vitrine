@@ -53,13 +53,19 @@
                 data-i18n-aria-label="previous_artwork">&larr;</button>
         <button type="button" id="ov-next" class="ov-button"
                 data-i18n-aria-label="next_artwork">&rarr;</button>
-        <!-- The two verdicts that change what the display will show you later. `L` and `D`
-             do the same from the keyboard; `X` has no button, because "never again" is
-             not a thing to put one click away. -->
+        <!-- The three verdicts that change what the display will show you later. `L`, `D`
+             and `X` do the same from the keyboard. -->
         <button type="button" id="ov-like" class="ov-button" aria-pressed="false"
                 data-i18n-aria-label="like_artwork">&#9825;</button>
         <button type="button" id="ov-dislike" class="ov-button" aria-pressed="false"
                 data-i18n-aria-label="dislike_artwork">&#8681;</button>
+        <!-- Never again. It takes two clicks and the second one has a few seconds to
+             arrive: the artwork leaves the screen the moment this lands, so a mis-click is
+             a permanent decision the user cannot see well enough to undo. `X` stays a
+             single press, because a key nobody hits by accident does not need the guard.
+             docs/product-spec.md. -->
+        <button type="button" id="ov-hide" class="ov-button"
+                data-i18n-aria-label="hide_artwork">&#8856;</button>
         <!-- The accessibility description. Hidden unless the server says a provider can
              write one — a control that is offered and then refuses is worse than one that
              is not offered. -->
@@ -129,23 +135,19 @@
          data-i18n-aria-label="settings_title" inert>
     <h2 class="panel-heading" data-i18n="settings_title">Settings</h2>
 
-    <!-- Three tabs, because one column had grown to nine groups and the AI key — the one
-         control here that is not a preference — sat in the middle of them. The split is by
-         what a setting is about rather than by how often it is touched: what is shown, what
-         it is narrowed to, and the provider.
+    <!-- Two tabs, and the split is one cut: everything about what the display shows, and
+         the AI provider. It was three until the filters came back to the first page — they
+         are the thing most often reached for, and a tab is the wrong place for that. What
+         is left behind a tab is the one control here that is not a preference: a secret.
 
          No arrow-key roving between the tabs, which is what the ARIA practices ask for:
          the arrow keys belong to the history stack in this app (`shortcuts.js`) and would
-         do both things at once. All three are in the tab order instead, which is a plainer
-         way to reach the same three buttons. The keyboard map and the Esc hint stay below
-         the tabs, because neither is a setting. -->
+         do both things at once. Both are in the tab order instead. The keyboard map and the
+         Esc hint stay below the tabs, because neither is a setting. -->
     <div class="panel-tabs" role="tablist" data-i18n-aria-label="settings_title">
       <button type="button" class="panel-tab" role="tab" id="tab-display"
               aria-controls="panel-tab-display" aria-selected="true"
               data-tab="display" data-i18n="tab_display">Display</button>
-      <button type="button" class="panel-tab" role="tab" id="tab-filters"
-              aria-controls="panel-tab-filters" aria-selected="false"
-              data-tab="filters" data-i18n="tab_filters">Filters</button>
       <button type="button" class="panel-tab" role="tab" id="tab-ai"
               aria-controls="panel-tab-ai" aria-selected="false"
               data-tab="ai" data-i18n="tab_ai">AI</button>
@@ -154,7 +156,10 @@
     <div class="panel-tabpanel" id="panel-tab-display" role="tabpanel"
          aria-labelledby="tab-display" data-tab="display">
 
-    <!-- Which museum. First, because it changes what every group below it can offer. -->
+    <!-- Which museum. First, because it changes what every group below it can offer.
+         The one group still set out as a stack: the two names are long, and the line under
+         each says what the source can and cannot do, which is not a preference somebody
+         should have to select to find out. -->
     <fieldset class="panel-group">
       <legend data-i18n="museum_legend">Source</legend>
       <label class="panel-option panel-option-stacked">
@@ -173,59 +178,78 @@
       </label>
     </fieldset>
 
-    <!-- Each mode is a name and a quieter second line. The em dash that used to join
-         them was doing a job a layout should do, so the dashes left the strings. -->
+    <!-- Three modes in a row, one line saying what the selected one does, and one triangle
+         holding the long version of it. It was three stacked radios each carrying its own
+         hint, plus a separate disclosure for Curated — five lines and a triangle to offer
+         three choices. The line and the triangle both follow the selection now, so the
+         panel explains the mode you are in rather than all of them at once. -->
     <fieldset class="panel-group" id="panel-mode-group">
       <legend data-i18n="mode_legend">Mode</legend>
-      <label class="panel-option panel-option-stacked">
-        <input type="radio" name="mode" value="random" checked>
-        <span>
-          <span class="panel-option-name" data-i18n="mode_random">Random</span>
-          <span class="panel-option-hint" data-i18n="mode_random_hint">Anything in the collection</span>
-        </span>
-      </label>
-      <label class="panel-option panel-option-stacked">
-        <input type="radio" name="mode" value="curated">
-        <span>
-          <span class="panel-option-name" data-i18n="mode_curated">Curated</span>
-          <span class="panel-option-hint" data-i18n="mode_curated_hint">Ranked by a transparent score</span>
-        </span>
-      </label>
-      <label class="panel-option panel-option-stacked">
-        <input type="radio" name="mode" value="personal">
-        <span>
-          <span class="panel-option-name" data-i18n="mode_personal">For you</span>
-          <span class="panel-option-hint" id="panel-personal-hint" data-i18n="mode_personal_hint">Built from what you have liked</span>
-        </span>
-      </label>
+      <div class="panel-segments">
+        <label class="panel-option panel-segment">
+          <input type="radio" name="mode" value="random" checked>
+          <span data-i18n="mode_random">Random</span>
+        </label>
+        <label class="panel-option panel-segment">
+          <input type="radio" name="mode" value="curated">
+          <span data-i18n="mode_curated">Curated</span>
+        </label>
+        <label class="panel-option panel-segment">
+          <input type="radio" name="mode" value="personal">
+          <span data-i18n="mode_personal">For you</span>
+        </label>
+      </div>
+      <!-- What the selected mode does, in one line. For "For you" it also says whether it
+           is personalising yet, because below the threshold it is not. -->
+      <p id="panel-mode-hint" class="panel-summary panel-inline-hint"></p>
       <!-- Shown only while a live source is selected: those two modes rank against a score
            the index carries, and a live source has no index. -->
       <p class="panel-summary panel-mode-note" data-i18n="mode_needs_index" hidden>
         Curated and For you need the local index, so they are only available for the Art Institute.
       </p>
 
-      <!-- What the curated score actually weighs, with the numbers read from
-           /api/scoring rather than written here — a weight retuned in the code updates
-           this instead of quietly making it wrong. -->
-      <details class="panel-explain">
-        <summary data-i18n="scoring_explain_open">How Curated ranks</summary>
-        <p class="panel-summary" data-i18n="scoring_explain_intro">
-          Curated ranks every indexed artwork by a weighted score over six signals, all of
-          them real fields from the museum's data.
-        </p>
-        <ul id="panel-scoring" class="panel-weights"></ul>
-        <p class="panel-summary" data-i18n="scoring_explain_caveat">
-          These are our heuristics about what suits a screen, not claims about art.
-        </p>
+      <!-- One disclosure, whose contents follow the selection. Curated's numbers are read
+           from /api/scoring rather than written here — a weight retuned in the code updates
+           this instead of quietly making it wrong. Random has nothing to open, so on Random
+           the triangle is not offered at all. -->
+      <details class="panel-explain" id="panel-mode-explain">
+        <summary data-i18n="mode_explain_open">How this works</summary>
+
+        <div id="panel-explain-curated" hidden>
+          <p class="panel-summary" data-i18n="scoring_explain_intro">
+            Curated ranks every indexed artwork by a weighted score over six signals, all of
+            them real fields from the museum's data.
+          </p>
+          <ul id="panel-scoring" class="panel-weights"></ul>
+          <p class="panel-summary" data-i18n="scoring_explain_caveat">
+            These are our heuristics about what suits a screen, not claims about art.
+          </p>
+        </div>
+
+        <!-- What "For you" actually does. Every claim here is a line in
+             `app/domain/affinity.py`; if it stops being true there, it stops being true
+             here. ADR-0010. -->
+        <div id="panel-explain-personal" hidden>
+          <p class="panel-summary" data-i18n="personal_explain_intro">
+            For you re-ranks the Curated picks by what you have liked. It does not replace
+            the quality score — a perfect match roughly doubles it.
+          </p>
+          <p class="panel-summary" data-i18n="personal_explain_signals">
+            It counts the facets of your favourites: what the picture is of weighs most,
+            then its culture and period, then the kind of object.
+          </p>
+          <p class="panel-summary" data-i18n="personal_explain_explicit">
+            Only what you press counts — likes, dislikes and hides. Nothing is read from
+            what you skip or how long you look.
+          </p>
+        </div>
       </details>
     </fieldset>
 
     <!-- Built by panel.js from the list in rotation.js, so the menu of intervals has
-         exactly one definition. -->
+         exactly one definition. One row, not five: see `renderIntervals`. -->
     <fieldset class="panel-group">
       <legend data-i18n="interval_legend">Rotation</legend>
-      <!-- One row, not five. See `renderIntervals` in panel.js: these are the shortest
-           labels in the panel and were taking a sixth of its height as a stack. -->
       <div id="panel-intervals" class="panel-segments"></div>
     </fieldset>
 
@@ -239,29 +263,14 @@
       </label>
     </fieldset>
 
-    <fieldset class="panel-group">
-      <legend data-i18n="language_legend">Language</legend>
-      <label class="panel-option">
-        <input type="radio" name="language" value="en" checked>
-        <!-- Language names stay in their own language in both locales: someone looking for
-             Polish is looking for the word "Polski". -->
-        <span data-i18n="language_en">English</span>
-      </label>
-      <label class="panel-option">
-        <input type="radio" name="language" value="pl">
-        <span data-i18n="language_pl">Polski</span>
-      </label>
-    </fieldset>
-
-    </div><!-- /panel-tab-display -->
-
-    <div class="panel-tabpanel" id="panel-tab-filters" role="tabpanel"
-         aria-labelledby="tab-filters" data-tab="filters" hidden>
-
     <!-- Filters. One collapsible group per vocabulary, each a list of tri-state rows:
          click to include, again to exclude, again to clear. Until M13 inclusion and
          exclusion were two separate lists of the same sixty facets in two places, which
-         meant finding a facet twice to rule it out. -->
+         meant finding a facet twice to rule it out.
+
+         Back on the first page, where they were before M18 put them behind a tab. They are
+         the control reached for most often here, and everything above them is now compact
+         enough that they are on screen without scrolling. -->
     <fieldset class="panel-group panel-filters">
       <legend data-i18n="filters_legend">Filters</legend>
       <p id="panel-summary" class="panel-summary"></p>
@@ -315,30 +324,51 @@
         <button type="button" id="panel-reset-filters" hidden
                 data-i18n="filters_reset">Clear all filters</button>
       </div>
+    </fieldset>
 
-      <!-- Saved combinations. A list of buttons rather than a <select>, because the panel
-           has no selects and because a select needs an apply step: here the name is the
-           button. The name field is pre-filled from whatever is currently selected, so
-           saving is one action for somebody who does not want to think of a name, and
-           overwritable for somebody who does. -->
-      <div class="panel-presets">
-        <h3 class="panel-subhead" data-i18n="presets_legend">Saved filters</h3>
-        <p id="panel-preset-empty" class="panel-summary" data-i18n="presets_empty">
-          Nothing saved yet. Choose some filters and give them a name.
-        </p>
-        <div id="panel-preset-list" class="panel-preset-list"></div>
-        <p id="panel-preset-note" class="panel-summary" hidden></p>
-        <div class="panel-preset-save">
-          <input type="text" id="panel-preset-name" class="panel-input"
-                 maxlength="60" autocomplete="off"
-                 data-i18n-placeholder="presets_name_placeholder" placeholder="Name these filters">
-          <button type="button" id="panel-preset-save"
-                  data-i18n="presets_save">Save</button>
-        </div>
+    <!-- Saved combinations. A list of buttons rather than a <select>, because the panel
+         has no selects and because a select needs an apply step: here the name is the
+         button. The name field is pre-filled from whatever is currently selected, so
+         saving is one action for somebody who does not want to think of a name, and
+         overwritable for somebody who does.
+
+         The heading and the line under it say what the group is *for*. "Saved filters"
+         beside a group called "Filters" named the noun and not the act, and read as a
+         second list of filters rather than as a way to keep the first one. -->
+    <fieldset class="panel-group panel-presets">
+      <legend data-i18n="presets_legend">Saved filter sets</legend>
+      <p id="panel-preset-empty" class="panel-summary" data-i18n="presets_empty">
+        Name the filters above to bring them back later.
+      </p>
+      <div id="panel-preset-list" class="panel-preset-list"></div>
+      <p id="panel-preset-note" class="panel-summary" hidden></p>
+      <div class="panel-preset-save">
+        <input type="text" id="panel-preset-name" class="panel-input"
+               maxlength="60" autocomplete="off"
+               data-i18n-placeholder="presets_name_placeholder" placeholder="Name these filters">
+        <button type="button" id="panel-preset-save"
+                data-i18n="presets_save">Save</button>
       </div>
     </fieldset>
 
-    </div><!-- /panel-tab-filters -->
+    <!-- Two values, so a row like the intervals above rather than two lines with a dot
+         each. Language names stay in their own language in both locales: someone looking
+         for Polish is looking for the word "Polski". -->
+    <fieldset class="panel-group">
+      <legend data-i18n="language_legend">Language</legend>
+      <div class="panel-segments">
+        <label class="panel-option panel-segment">
+          <input type="radio" name="language" value="en" checked>
+          <span data-i18n="language_en">English</span>
+        </label>
+        <label class="panel-option panel-segment">
+          <input type="radio" name="language" value="pl">
+          <span data-i18n="language_pl">Polski</span>
+        </label>
+      </div>
+    </fieldset>
+
+    </div><!-- /panel-tab-display -->
 
     <div class="panel-tabpanel" id="panel-tab-ai" role="tabpanel"
          aria-labelledby="tab-ai" data-tab="ai" hidden>
@@ -351,15 +381,17 @@
       <legend data-i18n="ai_key_legend">AI interpretation</legend>
       <p id="panel-ai-status" class="panel-summary"></p>
       <div id="panel-ai-form">
-        <label class="panel-option">
-          <input type="radio" name="ai-provider" value="anthropic" checked>
-          <!-- Vendor names, not interface text: the same in every locale. -->
-          <span>Anthropic</span>
-        </label>
-        <label class="panel-option">
-          <input type="radio" name="ai-provider" value="openai">
-          <span>OpenAI</span>
-        </label>
+        <div class="panel-segments">
+          <label class="panel-option panel-segment">
+            <input type="radio" name="ai-provider" value="anthropic" checked>
+            <!-- Vendor names, not interface text: the same in every locale. -->
+            <span>Anthropic</span>
+          </label>
+          <label class="panel-option panel-segment">
+            <input type="radio" name="ai-provider" value="openai">
+            <span>OpenAI</span>
+          </label>
+        </div>
         <input type="password" id="panel-ai-key" class="panel-input"
                autocomplete="off" spellcheck="false"
                data-i18n-placeholder="ai_key_placeholder" placeholder="Paste your API key">
@@ -417,7 +449,7 @@
       </dl>
     </details>
 
-    <p class="panel-hint" data-i18n="panel_hint">Esc to close. Rotation is paused while this is open.</p>
+    <p class="panel-hint" data-i18n="panel_hint">Esc to close. Rotation is paused.</p>
   </aside>
 
   <script type="module" src="/js/main.js"></script>

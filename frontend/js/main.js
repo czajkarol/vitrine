@@ -67,6 +67,7 @@ const backButton = document.getElementById('ov-back');
 const likeButton = document.getElementById('ov-like');
 const dislikeButton = document.getElementById('ov-dislike');
 const describeButton = document.getElementById('ov-describe');
+const hideButton = document.getElementById('ov-hide');
 const settingsButton = document.getElementById('ov-settings');
 
 // The verdict on the artwork on screen: 'like', 'dislike', 'hide' or null. Set from the
@@ -378,6 +379,7 @@ async function setVerdict(kind) {
 async function hideArtwork() {
   const { artwork } = getState();
   if (!artwork) return;
+  disarmHide();
   try {
     await saveFeedback(artwork, 'hide');
   } catch (error) {
@@ -391,6 +393,46 @@ async function hideArtwork() {
   // The preloaded artwork was chosen before this one was hidden, and is fine — but the
   // one just hidden must not come back on the next rotation.
   advance();
+}
+
+// --- Never show this one again, as a button --------------------------------------
+//
+// `docs/product-spec.md` refused this control until M18 and the reasoning was sound: the
+// artwork leaves the screen the moment it lands, so a mis-click is a permanent decision the
+// user cannot see well enough to undo. What was wrong was the conclusion. The answer to an
+// irreversible control is a confirm step, not no control — leaving the one verdict that
+// matters most reachable only by a key nobody had been told about.
+//
+// So it arms on the first click and acts on the second, and forgets after a few seconds.
+// `X` stays a single press: a key nobody hits by accident does not need the guard.
+const HIDE_CONFIRM_MS = 4000;
+
+let hideArmed = false;
+let hideArmTimer = null;
+
+function disarmHide() {
+  clearTimeout(hideArmTimer);
+  hideArmTimer = null;
+  if (!hideArmed) return;
+  hideArmed = false;
+  hideButton?.removeAttribute('data-armed');
+  hideButton?.setAttribute('aria-label', t('hide_artwork'));
+}
+
+function armHide() {
+  hideArmed = true;
+  hideButton?.setAttribute('data-armed', 'true');
+  // The label changes as well as the styling, so the state is not carried by colour alone
+  // and a screen reader hears that the next press is the one that acts.
+  hideButton?.setAttribute('aria-label', t('hide_artwork_confirm'));
+  flashStatus(t('hide_confirm'));
+  clearTimeout(hideArmTimer);
+  hideArmTimer = setTimeout(disarmHide, HIDE_CONFIRM_MS);
+}
+
+function onHideClick() {
+  if (hideArmed) void hideArtwork();
+  else armHide();
 }
 
 function renderVerdict() {
@@ -446,6 +488,9 @@ function presentArtwork(prepared, { record = true } = {}) {
   // rather than a moment later.
   verdict = artwork.feedback ?? (artwork.liked ? 'like' : null);
   renderVerdict();
+  // An armed "never again" belongs to the artwork it was armed on. Carrying it across a
+  // rotation would mean one click hiding a picture the user has not looked at yet.
+  disarmHide();
   // The previous artwork's generated text is about a picture nobody is looking at.
   cancelInterpretation();
   cancelDescription();
@@ -748,6 +793,7 @@ function toggleSuppressed() {
   if (suppressed) {
     cancelInterpretation();
     cancelDescription();
+    disarmHide();
     setOverlayPinned(false);
   }
 }
@@ -889,6 +935,7 @@ backButton?.addEventListener('click', () => void travel(-1));
 likeButton?.addEventListener('click', () => void setVerdict('like'));
 dislikeButton?.addEventListener('click', () => void setVerdict('dislike'));
 describeButton?.addEventListener('click', () => void requestDescription());
+hideButton?.addEventListener('click', onHideClick);
 settingsButton?.addEventListener('click', () => void toggleSettings());
 document.getElementById('access-play')?.addEventListener('click', () => access.speak());
 document.getElementById('access-stop')?.addEventListener('click', () => access.stop());
@@ -925,6 +972,7 @@ bindShortcuts({
     setOverlayPinned(false);
     cancelInterpretation();
     cancelDescription();
+    disarmHide();
   },
   /**
    * Keep this one up a while longer.
@@ -971,6 +1019,8 @@ function retranslate() {
   const { artwork } = getState();
   if (artwork) overlay.render(artwork);
   panel.retranslate();
+  // i18n.applyTo has just written the resting label back over the armed one.
+  if (hideArmed) hideButton?.setAttribute('aria-label', t('hide_artwork_confirm'));
   interpretation.retranslate();
   access.retranslate();
   if (statusKey) elements.status.textContent = t(statusKey);

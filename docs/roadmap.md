@@ -584,6 +584,30 @@ Then a second pass, from the owner looking at it:
       have been styled at all, which the new ground made obvious
 - [x] Commit
 
+And a third, laying out the first page the way the owner wants to read it:
+
+- [x] **"For you" explains itself**, and every claim is a line in `app/domain/affinity.py`:
+      it re-ranks the Curated picks rather than replacing them, it weighs subject over style
+      over artwork type, and only explicit presses count
+- [x] **Mode is a row, with one line and one triangle under it**, both following the
+      selection. It was three stacked radios each carrying a hint plus a separate disclosure
+      for Curated — five lines and a triangle to offer three choices. Random offers no
+      triangle, because it has nothing to open
+- [x] **Language is a row too**, like rotation
+- [x] **The filters are back on the first page**, and the tab that held them is gone. Two tabs
+      now: the display, and the one control here that is not a preference. Order on page one is
+      source, mode, rotation, ambient, filters, saved filter sets, language
+- [x] **"Saved filters" is "saved filter sets"**, and the line under it says what to do rather
+      than that nothing is there. Named for the act, not the noun
+- [x] **The keyboard map and the Esc line share one hairline** and sit tight together. It was
+      two rules and two 1.5rem gaps to hold a disclosure and one line of text
+- [x] **"Never show this again" has a button**, and `docs/product-spec.md` reverses itself to
+      say so. It refused one outright — the artwork leaves the screen the moment the verdict
+      lands, so a mis-click is permanent and invisible — which was right about the risk and
+      wrong about the remedy. It arms on the first click, says so in the label and on the
+      status line, acts on the second, and forgets after four seconds. `X` stays one press
+- [x] Commit
+
 ---
 
 ## M19 — Inferred facets for Cleveland, as an experiment
