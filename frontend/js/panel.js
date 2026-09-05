@@ -31,8 +31,18 @@ export function createPanel(elements, handlers) {
   // other is what it should say.
   const presetNoteLine = elements.presetNote;
 
+  // Queried from the panel rather than passed in from main.js, the way the scoring list and
+  // the "For you" hint already are: these are the panel's own furniture, and main.js has no
+  // reason to know the settings are laid out in tabs at all.
+  const tabs = [...panel.querySelectorAll('[role="tab"]')];
+  const tabPanels = [...panel.querySelectorAll('[role="tabpanel"]')];
+  const aiExplain = panel.querySelector('#panel-ai-explain');
+  const aiStorageSummary = panel.querySelector('#panel-ai-storage-summary');
+
   let open = false;
   let loaded = false;
+  // Which of the three tabs is showing. Session-lived, not persisted — see `selectTab`.
+  let activeTab = tabs[0]?.dataset.tab ?? 'display';
   // The last answer from /api/ai/key: whether a provider is live, where its key is kept
   // and the last four characters of it. Never a key — the server has none to give.
   let keyStatus = null;
@@ -512,8 +522,18 @@ export function createPanel(elements, handlers) {
       aiStatusLine.textContent = t('ai_key_none');
     }
 
-    aiStorageLine.textContent =
-      keyStatus.storage === 'keyring' ? t('ai_storage_keyring') : t('ai_storage_database');
+    // Where the key is kept, twice: the one-line version in the summary, which is on screen
+    // whether or not anybody opens the disclosure, and the paragraph inside it. The short
+    // line is what `docs/ai-system.md` requires the UI to say — that the key is unencrypted
+    // where there is no password store — and the long one is why and what to do about it.
+    const keyring = keyStatus.storage === 'keyring';
+    aiStorageLine.textContent = t(keyring ? 'ai_storage_keyring' : 'ai_storage_database');
+    if (aiStorageSummary) {
+      aiStorageSummary.textContent = t(
+        keyring ? 'ai_storage_keyring_short' : 'ai_storage_database_short',
+      );
+    }
+    aiExplain?.classList.toggle('is-warning', !keyring);
     // Nothing to remove, and nothing this panel could remove: a key in .env is a file the
     // user edits themselves.
     aiClearButton.hidden = keyStatus.source === 'environment' || keyStatus.source === 'none';
@@ -655,6 +675,34 @@ export function createPanel(elements, handlers) {
   }
 
   /**
+   * Show one tab's panel and hide the others.
+   *
+   * `hidden` rather than a class, so the controls in a tab nobody is looking at are out of
+   * the tab order and off screen readers for free — the same reasoning as the `inert` on the
+   * closed panel itself.
+   *
+   * Which tab is showing is remembered for the life of the page but not persisted. Coming
+   * back to the tab you were last in is worth having inside a session; a *saved* tab means
+   * the panel opens on the API key months later because that is where you once were.
+   */
+  function selectTab(name) {
+    activeTab = name;
+    for (const tab of tabs) {
+      tab.setAttribute('aria-selected', String(tab.dataset.tab === name));
+    }
+    for (const tabPanel of tabPanels) {
+      tabPanel.hidden = tabPanel.dataset.tab !== name;
+    }
+    // A tab is a different page of the panel, so it starts at the top of itself rather than
+    // wherever the last one had been scrolled to.
+    panel.scrollTop = 0;
+  }
+
+  for (const tab of tabs) {
+    tab.addEventListener('click', () => selectTab(tab.dataset.tab));
+  }
+
+  /**
    * The curated weights, as a share of the total.
    *
    * The wording of each signal is a translated string; only the numbers come from the
@@ -715,6 +763,9 @@ export function createPanel(elements, handlers) {
       open = true;
       panel.classList.add('visible');
       panel.removeAttribute('inert');
+      // Also what draws the tabs for the first time: the markup ships with the first one
+      // selected, and this is what makes the DOM agree with `activeTab` on every open after.
+      selectTab(activeTab);
       // Read fresh on every open: someone may have liked several artworks since it was
       // last read, and "For you" saying it needs three more when it needs none is the kind
       // of small lie that makes a panel untrustworthy.
@@ -762,6 +813,11 @@ export function createPanel(elements, handlers) {
       if (!open) await this.show();
       const section = document.getElementById(id);
       if (!(section instanceof HTMLDetailsElement)) return;
+      // The keyboard map sits below the tabs and needs none of this, but a section that
+      // does live in one has to have its tab brought up first or it is `hidden` and
+      // scrolling to it does nothing.
+      const owner = section.closest('[role="tabpanel"]');
+      if (owner) selectTab(owner.dataset.tab);
       section.open = true;
       section.scrollIntoView({ block: 'nearest' });
       section.querySelector('summary')?.focus();

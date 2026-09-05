@@ -3,6 +3,9 @@
 // M13 added five: `D` for a dislike, `A` for the spoken description, the arrow keys for
 // the history stack, and `?` for the map itself — which is the one that makes the other
 // twelve discoverable, and should have been here from the start.
+//
+// M18 added `E`. The details used to be a button in the overlay and are now the caption
+// itself; without a key for it the one control that had a keyboard route would have lost it.
 
 // Keys 1-5, shortest first, so the row reads as a scale. Values are seconds.
 const INTERVAL_KEYS = { 1: 30, 2: 60, 3: 300, 4: 900, 5: 1800 };
@@ -92,6 +95,14 @@ export function bindShortcuts(handlers) {
       case 'I':
         event.preventDefault();
         handlers.onToggleOverlay();
+        break;
+      case 'e':
+      case 'E':
+        // Expand. The keyboard half of clicking the caption — the `i` button used to be
+        // both halves at once, and removing it would otherwise have left the details
+        // reachable only with a mouse. `I` still means pin, which is a different thing.
+        event.preventDefault();
+        handlers.onExpandDetails();
         break;
       case 's':
       case 'S':

@@ -25,6 +25,12 @@ be re-enabled, because two `/api/filters` answers came back out of order and the
 the stale one. The other is the same shape on a live source, which has no facet layer to
 exclude over at all.
 
+Still nine after M18, which changed how two of them reach a control rather than adding a
+tenth. The details are opened by clicking the caption now rather than by an `i` button, so
+flow 9 clicks `#ov-facts` and asserts on `#ov-extra` — the catalogue facts, hidden at rest —
+rather than on an attribute that only restates the click. And the settings are three tabs, so
+the flows that reach for a filter say which one they want.
+
 **The ninth is slow on purpose and is the only slow one.** It waits out a real rotation
 interval, because the bug it covers is precisely that the clock keeps running when it has
 been told not to, and nothing shorter can observe that. Forty seconds is the price of the
@@ -61,6 +67,20 @@ pytest.importorskip("playwright", reason="the e2e extra is not installed")
 from playwright.sync_api import Page, expect
 
 pytestmark = pytest.mark.e2e
+
+
+def open_settings(page, tab: str = "display"):
+    """Open the panel, and bring one of its three tabs up.
+
+    Since M18 the settings are tabbed and only the first tab is on screen when the panel
+    opens, so a flow that reaches for a filter or the API key has to say which one it wants
+    — everything in the other two is `hidden`, and Playwright rightly refuses to click a
+    control nobody can see. `s` toggles, so a panel that is already open is left open.
+    """
+    if VISIBLE.search(page.locator("#panel").get_attribute("class") or "") is None:
+        page.keyboard.press("s")
+        expect(page.locator("#panel")).to_have_class(VISIBLE)
+    page.locator(f'.panel-tab[data-tab="{tab}"]').click()
 
 
 def clear_filters(page):
@@ -370,8 +390,7 @@ class TestSmokeFlows:
         the badge in the collapsed heading says so, and the served artwork actually stops
         being the excluded type.
         """
-        display.keyboard.press("s")
-        expect(display.locator("#panel")).to_have_class(VISIBLE)
+        open_settings(display, "filters")
 
         clear_filters(display)
         group = open_group(display, "artwork-type")
@@ -440,8 +459,7 @@ class TestSmokeFlows:
             }"""
         )
 
-        display.keyboard.press("s")
-        expect(display.locator("#panel")).to_have_class(VISIBLE)
+        open_settings(display, "filters")
         clear_filters(display)
         group = open_group(display, "artwork-type")
         facet = group.locator('.facet[data-value="type.print"]')
@@ -503,11 +521,16 @@ class TestSmokeFlows:
         # this flow is looking at, and no request leaves the machine.
         display.route(re.compile(r"/api/artwork/.*museum=cma"), lambda route: route.abort())
 
-        display.keyboard.press("s")
-        expect(display.locator("#panel")).to_have_class(VISIBLE)
+        # Across two tabs, because that is where the two halves of this now live: the source
+        # is a display setting and the hint belongs to the filters. The tab clicks are not
+        # what is being tested and are the whole cost of the M18 split.
+        open_settings(display, "filters")
         expect(display.locator("#panel-filter-hint")).to_contain_text("exclude")
 
+        display.locator('.panel-tab[data-tab="display"]').click()
         display.locator('input[name="museum"][value="cma"]').check()
+
+        display.locator('.panel-tab[data-tab="filters"]').click()
         expect(display.locator("#panel-filter-hint")).not_to_contain_text("exclude")
 
         group = open_group(display, "artwork-type")
@@ -568,8 +591,12 @@ class TestSmokeFlows:
         # visible, and this test deliberately runs across the overlay's idle timer.
         before = display.locator("#ov-title").text_content()
 
-        display.locator("#ov-expand").click()
-        expect(display.locator("#ov-expand")).to_have_attribute("aria-expanded", "true")
+        # The caption itself, which is the control since M18 — there is no `i` button any
+        # more. `#ov-extra` is what says it worked: the catalogue facts are `hidden` at rest
+        # and shown only while the details are open, so it is the state rather than a
+        # restatement of the click.
+        display.locator("#ov-facts").click()
+        expect(display.locator("#ov-extra")).to_be_visible()
 
         # Somebody is reading, so the mouse moves. Without this the overlay's own 20s
         # reading timer fades it, which *collapses* the details and correctly releases the
@@ -585,15 +612,15 @@ class TestSmokeFlows:
         # Still expanded, because a rotation would have collapsed it — a second way of
         # asserting the same thing, and the one that would catch a rotation this test
         # happened to sample either side of.
-        expect(display.locator("#ov-expand")).to_have_attribute("aria-expanded", "true")
+        expect(display.locator("#ov-extra")).to_be_visible()
 
         # And the clock is held, not dead: collapsing releases it and the display advances.
         #
-        # The overlay's own button, not Space: the click above left focus on a `<button>`,
-        # and `shortcuts.js` deliberately leaves Space to a focused control that acts on it
-        # (`actsOnSpace`) — so Space here would re-toggle the details rather than advance.
-        # That is the right behaviour and this test tripped over it.
-        display.locator("#ov-expand").click()
+        # The overlay's own button, not Space: `shortcuts.js` leaves Space to a focused
+        # control that acts on it (`actsOnSpace`), and a stray press here would be one more
+        # thing to reason about than the flow needs.
+        display.locator("#ov-facts").click()
+        expect(display.locator("#ov-extra")).to_be_hidden()
         display.locator("#ov-next").click()
         display.wait_for_function(
             "previous => document.getElementById('ov-title').textContent !== previous",

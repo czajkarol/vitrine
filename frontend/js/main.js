@@ -67,6 +67,7 @@ const backButton = document.getElementById('ov-back');
 const likeButton = document.getElementById('ov-like');
 const dislikeButton = document.getElementById('ov-dislike');
 const describeButton = document.getElementById('ov-describe');
+const settingsButton = document.getElementById('ov-settings');
 
 // The verdict on the artwork on screen: 'like', 'dislike', 'hide' or null. Set from the
 // server's answer, never guessed, so a failed save leaves the buttons telling the truth.
@@ -83,7 +84,7 @@ const overlay = createOverlay(
     extra: document.getElementById('ov-extra'),
     credit: document.getElementById('ov-credit'),
     attribution: document.getElementById('ov-attribution'),
-    expandButton: document.getElementById('ov-expand'),
+    detailsHint: document.getElementById('ov-details-hint'),
   },
   {
     // Reading is not a moment to have the picture change. The idle fade was already
@@ -723,12 +724,25 @@ function holdAdvance(seconds) {
  * moment the user asked for less of it, which is the opposite of what they clicked for.
  *
  * A click on one of the overlay's own buttons is not this — those stop the event themselves
- * by being buttons, and the check below keeps a click on the expanded description, or in the
- * settings panel, from counting either.
+ * by being buttons, and the check below keeps a click on the caption, or in the settings
+ * panel, from counting either.
+ *
+ * **It waits a moment first, because a double click means something else now.** Doing the
+ * work on the first click and again on the second would hide the chrome and put it back on
+ * the way to fullscreen — a flicker at exactly the moment the display is changing size.
+ * `event.detail` identifies the second click, and the pending first one is cancelled by the
+ * `dblclick` handler below. The delay is only felt on the single-click gesture, and it is
+ * shorter than the fade it starts.
  */
-function onStageClick(event) {
-  if (event.button !== 0) return;
-  if (event.target.closest('.ov-button, .ov-description, .panel')) return;
+const DOUBLE_CLICK_MS = 250;
+
+let stageClickTimer = null;
+
+function isStageGesture(event) {
+  return !event.target.closest('.ov-button, .facts, .ov-description, .panel');
+}
+
+function toggleSuppressed() {
   const suppressed = !overlay.isSuppressed();
   overlay.setSuppressed(suppressed);
   if (suppressed) {
@@ -736,6 +750,49 @@ function onStageClick(event) {
     cancelDescription();
     setOverlayPinned(false);
   }
+}
+
+function onStageClick(event) {
+  if (event.button !== 0 || event.detail > 1) return;
+  if (!isStageGesture(event)) return;
+  clearTimeout(stageClickTimer);
+  stageClickTimer = setTimeout(() => {
+    stageClickTimer = null;
+    toggleSuppressed();
+  }, DOUBLE_CLICK_MS);
+}
+
+/**
+ * Open the settings, or close them again.
+ *
+ * Toggle, not open. In fullscreen the browser owns Esc and uses it to leave fullscreen, so
+ * a panel that only opens has no keyboard way out of the one state this app is meant to sit
+ * in. QUESTIONS.md #2, amended.
+ *
+ * Shared by `S` and by the gear in the overlay. The gear exists because `S` is not an
+ * affordance: somebody who has only ever used the mouse had no way to find out from the
+ * screen that the app had settings at all.
+ */
+function toggleSettings() {
+  if (panel.isOpen()) panel.hide();
+  else void panel.show();
+}
+
+/**
+ * A double click on the artwork: in or out of fullscreen.
+ *
+ * The gesture every video player and every image viewer has, and the app did not — `F` was
+ * the only way in, and a key is not something anyone finds by using a display with a mouse.
+ * It runs from the `dblclick` handler rather than from a counted pair of clicks because the
+ * browser owns the threshold, and because `requestFullscreen` needs a user gesture to be
+ * granted: a call out of a timer of our own is not one.
+ */
+function onStageDoubleClick(event) {
+  if (event.button !== 0) return;
+  if (!isStageGesture(event)) return;
+  clearTimeout(stageClickTimer);
+  stageClickTimer = null;
+  void fullscreen.toggle();
 }
 
 /**
@@ -832,9 +889,11 @@ backButton?.addEventListener('click', () => void travel(-1));
 likeButton?.addEventListener('click', () => void setVerdict('like'));
 dislikeButton?.addEventListener('click', () => void setVerdict('dislike'));
 describeButton?.addEventListener('click', () => void requestDescription());
+settingsButton?.addEventListener('click', () => void toggleSettings());
 document.getElementById('access-play')?.addEventListener('click', () => access.speak());
 document.getElementById('access-stop')?.addEventListener('click', () => access.stop());
 stage?.addEventListener('click', onStageClick);
+stage?.addEventListener('dblclick', onStageDoubleClick);
 
 bindShortcuts({
   onNext: advance,
@@ -854,10 +913,8 @@ bindShortcuts({
     applyInterval(seconds);
     panel.sync({ intervalSeconds: seconds });
   },
-  // Toggle, not open. In fullscreen the browser owns Esc and uses it to leave
-  // fullscreen, so a panel that only opens has no keyboard way out of the one state
-  // this app is meant to sit in. QUESTIONS.md #2, amended.
-  onSettings: () => (panel.isOpen() ? panel.hide() : void panel.show()),
+  onSettings: toggleSettings,
+  onExpandDetails: () => overlay.toggleDetails(),
   onHelp: () => void panel.showSection('panel-help'),
   onLike: () => void setVerdict('like'),
   onDislike: () => void setVerdict('dislike'),

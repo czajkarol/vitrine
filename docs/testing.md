@@ -36,6 +36,12 @@ or before a release. They are also how fixtures get refreshed.
 8. The spoken description reaches the screen with its grounding line
 9. The rotation is actually held while somebody is reading
 
+Still nine after M18, which changed how two of them reach a control rather than adding a
+tenth. Flow 9 clicks the caption, because that is what opens the details now; it asserts on
+`#ov-extra`, the catalogue facts that are hidden at rest, rather than on a restatement of the
+click. Flow 7 says which settings tab it wants before reaching for a filter — the panel is
+three tabs and the other two are `hidden`, which Playwright rightly refuses to click into.
+
 Playwright is slow and flaky in proportion to how much you ask of it. Everything not in that
 list belongs in a unit or integration test.
 

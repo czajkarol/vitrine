@@ -27,8 +27,8 @@ function plainText(html) {
 }
 
 export function createOverlay(elements, handlers = {}) {
-  const { overlay, title, artist, meta, description, credit, attribution, expandButton,
-    facts, extra } = elements;
+  const { overlay, title, artist, meta, description, credit, attribution,
+    facts, extra, detailsHint } = elements;
 
   let pinned = false;
   let visible = false;
@@ -39,8 +39,9 @@ export function createOverlay(elements, handlers = {}) {
   // is on screen with nothing over it. Movement does not bring it back — that is the whole
   // request — and a second click restores it. See `setSuppressed`.
   let suppressed = false;
-  // Whether the current artwork has a description at all. The `i` control is offered on
-  // every artwork since M13, but what it expands is not the same thing in both cases.
+  // Whether the current artwork has a description at all. It changes what expanding means
+  // — the description plus the catalogue facts, or only the facts — and so what the hover
+  // hint offers to do.
   let hasDescription = false;
 
   function collapse() {
@@ -50,32 +51,28 @@ export function createOverlay(elements, handlers = {}) {
     if (facts) facts.classList.remove('expanded');
     if (extra) extra.hidden = true;
     description.scrollTop = 0;
-    syncExpandButton();
+    syncHint();
     handlers.onExpandChange?.(false);
   }
 
   /**
-   * The `i` control is shown on every artwork, always.
+   * The one thing on screen that says the caption is a control.
    *
-   * It used to appear only when the description was actually clamped, measured from
-   * `scrollHeight` — which was right about the clamp and wrong about the control. The
-   * button vanishing on the roughly seven artworks in eight that have no description at all
-   * made it read as a rendering fault rather than as an absence, and there was no way to
-   * learn that the key even existed by looking at the screen. So it is a *details* toggle
-   * now: it expands the description where there is one, and on an artwork with none it
-   * still opens the catalogue facts the overlay does not have room for at rest — place of
-   * origin, the reference number, the artwork type.
+   * There was an `i` button here until M18 and there is not one now. It was shown on every
+   * artwork, including the roughly seven in eight with no description at all, because a
+   * control that vanishes reads as a rendering fault — which was the right fix for the
+   * wrong problem. A caption you click is a target the size of a caption rather than of a
+   * 1.9rem circle, it needs no explaining, and it takes the app's only permanent piece of
+   * overlay chrome off the screen.
+   *
+   * What replaces the button is a line that appears on hover and nowhere else, so the
+   * display at rest is unchanged. It is `aria-hidden`: it is an affordance for a pointer,
+   * and a screen reader is told about `E` in the keyboard map instead.
    */
-  function syncExpandButton() {
-    if (!expandButton) return;
-    expandButton.hidden = false;
-    // The state goes on aria-expanded rather than into the label, so a screen reader hears
-    // it without the label having to be swapped in two languages — and so the stylesheet
-    // can show it too.
-    expandButton.setAttribute('aria-expanded', String(expanded));
-    expandButton.setAttribute(
-      'aria-label',
-      t(hasDescription ? 'description_expand' : 'details_expand'),
+  function syncHint() {
+    if (!detailsHint) return;
+    detailsHint.textContent = t(
+      expanded ? 'details_hint_close' : hasDescription ? 'details_hint_open' : 'details_hint_facts',
     );
   }
 
@@ -128,10 +125,10 @@ export function createOverlay(elements, handlers = {}) {
   }
 
   /**
-   * The `i` button — open the details, or close them again.
+   * Open the details, or close them again.
    *
    * Deliberately not bound to the `I` key, which pins the whole overlay and means something
-   * else (`docs/product-spec.md`). Two affordances, two meanings.
+   * else (`docs/product-spec.md`). Two affordances, two meanings — `E` is this one.
    *
    * Opening it holds the rotation as well as stretching the idle fade. Those were two
    * halves of the same problem: the text staying put while the picture underneath it
@@ -145,7 +142,7 @@ export function createOverlay(elements, handlers = {}) {
     if (facts) facts.classList.toggle('expanded', expanded);
     if (extra) extra.hidden = !expanded;
     if (!expanded) description.scrollTop = 0;
-    syncExpandButton();
+    syncHint();
     // Reading is not moving the mouse, so without this the overlay fades out from under
     // the thing the user just asked to read.
     nudge();
@@ -153,8 +150,45 @@ export function createOverlay(elements, handlers = {}) {
     return expanded;
   }
 
-  function onExpandClick() {
+  /**
+   * Whether the pointer is finishing a text selection rather than asking for anything.
+   *
+   * Dragging across an expanded description to copy a sentence ends in a click on the
+   * caption, and without this that click collapses the paragraph the user was selecting
+   * from. Only a selection *inside* the caption counts, so a stale one left somewhere else
+   * on the page cannot make the caption stop responding.
+   */
+  function isSelectingInside() {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !facts) return false;
+    return facts.contains(selection.anchorNode) || facts.contains(selection.focusNode);
+  }
+
+  /**
+   * A click anywhere in the caption.
+   *
+   * The second click of a double click is ignored rather than undoing the first: a double
+   * click on the stage is the fullscreen gesture, and somebody who lands one on the caption
+   * by mistake should get one expansion rather than a flicker back to where they started.
+   */
+  function onFactsClick(event) {
+    if (event.button !== 0 || event.detail > 1) return;
+    if (isSelectingInside() || isOnScrollbar(event)) return;
     toggleDetails();
+  }
+
+  /**
+   * A click on the expanded description's own scrollbar, which is not a click on the text.
+   *
+   * `offsetX` is measured from the padding box, so a press in the scrollbar gutter lands
+   * past `clientWidth`. Without this, dragging the scrollbar of a long description closes
+   * the description — the one gesture somebody reading four hundred words is most likely
+   * to make.
+   */
+  function isOnScrollbar(event) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return false;
+    return event.offsetX > target.clientWidth || event.offsetY > target.clientHeight;
   }
 
   // Scrolling a long description is the one way to be actively reading without moving the
@@ -170,7 +204,7 @@ export function createOverlay(elements, handlers = {}) {
   // the mouse. Now the first click brings the controls back, which is what every media
   // player does and what the fullscreen toggle above already assumed happened.
   window.addEventListener('pointerdown', onPointerMove, { passive: true });
-  expandButton?.addEventListener('click', onExpandClick);
+  facts?.addEventListener('click', onFactsClick);
   description.addEventListener('scroll', onDescriptionScroll, { passive: true });
 
   return {
@@ -192,7 +226,7 @@ export function createOverlay(elements, handlers = {}) {
       collapse();
       description.textContent = prose;
       description.hidden = !hasDescription;
-      syncExpandButton();
+      syncHint();
 
       // The facts that do not earn a line at rest but are worth having when someone has
       // asked to read about the work. All of them were already on the response and none of
@@ -307,7 +341,7 @@ export function createOverlay(elements, handlers = {}) {
     destroy() {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerdown', onPointerMove);
-      expandButton?.removeEventListener('click', onExpandClick);
+      facts?.removeEventListener('click', onFactsClick);
       description.removeEventListener('scroll', onDescriptionScroll);
       clearTimeout(hideTimer);
       hideTimer = null;

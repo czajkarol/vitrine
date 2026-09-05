@@ -126,6 +126,7 @@ Space      next artwork
 ← →        back and forward through what you have seen
 F          toggle fullscreen
 I          toggle metadata overlay
+E          open or close the artwork's details
 H          keep this artwork up five minutes longer
 A          describe this artwork aloud
 L          add to favourites, or remove
@@ -137,8 +138,16 @@ S          toggle settings
 Esc        close settings if open, else close overlay if open, else exit fullscreen
 ```
 
-Plus one mouse gesture, and only one: **a left click on the artwork** hides the overlay
-entirely, and movement does not bring it back. A second click restores it.
+Plus three mouse gestures, and only three:
+
+```
+click the artwork          hide everything but the picture; click again for it back
+double click the artwork   fullscreen on or off
+click the caption          open or close the artwork's details
+```
+
+**A left click on the artwork** hides the overlay entirely, and movement does not bring it
+back. A second click restores it.
 
 **It works windowed as well as in fullscreen, and it says nothing.** Both of those were the
 other way round until M17 and both were argued for here, so both amendments are worth stating.
@@ -150,8 +159,22 @@ it used to name what had happened on the status line, on the reasoning that a cl
 control also hides the way back; it does not, and the message was chrome appearing at the top of
 the screen at the moment the user had asked for less of it.
 
-Clicks that land on the overlay's own buttons, on an expanded description, or in the settings
-panel are not this.
+Clicks that land on the overlay's own buttons, on the caption, or in the settings panel are
+not this. The caption taking the pointer for itself is what keeps the two click gestures
+apart: they are told apart by where they land, not by what they do.
+
+**A double click is fullscreen**, which every video player and every image viewer does and
+this app did not — `F` was the only way in, and a key is not something anybody finds by using
+a display with a mouse. The single-click gesture waits 250ms before acting so that the two
+clicks of a double click do not hide the chrome and put it back on the way into fullscreen;
+that delay is shorter than the fade it starts and is only felt on the single click.
+
+**The overlay's controls say what they are on hover.** Six circles holding an arrow or a
+heart are only as guessable as their icons, and the gear made a seventh. The words are the
+`aria-label` each control already carried, so there is one string per control rather than
+two. Not the browser's own `title` tooltip: it takes a second to arrive and arrives in the
+operating system's styling, which is a grey box from another application landing on the
+artwork.
 
 `?` exists because thirteen shortcuts documented only in this file are thirteen shortcuts nobody
 using the app knows about. It opens the settings panel with the keyboard map expanded, and the
@@ -207,17 +230,33 @@ machine in the interface sans.
 
 The description clamps to five lines. That is the resting state and does not change.
 
-A small `i` button beside it opens the details in place, bounded to 45vh and scrollable past
-that. **It is shown on every artwork.** It used to appear only when the clamp was actually
-hiding something, measured from `scrollHeight` — which was right about the clamp and wrong about
-the control. Roughly seven artworks in eight have no description at all, and on those the button
-vanished, which reads as a rendering fault rather than as an absence, and left no way to learn
-from the screen that the affordance existed.
+**The caption is the control.** Clicking anywhere in it — title, artist, date, description —
+opens the details in place, bounded to 45vh and scrollable past that; clicking again closes
+them. `E` does the same from the keyboard.
 
-So it is a *details* toggle rather than an expand button. Where there is a description it opens
+There was a small `i` button for this until M18, and there is not one now. The button had
+already been argued into its final form here: shown on every artwork, because measuring the
+clamp from `scrollHeight` made it vanish on the roughly seven artworks in eight with no
+description, which reads as a rendering fault rather than as an absence. That was the right
+fix for the wrong problem. A caption you click is a target the size of a caption rather than
+of a 1.9rem circle, it needs no explaining, and it takes the app's only permanent piece of
+overlay chrome off the screen. `QUESTIONS.md` #3, amended a third time.
+
+What replaces the button is a line that appears on hover of the caption and nowhere else, so
+the display at rest is unchanged — "click to read more" where there is a description, "click
+for details" where there is not, "click to close" while it is open. It is `aria-hidden`: it
+is an affordance for a pointer, and a screen reader is told about `E` in the keyboard map
+instead. It is not rendered at all where there is no hover to leave.
+
+It is a *details* toggle rather than an expand control. Where there is a description it opens
 it; either way it opens the catalogue facts the overlay has no room for at rest — place of
 origin, artwork type, reference number, and which collection the work is in. All four were
-already on the response and were on screen nowhere. `QUESTIONS.md` #3, amended twice.
+already on the response and were on screen nowhere.
+
+Two clicks are ignored so that the gesture does not fight the others: the second click of a
+double click, so a stray double click on the caption expands once rather than flickering back;
+and a click that ends a text selection inside the caption or lands on the description's own
+scrollbar, either of which would otherwise close the paragraph somebody is reading.
 
 **Expanded is a different size**, because it is a different act. The whole panel steps up
 together — a description that grew while its title stayed put would look like a fault — the
@@ -262,15 +301,21 @@ who is *reading*, not a way to stop the display.
 
 ### Controls on the display
 
-Six buttons, and they are the only clickable controls outside the settings panel: back, next,
-details, like, dislike, and — when a provider can write one — describe aloud. They live inside
-the overlay, which is hidden at rest, so "no visible controls at rest" is unaffected.
+Five buttons, plus the caption itself, and they are the only clickable controls outside the
+settings panel: back, next, like, dislike, settings, and — when a provider can write one —
+describe aloud. They live inside the overlay, which is hidden at rest, so "no visible controls
+at rest" is unaffected.
+
+**The gear is the last of them and is set apart from the rest**, because it is the one control
+there that is not about the artwork on screen. It exists because `S` is not an affordance:
+somebody who had only ever used the mouse had no way to find out from the screen that the app
+had settings at all.
 
 `X` has no button. "Never show this again" is not a thing to put one click away from a cursor.
 
 The overlay itself keeps `pointer-events: none` so it cannot swallow the movement that reveals
-it; the buttons, the expanded description and the accessibility section take the pointer back
-one element at a time.
+it; the buttons, the caption, the expanded description and the accessibility section take the
+pointer back one element at a time.
 
 ---
 
@@ -609,13 +654,46 @@ A small panel, not a page. Source, mode, interval, filters, ambient mode, AI pro
 language, and the keyboard map. Persisted locally. Opening settings pauses rotation; closing
 resumes.
 
-Changing the interval while the panel is open must not restart the clock under it — set the new
-interval, keep the clock held, and let closing the panel start it.
+**Three tabs since M18**, because one column had grown to nine groups with the API key — the
+one control here that is not a preference — in the middle of them:
+
+- **Display** — source, mode, rotation, ambient, language
+- **Filters** — the three vocabularies and the saved combinations
+- **AI** — provider and key
+
+The split is by what a setting is about rather than by how often it is touched. The keyboard
+map and the Esc hint stay below the tabs, because neither is a setting and `?` opens the map
+from anywhere. Which tab is showing is remembered for the life of the page and not persisted:
+coming back to the tab you were last in is worth having inside a session, while a *saved* tab
+means the panel opens on the API key months later because that is where you once were.
+
+There is no arrow-key roving between the tabs, which is what the ARIA practices ask for. The
+arrow keys belong to the history stack in this app and would do both things at once, so all
+three tabs are in the tab order instead.
+
+**It is still a form, and it no longer reads as a form bolted onto an ambient display.** The
+ground is the same warm dark as the letterboxing rather than a cold near-black, translucent
+enough that the artwork is faintly behind it; the panel's own title is set in the museum's
+serif, which is the one place the interface borrows that voice and is not a caption; and
+hairlines separate the groups that a stack of margins was separating badly.
+
+**No emoji on the filter names.** They were considered and are the wrong instrument here twice
+over. On the three group headings they would be decoration that carries no information; on the
+facets themselves — sixty of them, across style, subject and artwork type — any glyph for
+`style.islamic` or `subject.religion` is a picture standing in for a culture, which is exactly
+the forced association to avoid. The panel's hierarchy is doing that work with type instead.
 
 API keys entered here are write-only in the UI — once saved, show `…abcd`, never the value.
 The panel also says where the key is kept: the OS keyring, or unencrypted in the app's own
-database when there is no keyring to use. That line is shown before anything is typed, not
-after, because it is what someone needs in order to decide whether to type at all.
+database when there is no keyring to use.
+
+**The long form of that is collapsed, and the one-line version is the summary.** Two paragraphs
+about key storage in front of somebody every time they open the panel is more than most people
+want; a disclosure whose summary is a *label* would hide the thing the UI is required to say.
+So the summary is the fact — "kept in your computer's own password store", or "kept unencrypted
+in vitrine's own file" — and the paragraphs behind it are the why and what to do about it. The
+fact is on screen before anything is typed, not after, because it is what someone needs in
+order to decide whether to type at all.
 
 A key configured in `.env` is shown as such and cannot be removed from here — it is a file the
 user edits themselves. A key saved here overrides one in `.env`, and takes effect without a

@@ -23,11 +23,20 @@
       <!-- Museum facts. AI text gets its own labelled containers below and must never
            share this one — a glance should never mistake generated text for a museum
            caption (docs/product-spec.md). -->
+      <!-- **The caption is the control.** Clicking anywhere in here opens the details and
+           clicking again closes them; there is no separate button any more. A control the
+           size of a caption is easier to hit than a 1.9rem circle, and it removes the one
+           piece of chrome that was on screen whether or not it had anything to expand. `E`
+           does the same from the keyboard. See docs/product-spec.md. -->
       <section class="facts" id="ov-facts">
         <h1 id="ov-title" class="ov-title"></h1>
         <p id="ov-artist" class="ov-artist"></p>
         <p id="ov-meta" class="ov-meta"></p>
         <p id="ov-description" class="ov-description"></p>
+        <!-- The only thing that says the caption is clickable. It appears on hover and
+             nowhere else, so nothing is added to the display at rest. aria-hidden: it is
+             an affordance for a pointer, and a screen reader is told about `E` instead. -->
+        <p id="ov-details-hint" class="ov-details-hint" aria-hidden="true"></p>
         <!-- The catalogue facts that do not earn a line at rest. Filled by overlay.js and
              shown only while the details are expanded — all of them were already on the
              response and none of them were on screen anywhere. -->
@@ -44,12 +53,6 @@
                 data-i18n-aria-label="previous_artwork">&larr;</button>
         <button type="button" id="ov-next" class="ov-button"
                 data-i18n-aria-label="next_artwork">&rarr;</button>
-        <!-- Shown on every artwork since M13, because a control that vanishes on the seven
-             works in eight with no description read as a fault rather than an absence. It
-             expands the description where there is one, and the catalogue facts either
-             way. overlay.js sets the label to match. -->
-        <button type="button" id="ov-expand" class="ov-button" aria-expanded="false"
-                data-i18n-aria-label="details_expand">i</button>
         <!-- The two verdicts that change what the display will show you later. `L` and `D`
              do the same from the keyboard; `X` has no button, because "never again" is
              not a thing to put one click away. -->
@@ -62,6 +65,14 @@
              is not offered. -->
         <button type="button" id="ov-describe" class="ov-button" hidden
                 data-i18n-aria-label="access_describe">&#9834;</button>
+        <!-- Settings, reachable with a mouse. `S` has opened the panel since M4 and a key
+             is not an affordance: somebody who has only ever moved the mouse had no way to
+             find out that the app had settings at all. Set apart from the five above it
+             because it is the one control here that is not about this artwork. The
+             variation selector forces the text gear rather than the emoji one — nothing on
+             this display is in colour. -->
+        <button type="button" id="ov-settings" class="ov-button ov-button-apart"
+                data-i18n-aria-label="settings_open">&#9881;&#65038;</button>
       </div>
 
       <!-- AI interpretation, in its own labelled container. It must never share one with
@@ -117,6 +128,31 @@
   <aside id="panel" class="panel" role="dialog" aria-modal="false"
          data-i18n-aria-label="settings_title" inert>
     <h2 class="panel-heading" data-i18n="settings_title">Settings</h2>
+
+    <!-- Three tabs, because one column had grown to nine groups and the AI key — the one
+         control here that is not a preference — sat in the middle of them. The split is by
+         what a setting is about rather than by how often it is touched: what is shown, what
+         it is narrowed to, and the provider.
+
+         No arrow-key roving between the tabs, which is what the ARIA practices ask for:
+         the arrow keys belong to the history stack in this app (`shortcuts.js`) and would
+         do both things at once. All three are in the tab order instead, which is a plainer
+         way to reach the same three buttons. The keyboard map and the Esc hint stay below
+         the tabs, because neither is a setting. -->
+    <div class="panel-tabs" role="tablist" data-i18n-aria-label="settings_title">
+      <button type="button" class="panel-tab" role="tab" id="tab-display"
+              aria-controls="panel-tab-display" aria-selected="true"
+              data-tab="display" data-i18n="tab_display">Display</button>
+      <button type="button" class="panel-tab" role="tab" id="tab-filters"
+              aria-controls="panel-tab-filters" aria-selected="false"
+              data-tab="filters" data-i18n="tab_filters">Filters</button>
+      <button type="button" class="panel-tab" role="tab" id="tab-ai"
+              aria-controls="panel-tab-ai" aria-selected="false"
+              data-tab="ai" data-i18n="tab_ai">AI</button>
+    </div>
+
+    <div class="panel-tabpanel" id="panel-tab-display" role="tabpanel"
+         aria-labelledby="tab-display" data-tab="display">
 
     <!-- Which museum. First, because it changes what every group below it can offer. -->
     <fieldset class="panel-group">
@@ -191,6 +227,35 @@
       <div id="panel-intervals" class="panel-options"></div>
     </fieldset>
 
+    <!-- Removed outright where the Screen Wake Lock API is missing, rather than shown
+         disabled: an inert toggle invites the user to wonder what they did wrong. -->
+    <fieldset class="panel-group" id="panel-ambient-group">
+      <legend data-i18n="ambient_legend">Ambient</legend>
+      <label class="panel-option">
+        <input type="checkbox" id="panel-ambient">
+        <span data-i18n="ambient_label">Keep the screen awake</span>
+      </label>
+    </fieldset>
+
+    <fieldset class="panel-group">
+      <legend data-i18n="language_legend">Language</legend>
+      <label class="panel-option">
+        <input type="radio" name="language" value="en" checked>
+        <!-- Language names stay in their own language in both locales: someone looking for
+             Polish is looking for the word "Polski". -->
+        <span data-i18n="language_en">English</span>
+      </label>
+      <label class="panel-option">
+        <input type="radio" name="language" value="pl">
+        <span data-i18n="language_pl">Polski</span>
+      </label>
+    </fieldset>
+
+    </div><!-- /panel-tab-display -->
+
+    <div class="panel-tabpanel" id="panel-tab-filters" role="tabpanel"
+         aria-labelledby="tab-filters" data-tab="filters" hidden>
+
     <!-- Filters. One collapsible group per vocabulary, each a list of tri-state rows:
          click to include, again to exclude, again to clear. Until M13 inclusion and
          exclusion were two separate lists of the same sixty facets in two places, which
@@ -263,15 +328,10 @@
       </div>
     </fieldset>
 
-    <!-- Removed outright where the Screen Wake Lock API is missing, rather than shown
-         disabled: an inert toggle invites the user to wonder what they did wrong. -->
-    <fieldset class="panel-group" id="panel-ambient-group">
-      <legend data-i18n="ambient_legend">Ambient</legend>
-      <label class="panel-option">
-        <input type="checkbox" id="panel-ambient">
-        <span data-i18n="ambient_label">Keep the screen awake</span>
-      </label>
-    </fieldset>
+    </div><!-- /panel-tab-filters -->
+
+    <div class="panel-tabpanel" id="panel-tab-ai" role="tabpanel"
+         aria-labelledby="tab-ai" data-tab="ai" hidden>
 
     <!-- Bring your own key. The one control in the app that takes a secret, so it is
          also the one that has to say where the secret goes: panel.js fills the note
@@ -280,15 +340,6 @@
     <fieldset class="panel-group" id="panel-ai-group">
       <legend data-i18n="ai_key_legend">AI interpretation</legend>
       <p id="panel-ai-status" class="panel-summary"></p>
-      <!-- Pasting an API key into a settings panel is a thing to be uneasy about, and the
-           panel used to answer only half of it: it said where the key was kept, in words
-           ("keyring") that mean nothing to most people. This says what happens to the key
-           in plain language, and it is deliberately not reassuring beyond what is true --
-           the second half, filled in from /api/ai/key below, is a warning when there is no
-           password store. ADR-0002, docs/ai-system.md. -->
-      <p id="panel-ai-explainer" class="panel-summary" data-i18n="ai_key_explainer">
-        You type it here once, and vitrine sends it to the provider on your behalf.
-      </p>
       <div id="panel-ai-form">
         <label class="panel-option">
           <input type="radio" name="ai-provider" value="anthropic" checked>
@@ -306,23 +357,28 @@
           <button type="button" id="panel-ai-save" data-i18n="ai_key_save">Save key</button>
           <button type="button" id="panel-ai-clear" data-i18n="ai_key_remove">Remove key</button>
         </div>
-        <p id="panel-ai-storage" class="panel-warning"></p>
       </div>
+
+      <!-- Where the key goes, and what never happens to it. Two paragraphs of it, which is
+           what it takes to say honestly — and two paragraphs is also more than most people
+           want in front of them every time they open the panel, so it is closed at rest.
+           **The summary is not a label, it is the fact**: panel.js writes the one-line
+           version of where this machine actually keeps the key into it, so the answer
+           `docs/ai-system.md` requires the UI to give is on screen without opening
+           anything. The paragraphs behind it are the long form for whoever wants it.
+           ADR-0002. -->
+      <details class="panel-explain" id="panel-ai-explain">
+        <summary id="panel-ai-storage-summary" data-i18n="ai_key_explain_open">
+          Where your key is kept
+        </summary>
+        <p id="panel-ai-explainer" class="panel-summary" data-i18n="ai_key_explainer">
+          You type it here once, and vitrine sends it to the provider on your behalf.
+        </p>
+        <p id="panel-ai-storage" class="panel-warning"></p>
+      </details>
     </fieldset>
 
-    <fieldset class="panel-group">
-      <legend data-i18n="language_legend">Language</legend>
-      <label class="panel-option">
-        <input type="radio" name="language" value="en" checked>
-        <!-- Language names stay in their own language in both locales: someone looking for
-             Polish is looking for the word "Polski". -->
-        <span data-i18n="language_en">English</span>
-      </label>
-      <label class="panel-option">
-        <input type="radio" name="language" value="pl">
-        <span data-i18n="language_pl">Polski</span>
-      </label>
-    </fieldset>
+    </div><!-- /panel-tab-ai -->
 
     <!-- The keyboard map, translated like everything else. It lives here rather than in a
          separate overlay because the panel is already the one place the app explains
@@ -334,13 +390,16 @@
         <dt>Space</dt><dd data-i18n="help_next">Next artwork</dd>
         <dt>&larr; &rarr;</dt><dd data-i18n="help_history">Back and forward through what you have seen</dd>
         <dt>I</dt><dd data-i18n="help_overlay">Pin or unpin the details, and ask for an interpretation</dd>
+        <dt>E</dt><dd data-i18n="help_expand">Open or close the artwork's details</dd>
         <dt>H</dt><dd data-i18n="help_hold">Keep this artwork up five minutes longer</dd>
         <dt>A</dt><dd data-i18n="help_describe">Describe the artwork aloud</dd>
         <dt>L</dt><dd data-i18n="help_like">Add to favourites</dd>
         <dt>D</dt><dd data-i18n="help_dislike">Show me less like this</dd>
         <dt>X</dt><dd data-i18n="help_hide">Never show this one again</dd>
         <dt>F</dt><dd data-i18n="help_fullscreen">Fullscreen</dd>
-        <dt data-i18n="help_click_key">Click</dt><dd data-i18n="help_click">In fullscreen, hide or show everything but the artwork</dd>
+        <dt data-i18n="help_click_key">Click</dt><dd data-i18n="help_click">Hide or show everything but the artwork</dd>
+        <dt data-i18n="help_caption_key">Click the caption</dt><dd data-i18n="help_caption">Open or close the artwork's details</dd>
+        <dt data-i18n="help_doubleclick_key">Double click</dt><dd data-i18n="help_doubleclick">Fullscreen on or off</dd>
         <dt>S</dt><dd data-i18n="help_settings">Open or close settings</dd>
         <dt>1 – 5</dt><dd data-i18n="help_intervals">Rotate every 30 sec, 1, 5, 15 or 30 min</dd>
         <dt>?</dt><dd data-i18n="help_help">This list</dd>

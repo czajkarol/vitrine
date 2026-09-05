@@ -308,9 +308,46 @@ body {
   overflow: hidden;
 }
 
-/* Expanded by the `i` button, per artwork, and collapsed again on rotation, on Esc and
-   when the overlay fades. Bounded and scrollable rather than unbounded: an essay that
-   grows until it covers the artwork is the thing the clamp exists to prevent. */
+/* --- The caption is the control ---------------------------------------------
+   There was a 1.9rem `i` button for this until M18. A caption you click is a target the
+   size of a caption, it needs no explaining, and it takes the app's only permanent piece
+   of overlay chrome off the screen.
+
+   The overlay keeps `pointer-events: none` so it cannot swallow the mouse movement that
+   reveals it; this is the third element allowed to take the pointer back for itself, after
+   the buttons and the expanded description. That also means a click here no longer reaches
+   the stage, so it does not trip the "hide everything" gesture — which is what makes the
+   two clicks distinguishable by where they land rather than by what they do. */
+.facts {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* The one thing that says the caption is clickable, and it is only ever there while the
+   pointer is. Nothing is added to the display at rest, which is the rule the `i` button
+   was quietly breaking. */
+.ov-details-hint {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  opacity: 0;
+  transition: opacity var(--fade-ui) ease-in-out;
+}
+
+.facts:hover .ov-details-hint { opacity: 0.75; }
+
+/* Not on a touch screen, where there is no hover to leave and the hint would simply be a
+   line of text under every caption for ever. */
+@media (hover: none) {
+  .ov-details-hint { display: none; }
+}
+
+/* Expanded by clicking the caption or by `E`, per artwork, and collapsed again on rotation,
+   on Esc and when the overlay fades. Bounded and scrollable rather than unbounded: an essay
+   that grows until it covers the artwork is the thing the clamp exists to prevent. */
 .ov-description.expanded {
   display: block;
   max-height: 45vh;
@@ -378,15 +415,23 @@ body {
   opacity: 0.7;
 }
 
-/* The two controls, and the only clickable things on the display itself. They live in
-   the overlay, which is hidden at rest, so "no visible controls at rest" survives. */
+/* The controls, and — with the caption itself — the only clickable things on the display.
+   They live in the overlay, which is hidden at rest, so "no visible controls at rest"
+   survives. */
 .ov-controls {
   display: flex;
   gap: 0.5rem;
   margin: 0.85rem 0 0;
 }
 
+/* The gear. Set apart from the ones before it because it is the one control here that is
+   not about the artwork on screen. A wider gap and not the far edge of the measure: the
+   row is 68ch wide and a control alone at the end of that reads as unrelated furniture
+   rather than as the last item in a row. */
+.ov-button-apart { margin-left: 1.1rem; }
+
 .ov-button {
+  position: relative;
   display: grid;
   place-items: center;
   width: 1.9rem;
@@ -401,6 +446,46 @@ body {
   pointer-events: auto;
   transition: background-color 150ms ease-in-out, opacity 150ms ease-in-out;
 }
+
+/* What each of these does, in words, while the pointer is on it.
+   Six circles with an arrow or a heart in them are only as guessable as the icons are, and
+   the gear made a seventh. The words were already there — every one of these carries a
+   translated `aria-label` for exactly this reason — so the tooltip reads that attribute
+   rather than duplicating the string into a second one. No `title`: the browser's own
+   tooltip takes a second to appear and arrives in the OS's styling, which is a grey box
+   from another application landing on the artwork.
+
+   Left-aligned rather than centred on the button. Centring reads better on the middle of
+   the row and puts "Previous artwork" off the left edge of the screen on the first one,
+   which is the only one where the tooltip is genuinely needed. */
+.ov-button[aria-label]::after {
+  content: attr(aria-label);
+  position: absolute;
+  bottom: calc(100% + 0.45rem);
+  left: -0.35rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--fg);
+  font: 500 0.68rem/1.2 var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: none;
+  opacity: 0;
+  pointer-events: none;
+  /* Faster than the overlay's own fade. This one answers a pointer that is already on the
+     control and asking what it is; 400ms of it reads as the app thinking. */
+  transition: opacity 150ms ease-in-out;
+}
+
+.ov-button[aria-label]:hover::after,
+.ov-button[aria-label]:focus-visible::after { opacity: 1; }
+
+/* A control that will not answer yet should not name itself either — the cooldown on the
+   advance button is the one case, and a tooltip on a dimmed button reads as an invitation. */
+.ov-button:disabled::after { content: none; }
 
 /* `display: grid` above outranks the user agent's `[hidden] { display: none }`, which is
    a bare attribute selector. Without this the expand button shows on every artwork,
@@ -486,8 +571,12 @@ body.cursor-idle * { cursor: none; }
 }
 
 /* --- Settings panel ---------------------------------------------------------
-   Deliberately plain. This is the one place the app is allowed to look like a
-   form, and it is only ever on screen while the user is holding it open. */
+   Still a form, and still only ever on screen while the user is holding it open — but it
+   is a form inside an ambient display, and it used to read as a form bolted onto one. What
+   changed in M18 is the ground and the rhythm rather than the controls: a warm dark that
+   belongs to the same room as the letterboxing instead of a cold near-black, the artwork
+   showing faintly through it, one voice per level of the hierarchy, and hairlines doing
+   the separating that a stack of margins was doing badly. */
 
 .panel {
   position: fixed;
@@ -495,14 +584,22 @@ body.cursor-idle * { cursor: none; }
   right: 0;
   bottom: 0;
   width: min(26rem, 90vw);
-  padding: 1.75rem;
+  padding: 1.6rem 1.5rem 2.25rem;
   overflow-y: auto;
-  background: rgba(14, 14, 16, 0.96);
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  /* Warm, and translucent enough that the artwork is still faintly there behind it. The
+     old value was #0e0e10 at 96% — a cold slab against a ground that is deliberately not
+     cold. The blur is what lets the opacity come down without the text losing its ground. */
+  background: rgba(23, 19, 15, 0.9);
+  backdrop-filter: blur(18px);
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
   opacity: 0;
   transform: translateX(100%);
   transition: opacity var(--fade-ui) ease-in-out, transform var(--fade-ui) ease-in-out;
   pointer-events: none;
+  /* The default scrollbar is a bright grey bar down the side of a dark panel and is the
+     most visually assertive thing in it. Firefox and Chromium both understand these. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
 }
 
 .panel.visible {
@@ -511,10 +608,55 @@ body.cursor-idle * { cursor: none; }
   pointer-events: auto;
 }
 
+/* The panel's own title, and the one piece of interface set in the museum's face. The two
+   voices rule is about the overlay — it exists so generated text is never mistaken for a
+   caption, and nothing here is a caption. What it buys is that the panel opens with the
+   app's own name for itself rather than with a bold sans label. */
 .panel-heading {
-  margin: 0 0 1.25rem;
-  font-size: 1.05rem;
-  font-weight: 600;
+  margin: 0 0 1rem;
+  font-family: var(--font-museum);
+  font-size: 1.4rem;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+}
+
+/* --- The three tabs ---------------------------------------------------------
+   One column had grown to nine groups with the API key in the middle of them. Underlined
+   text rather than buttons with backgrounds: a tab bar with filled chips would be the
+   loudest thing in the panel, and these are labels that mark where you are. */
+
+.panel-tabs {
+  display: flex;
+  gap: 1.4rem;
+  margin: 0 0 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.panel-tab {
+  margin: 0 0 -1px;
+  padding: 0 0 0.5rem;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--fg-dim);
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 150ms ease-in-out, border-color 150ms ease-in-out;
+}
+
+.panel-tab:hover { color: var(--fg); }
+
+.panel-tab[aria-selected='true'] {
+  color: var(--fg);
+  border-bottom-color: rgba(255, 255, 255, 0.55);
+}
+
+.panel-tab:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.45);
+  outline-offset: 3px;
 }
 
 .panel-group {
@@ -523,22 +665,37 @@ body.cursor-idle * { cursor: none; }
   border: 0;
 }
 
+/* A hairline between groups instead of a wider gap. Margins alone left the panel reading
+   as one long column of similar-looking rows; this is what makes it read as sections. */
+.panel-group + .panel-group {
+  margin-top: 1.5rem;
+  padding-top: 1.35rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 .panel-group legend {
   padding: 0;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.6rem;
   color: var(--fg-dim);
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.11em;
+  opacity: 0.85;
 }
 
 .panel-option {
   display: flex;
   gap: 0.6rem;
   align-items: baseline;
-  padding: 0.32rem 0;
+  padding: 0.34rem 0;
   cursor: pointer;
 }
+
+/* The radio and checkbox dots, which arrive from the browser in its own blue. Left as
+   native controls — they are the right shape and they answer to the keyboard for free —
+   but tinted to the panel's own foreground so nothing here is in a colour the rest of
+   the app never uses. */
+.panel-option input { accent-color: rgba(232, 230, 227, 0.85); }
 
 .panel-option input { margin: 0; }
 
@@ -574,9 +731,27 @@ body.cursor-idle * { cursor: none; }
 .panel-explain > summary {
   color: var(--fg-dim);
   font-size: 0.78rem;
+  line-height: 1.5;
   cursor: pointer;
-  padding: 0.2rem 0;
+  padding: 0.25rem 0;
 }
+
+.panel-explain > summary:hover { color: var(--fg); }
+
+.panel-explain > summary:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.45);
+  outline-offset: 2px;
+}
+
+/* Where the API key is kept, collapsed. Two paragraphs is more than anybody wants in front
+   of them every time they open the panel, so the long form is behind the triangle — but the
+   summary is the *fact* rather than a label, so the one thing `docs/ai-system.md` requires
+   the UI to say is on screen without opening anything. When that fact is "unencrypted, in a
+   file", it is not set in the same quiet grey as the rest of the panel's asides. */
+#panel-ai-explain { margin-top: 1rem; }
+
+#panel-ai-explain.is-warning > summary { color: #e3b9a0; }
+#panel-ai-explain.is-warning > summary:hover { color: #f0cdb7; }
 
 .panel-weights {
   margin: 0.4rem 0 0.6rem;
@@ -795,16 +970,22 @@ body.cursor-idle * { cursor: none; }
   display: block;
   width: 100%;
   margin: 0.6rem 0;
-  padding: 0.45rem 0.55rem;
+  padding: 0.5rem 0.6rem;
   color: var(--fg);
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
   font: inherit;
   font-size: 0.85rem;
+  transition: border-color 150ms ease-in-out, background-color 150ms ease-in-out;
 }
 
+.panel-input::placeholder { color: var(--fg-dim); opacity: 0.55; }
+
+.panel-input:hover { border-color: rgba(255, 255, 255, 0.2); }
+
 .panel-input:focus {
+  background: rgba(255, 255, 255, 0.06);
   outline: 1px solid rgba(255, 255, 255, 0.35);
   outline-offset: 1px;
 }
@@ -815,14 +996,16 @@ body.cursor-idle * { cursor: none; }
 }
 
 .panel-buttons button {
-  padding: 0.35rem 0.7rem;
+  padding: 0.4rem 0.8rem;
   color: var(--fg);
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 3px;
+  border-radius: 4px;
   font: inherit;
   font-size: 0.8rem;
+  letter-spacing: 0.01em;
   cursor: pointer;
+  transition: background-color 150ms ease-in-out;
 }
 
 .panel-buttons button:hover { background: rgba(255, 255, 255, 0.12); }
@@ -839,16 +1022,25 @@ body.cursor-idle * { cursor: none; }
 }
 
 .panel-hint {
-  margin: 2rem 0 0;
+  margin: 1.75rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   color: var(--fg-dim);
-  font-size: 0.75rem;
-  opacity: 0.8;
+  font-size: 0.73rem;
+  line-height: 1.5;
+  opacity: 0.75;
 }
 
 /* The keyboard map. A definition list, because that is what it is: a key and what it
    does. Translated like every other string - thirteen shortcuts documented only in a
    file nobody using the app reads were thirteen shortcuts nobody knew about. */
-.panel-help { margin-top: 1.5rem; }
+/* Below the tabs rather than in one of them, because it is not a setting: it is where the
+   app explains itself, and `?` opens it from anywhere. */
+.panel-help {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
 
 .help-list {
   display: grid;

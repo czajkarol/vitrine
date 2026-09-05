@@ -516,7 +516,53 @@ Six items from the owner, plus two bugs found while reproducing the first one.
 
 ---
 
-## M18 — Inferred facets for Cleveland, as an experiment
+## M18 — The caption is the control, and the settings get three tabs
+
+Six changes from the owner, plus one asked for while the work was on screen. All of them are
+the same shape: a control that existed but could not be found, or one that could be found and
+was in the way.
+
+- [x] **The caption expands the details, and the `i` button is gone.** Clicking anywhere in the
+      title, artist, date or description opens them; clicking again closes them. The button had
+      already been argued into being shown on every artwork — which was the right fix for the
+      wrong problem, since a caption you click is a target the size of a caption and takes the
+      app's only permanent piece of overlay chrome off the screen. What says it is clickable is
+      a line on hover and nothing at rest. Tested windowed and in fullscreen
+- [x] `E` is the keyboard half of it. Without it the details would have been reachable only
+      with a mouse — `I` still means pin, which is a different thing
+- [x] Two clicks that are not the gesture: the second of a double click, and one that ends a
+      text selection or lands on the description's own scrollbar. Both would otherwise close
+      the paragraph somebody is reading
+- [x] **Settings are three tabs** — Display, Filters, AI — because one column had grown to nine
+      groups with the API key in the middle of them. No arrow-key roving: the arrows belong to
+      the history stack and would do both things at once. The keyboard map stays below the tabs,
+      because it is not a setting
+- [x] **The key-storage explanation is collapsed, and its summary is the fact rather than a
+      label.** "Kept unencrypted in vitrine's own file" is on screen without opening anything;
+      the two paragraphs behind it are the why. `docs/ai-system.md` amended — a disclosure whose
+      summary said "where your key is kept" would have put the required warning one click away
+      from the person who has to act on it
+- [x] **Double click toggles fullscreen.** The single-click gesture waits 250ms so the two
+      clicks do not hide the chrome and put it back on the way in. `F` was the only way before,
+      and a key is not something anybody finds by using a display with a mouse
+- [x] **A gear in the overlay opens the settings**, set apart from the other controls because it
+      is the one that is not about the artwork. Same reasoning as the double click: `S` is not
+      an affordance
+- [x] **The panel looks like it belongs to the app.** The warm dark of the letterboxing instead
+      of a cold near-black, translucent over the artwork, the panel's own title in the museum
+      serif, hairlines where a stack of margins was doing the separating. **No emoji on the
+      filter names** — considered and declined in the spec: decoration on the group headings,
+      and a picture standing in for a culture on facets like `style.islamic`
+- [x] **The overlay's controls name themselves on hover**, read from the `aria-label` each one
+      already carried. Asked for while the rest was on screen. Not `title`: the browser's own
+      tooltip is slow and arrives in the OS's styling
+- [x] Flow 9 clicks the caption, and flow 7 says which tab it wants. `#ov-extra` is the state
+      that says the details opened, rather than a restatement of the click
+- [x] Commit
+
+---
+
+## M19 — Inferred facets for Cleveland, as an experiment
 
 Nothing started. ADR-0016 lifts the prohibition and sets the rules; this is what building it
 would be. Ordered so the cheap, checkable half comes before anything is offered to a user.

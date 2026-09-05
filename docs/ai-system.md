@@ -175,6 +175,16 @@ and it is kept either in the OS password store or unencrypted in `data/vitrine.d
 half of that last one is a warning and reads as one. Nothing there is reassurance beyond what
 this section can back up. M17.
 
+**Collapsed since M18, and the summary carries the fact rather than a label.** Two paragraphs
+of it in front of somebody every time they open the panel is more than most people want, so
+the long form is behind a disclosure — but a disclosure summary reading "where your key is
+kept" would put the required warning one click *away* from the person who has to act on it.
+So the summary is the one-line answer for this machine, written from `/api/ai/key`: "kept in
+your computer's own password store", or "kept unencrypted in vitrine's own file", the second
+of which is set apart from the panel's other asides. What this section requires the UI to say
+is therefore still said without opening anything; what is behind the triangle is why, and what
+to do about it.
+
 **How it came out.** `repositories/credentials.py` holds both backends and picks between them
 once, at startup, rather than per call — a key written to the keyring and then looked for in
 SQLite would read as "no key" and quietly turn the feature off. The choice is a probe, not an
