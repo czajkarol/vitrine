@@ -224,7 +224,9 @@
          exactly one definition. -->
     <fieldset class="panel-group">
       <legend data-i18n="interval_legend">Rotation</legend>
-      <div id="panel-intervals" class="panel-options"></div>
+      <!-- One row, not five. See `renderIntervals` in panel.js: these are the shortest
+           labels in the panel and were taking a sixth of its height as a stack. -->
+      <div id="panel-intervals" class="panel-segments"></div>
     </fieldset>
 
     <!-- Removed outright where the Screen Wake Lock API is missing, rather than shown
@@ -263,10 +265,18 @@
     <fieldset class="panel-group panel-filters">
       <legend data-i18n="filters_legend">Filters</legend>
       <p id="panel-summary" class="panel-summary"></p>
-      <p id="panel-filter-hint" class="panel-summary panel-filter-hint"
-         data-i18n="filter_state_hint">
-        Click to include, again to exclude, again to clear.
-      </p>
+      <!-- How the three-state rows work. Behind a triangle rather than standing over the
+           groups: it is an instruction, it is the same instruction every time the panel is
+           opened, and after the first read it is a paragraph in the way of the control it
+           describes. panel.js still rewrites the sentence — a live source runs a two-state
+           cycle — so what is closed here says the truth for the current source. -->
+      <details class="panel-explain">
+        <summary data-i18n="filters_explain_open">How these work</summary>
+        <p id="panel-filter-hint" class="panel-summary panel-filter-hint"
+           data-i18n="filter_state_hint">
+          Click to include, again to exclude, again to clear.
+        </p>
+      </details>
 
       <details class="panel-facets" data-group="artwork-type">
         <summary>

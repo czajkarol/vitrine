@@ -672,16 +672,52 @@ arrow keys belong to the history stack in this app and would do both things at o
 three tabs are in the tab order instead.
 
 **It is still a form, and it no longer reads as a form bolted onto an ambient display.** The
-ground is the same warm dark as the letterboxing rather than a cold near-black, translucent
-enough that the artwork is faintly behind it; the panel's own title is set in the museum's
-serif, which is the one place the interface borrows that voice and is not a caption; and
-hairlines separate the groups that a stack of margins was separating badly.
+panel is set in the museum's face, not the interface sans — the two-voices rule exists so
+generated text is never mistaken for a caption, and nothing in this panel is a caption. In the
+system sans it read as a settings dialog that happened to be open in front of a painting.
+Garamond has a small x-height, so everything here is a step larger than the sans equivalent
+would be; counts, badges, the small asides and the API key field stay in the sans, the last of
+those because a key is a code string.
+
+Section names are sentence case in that face. Small tracked-out capitals are the house style of
+a settings dialog, which is the thing this panel is trying not to be, and they needed a wide
+gap under them to stop the capitals crowding the first row.
+
+**The tabs are the loudest thing in the panel, deliberately.** The first attempt made them
+small, dim, tracked-out capitals — quiet, consistent with everything else, and unreadable as
+navigation: the AI tab may as well not have existed, and the AI settings were reported missing
+from a panel that was showing them one click away. They are now the size of the text they
+switch, in a tray with a ground of its own, with the selected one filled. Quiet is right for
+the rest of the panel and was wrong for the one control that says what else is in it.
+
+**A scale of short values is a row, not a stack.** The five rotation intervals were five lines
+with a radio dot each — a sixth of the panel's height to say five things whose labels are three
+characters long. They are a segmented row now, built like the tab tray because they are the
+same kind of control, and still radios underneath: the input is hidden from view rather than
+removed, so the group keeps its keyboard behaviour and a screen reader still hears five options
+with one chosen.
+
+**Filter groups look like rows you open**, because they were not read as clickable at all: text
+at two steps below the panel's size, with no marker — `display: flex` drops the disclosure
+triangle — sitting flush against the panel's other labels. They now carry a chevron that turns,
+a hairline under each, a ground on hover, and facet rows at the panel's own size.
+
+The group separators are drawn in the margin rather than as each fieldset's own border. A
+`<legend>` is laid out over the fieldset's top edge rather than inside its content box, so
+`padding-top` on the group opened its gap *under* the section name instead of above it — which
+is where most of the panel's empty space was coming from — and a `border-top` gets notched for
+the legend, so the rule runs through the word rather than above it.
 
 **No emoji on the filter names.** They were considered and are the wrong instrument here twice
 over. On the three group headings they would be decoration that carries no information; on the
 facets themselves — sixty of them, across style, subject and artwork type — any glyph for
 `style.islamic` or `subject.religion` is a picture standing in for a culture, which is exactly
 the forced association to avoid. The panel's hierarchy is doing that work with type instead.
+
+**Every explanation longer than a line is behind a triangle**, and the panel opens onto controls
+rather than onto prose: how Curated ranks, how the three-state filter rows work, and where the
+API key is kept. What stays in the open is a line at most — the mode and source definitions,
+which are what a mode called "Curated" needs in order to mean anything, and the indexed count.
 
 API keys entered here are write-only in the UI — once saved, show `…abcd`, never the value.
 The panel also says where the key is kept: the OS keyring, or unencrypted in the app's own

@@ -217,10 +217,20 @@ export function createPanel(elements, handlers) {
   }
 
   /** The rotation menu, built from rotation.js so the list has one definition. */
+  /**
+   * The five intervals, as one row rather than five stacked rows.
+   *
+   * They are the shortest labels in the panel — "30 sec", "5 min" — and each was taking a
+   * full line with a radio dot beside it, which is a sixth of the panel's height spent on
+   * a scale of five values. Laid out as a segmented row they read as the scale they are.
+   * Still radios underneath: the input is hidden from view, not removed, so the group keeps
+   * its keyboard behaviour and a screen reader still hears five options with one chosen.
+   */
   function renderIntervals() {
     intervalList.textContent = '';
     for (const seconds of INTERVAL_SECONDS) {
       const option = buildRadio(intervalLabel(seconds), String(seconds), 'interval');
+      option.classList.add('panel-segment');
       option.querySelector('input').addEventListener('change', () => {
         current = { ...current, intervalSeconds: seconds };
         handlers.onIntervalChange(seconds);

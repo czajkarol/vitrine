@@ -560,6 +560,30 @@ was in the way.
       that says the details opened, rather than a restatement of the click
 - [x] Commit
 
+Then a second pass, from the owner looking at it:
+
+- [x] **The tabs were invisible and the AI settings were reported missing.** Small, dim,
+      tracked-out capitals read as a caption strip rather than as three controls. They are now
+      the size of the text they switch, in a tray, with the selected one filled. The whole
+      point of the split was lost to making the control that carries it quiet
+- [x] **The panel is set in the museum's serif**, sentence case, not the system sans in small
+      capitals. Counts, badges, the small asides and the key field stay in the sans
+- [x] **Most of the empty space was a `<legend>` quirk.** A legend is laid out over the
+      fieldset's top edge, so `padding-top` on the group opened its gap *under* the section
+      name — 18px under "Mode" against 4px under "Source", which is the first group and has no
+      padding. The separators are drawn in the margin now, which also stops the rule being
+      notched through the word
+- [x] **The five rotation intervals are one row**, built like the tab tray. Still radios, with
+      the input hidden from view rather than removed
+- [x] **Filter groups read as rows you open**: a chevron that turns, a hairline each, a ground
+      on hover, facet rows at the panel's own size instead of two steps below it
+- [x] **The panel is more translucent and its edge is a soft shadow** rather than a 1px line,
+      so it dissolves into the picture instead of sitting on it as a card
+- [x] **Everything longer than a line is behind a triangle** — how filters work joins how
+      Curated ranks and where the key is kept. The preset "Save" button turned out never to
+      have been styled at all, which the new ground made obvious
+- [x] Commit
+
 ---
 
 ## M19 — Inferred facets for Cleveland, as an experiment
